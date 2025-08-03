@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
   },
   platformsContainer: {
     flex: 1,
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 24,
@@ -105,5 +106,7 @@ const styles = StyleSheet.create({
   },
   platformGrid: {
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
 });

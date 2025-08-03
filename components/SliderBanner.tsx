@@ -78,7 +78,11 @@ export function SliderBanner({ content, onContentPress }: SliderBannerProps) {
               style={[styles.slide, { width: screenWidth - 40 }]}
               onPress={() => onContentPress(item)}
             >
-              <Image source={{ uri: item.poster }} style={styles.posterImage} />
+              <Image 
+                source={{ uri: item.poster }} 
+                style={styles.posterImage}
+                resizeMode="cover"
+              />
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.8)']}
                 style={styles.overlay}
@@ -144,12 +148,13 @@ const styles = StyleSheet.create({
   },
   sliderContainer: {
     height: 300,
+    marginHorizontal: 10,
   },
   slider: {
     height: 300,
   },
   slide: {
-    marginHorizontal: 20,
+    marginHorizontal: 10,
     borderRadius: 15,
     overflow: 'hidden',
     position: 'relative',
@@ -158,11 +163,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
   posterImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   overlay: {
     position: 'absolute',
