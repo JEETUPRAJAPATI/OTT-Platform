@@ -38,31 +38,31 @@ export const platforms: Platform[] = [
   {
     id: 'netflix',
     name: 'Netflix',
-    logo: require('../assets/images/netflix-logo.png'),
+    logo: null,
     color: '#E50914',
   },
   {
     id: 'prime',
     name: 'Amazon Prime',
-    logo: require('../assets/images/prime-logo.png'),
+    logo: null,
     color: '#00A8E1',
   },
   {
     id: 'hotstar',
     name: 'Disney+ Hotstar',
-    logo: require('../assets/images/hotstar-logo.png'),
+    logo: null,
     color: '#1F80E0',
   },
   {
     id: 'sonyliv',
     name: 'SonyLIV',
-    logo: require('../assets/images/sonyliv-logo.png'),
+    logo: null,
     color: '#7B68EE',
   },
   {
     id: 'zee5',
     name: 'ZEE5',
-    logo: require('../assets/images/zee5-logo.png'),
+    logo: null,
     color: '#6C5CE7',
   },
 ];
