@@ -2,7 +2,7 @@
 export interface Platform {
   id: string;
   name: string;
-  logo: any;
+  logo: string | null;
   color: string;
 }
 
@@ -38,31 +38,31 @@ export const platforms: Platform[] = [
   {
     id: 'netflix',
     name: 'Netflix',
-    logo: null,
+    logo: 'https://images.ctfassets.net/y2ske730sjqp/1aONibCke6niZhgPxuiilC/2c401b05a07288746ddf3bd3943fbc76/BrandAssets_Logos_01-Wordmark.jpg',
     color: '#E50914',
   },
   {
     id: 'prime',
     name: 'Amazon Prime',
-    logo: null,
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Amazon_Prime_Video_logo.svg/1280px-Amazon_Prime_Video_logo.svg.png',
     color: '#00A8E1',
   },
   {
     id: 'hotstar',
     name: 'Disney+ Hotstar',
-    logo: null,
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Disney%2B_Hotstar_logo.svg/1280px-Disney%2B_Hotstar_logo.svg.png',
     color: '#1F80E0',
   },
   {
     id: 'sonyliv',
     name: 'SonyLIV',
-    logo: null,
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Sony_LIV_Logo.png/1280px-Sony_LIV_Logo.png',
     color: '#7B68EE',
   },
   {
     id: 'zee5',
     name: 'ZEE5',
-    logo: null,
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Zee5-official-logo.svg/1280px-Zee5-official-logo.svg.png',
     color: '#6C5CE7',
   },
 ];

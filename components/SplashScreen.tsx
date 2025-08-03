@@ -54,7 +54,7 @@ export function SplashScreen({ onAnimationEnd }: SplashScreenProps) {
         ]}
       >
         <ThemedText type="title" style={styles.title}>
-          MyOTT Hub
+          RK SWOT
         </ThemedText>
         <ThemedText style={styles.subtitle}>
           Your Gateway to Entertainment

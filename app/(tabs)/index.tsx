@@ -25,7 +25,7 @@ export default function HomeScreen() {
       <ThemedView style={styles.content}>
         <ThemedView style={styles.header}>
           <ThemedText type="title" style={styles.title}>
-            MyOTT Hub
+            RK SWOT
           </ThemedText>
           <ThemedText style={styles.subtitle}>
             Explore content from your favorite OTT platforms
