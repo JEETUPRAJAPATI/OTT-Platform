@@ -6,7 +6,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { SplashScreen } from '@/components/SplashScreen';
 import { PlatformLogo } from '@/components/PlatformLogo';
-import { platforms } from '@/data/ottPlatforms';
+import { SliderBanner } from '@/components/SliderBanner';
+import { platforms, contentData, Content } from '@/data/ottPlatforms';
 
 export default function HomeScreen() {
   const [showSplash, setShowSplash] = useState(true);
@@ -15,6 +16,15 @@ export default function HomeScreen() {
   const handlePlatformPress = (platformId: string) => {
     router.push(`/platform/${platformId}`);
   };
+
+  const handleContentPress = (content: Content) => {
+    router.push(`/content/${content.id}`);
+  };
+
+  // Get newest releases (latest 4 content items by release year)
+  const newReleases = [...contentData]
+    .sort((a, b) => b.releaseYear - a.releaseYear)
+    .slice(0, 4);
 
   if (showSplash) {
     return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;
@@ -31,6 +41,11 @@ export default function HomeScreen() {
             Explore content from your favorite OTT platforms
           </ThemedText>
         </ThemedView>
+
+        <SliderBanner 
+          content={newReleases} 
+          onContentPress={handleContentPress}
+        />
 
         <ThemedView style={styles.platformsContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
