@@ -11,7 +11,6 @@ import {
   StatusBar,
   ActivityIndicator,
   ImageBackground,
-  Animated,
   Share,
   Alert,
 } from 'react-native';
@@ -49,37 +48,10 @@ export default function TMDbContentDetails() {
   const [loading, setLoading] = useState(true);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
-  
-  // Animation values
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
-  const scaleAnim = new Animated.Value(0.9);
 
   useEffect(() => {
     loadContent();
-    startAnimations();
   }, [id]);
-
-  const startAnimations = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
 
   const loadContent = async () => {
     try {
@@ -239,38 +211,6 @@ export default function TMDbContentDetails() {
               <View style={styles.heroContent}>
                 <View style={styles.posterContainer}>
                   <Image source={{ uri: posterUrl }} style={styles.posterImage} />
-                  
-                  {/* Quick Actions */}
-                  <View style={styles.quickActions}>
-                    <TouchableOpacity 
-                      style={[styles.actionButton, styles.playButton]}
-                      onPress={() => videos.length > 0 && playTrailer(videos[0].key)}
-                    >
-                      <Ionicons name="play" size={20} color="#fff" />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={styles.actionButton}
-                      onPress={toggleWatchlist}
-                    >
-                      <Ionicons 
-                        name={isWatchlisted ? "bookmark" : "bookmark-outline"} 
-                        size={20} 
-                        color="#fff" 
-                      />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={styles.actionButton}
-                      onPress={handleDownload}
-                    >
-                      <Ionicons 
-                        name={isDownloaded ? "cloud-done" : "cloud-download-outline"} 
-                        size={20} 
-                        color="#fff" 
-                      />
-                    </TouchableOpacity>
-                  </View>
                 </View>
 
                 <View style={styles.contentInfo}>
@@ -317,23 +257,9 @@ export default function TMDbContentDetails() {
                       style={styles.genresContainer}
                     >
                       {content.genres.map((genre) => (
-                        <TouchableOpacity
-                          key={genre.id}
-                          style={[
-                            styles.genreChip,
-                            selectedGenre === genre.id && styles.genreChipSelected
-                          ]}
-                          onPress={() => setSelectedGenre(
-                            selectedGenre === genre.id ? null : genre.id
-                          )}
-                        >
-                          <Text style={[
-                            styles.genreText,
-                            selectedGenre === genre.id && styles.genreTextSelected
-                          ]}>
-                            {genre.name}
-                          </Text>
-                        </TouchableOpacity>
+                        <View key={genre.id} style={styles.genreChip}>
+                          <Text style={styles.genreText}>{genre.name}</Text>
+                        </View>
                       ))}
                     </ScrollView>
                   )}
@@ -344,12 +270,7 @@ export default function TMDbContentDetails() {
         </View>
 
         {/* Main Action Buttons */}
-        <Animated.View 
-          style={[
-            styles.actionButtonsContainer,
-            { opacity: fadeAnim }
-          ]}
-        >
+        <View style={styles.actionButtonsContainer}>
           <TouchableOpacity style={styles.primaryButton}>
             <Ionicons name="play" size={24} color="#fff" />
             <Text style={styles.primaryButtonText}>Play</Text>
@@ -371,26 +292,28 @@ export default function TMDbContentDetails() {
               {isDownloaded ? 'Downloaded' : 'Download'}
             </Text>
           </TouchableOpacity>
-        </Animated.View>
+          
+          <TouchableOpacity 
+            style={styles.secondaryButton}
+            onPress={toggleWatchlist}
+          >
+            <Ionicons 
+              name={isWatchlisted ? "bookmark" : "bookmark-outline"} 
+              size={24} 
+              color="#fff" 
+            />
+            <Text style={styles.secondaryButtonText}>Watchlist</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Overview Section */}
-        <Animated.View 
-          style={[
-            styles.section,
-            { opacity: fadeAnim }
-          ]}
-        >
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Overview</Text>
-          <Text style={styles.overview}>{content.overview}</Text>
-        </Animated.View>
+          <Text style={styles.overview}>{content.overview || 'No overview available.'}</Text>
+        </View>
 
         {/* Movie Details Section */}
-        <Animated.View 
-          style={[
-            styles.section,
-            { opacity: fadeAnim }
-          ]}
-        >
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Details</Text>
           <View style={styles.detailsGrid}>
             {content.budget && content.budget > 0 && (
@@ -447,16 +370,11 @@ export default function TMDbContentDetails() {
               </View>
             )}
           </View>
-        </Animated.View>
+        </View>
 
         {/* Cast Section */}
         {cast.length > 0 && (
-          <Animated.View 
-            style={[
-              styles.section,
-              { opacity: fadeAnim }
-            ]}
-          >
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Cast</Text>
             <ScrollView 
               horizontal 
@@ -473,22 +391,17 @@ export default function TMDbContentDetails() {
                     }}
                     style={styles.castImage}
                   />
-                  <Text style={styles.castName}>{person.name}</Text>
-                  <Text style={styles.castCharacter}>{person.character}</Text>
+                  <Text style={styles.castName} numberOfLines={2}>{person.name}</Text>
+                  <Text style={styles.castCharacter} numberOfLines={2}>{person.character}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </Animated.View>
+          </View>
         )}
 
         {/* Videos Section */}
         {videos.length > 0 && (
-          <Animated.View 
-            style={[
-              styles.section,
-              { opacity: fadeAnim }
-            ]}
-          >
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Trailers & Videos</Text>
             <ScrollView 
               horizontal 
@@ -512,46 +425,13 @@ export default function TMDbContentDetails() {
                       <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
                     </View>
                   </View>
-                  <Text style={styles.videoTitle}>{video.name}</Text>
+                  <Text style={styles.videoTitle} numberOfLines={2}>{video.name}</Text>
                   <Text style={styles.videoType}>{video.type}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </Animated.View>
-        )}
-
-        {/* Provider Information */}
-        <Animated.View 
-          style={[
-            styles.section,
-            { opacity: fadeAnim }
-          ]}
-        >
-          <Text style={styles.sectionTitle}>Where to Watch</Text>
-          <View style={styles.providerContainer}>
-            <View style={styles.providerPlatform}>
-              <Image 
-                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg' }}
-                style={styles.providerLogo}
-              />
-              <Text style={styles.providerName}>Netflix</Text>
-            </View>
-            <View style={styles.providerPlatform}>
-              <Image 
-                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.png' }}
-                style={styles.providerLogo}
-              />
-              <Text style={styles.providerName}>Prime Video</Text>
-            </View>
           </View>
-          
-          <TouchableOpacity style={styles.invalidHookWarning}>
-            <Ionicons name="warning" size={16} color="#FF6B6B" />
-            <Text style={styles.warningText}>
-              Invalid hook call. Hooks can only be used inside function components.
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -601,7 +481,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroSection: {
-    height: screenHeight * 0.75,
+    height: screenHeight * 0.7,
   },
   backdropImage: {
     width: '100%',
@@ -635,9 +515,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 4,
   },
   heroContent: {
     flexDirection: 'row',
@@ -658,26 +535,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  quickActions: {
-    flexDirection: 'row',
-    marginTop: 12,
-    justifyContent: 'center',
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  playButton: {
-    backgroundColor: '#E50914',
-    borderColor: '#E50914',
-  },
   contentInfo: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -688,9 +545,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 12,
     lineHeight: 32,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 4,
   },
   metaInfo: {
     flexDirection: 'row',
@@ -701,9 +555,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     fontSize: 16,
     fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   dot: {
     width: 4,
@@ -725,9 +576,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 4,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+  },
+  voteCount: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  additionalInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  runtime: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginRight: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  seasons: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginRight: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  status: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+    backgroundColor: 'rgba(76,175,80,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   genresContainer: {
     marginTop: 8,
@@ -742,20 +628,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
   },
-  genreChipSelected: {
-    backgroundColor: '#E50914',
-    borderColor: '#E50914',
-  },
   genreText: {
     color: 'rgba(255,255,255,0.95)',
     fontSize: 13,
     fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  genreTextSelected: {
-    color: '#fff',
   },
   actionButtonsContainer: {
     flexDirection: 'row',
@@ -795,7 +671,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -816,6 +692,29 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     fontSize: 16,
     lineHeight: 24,
+  },
+  detailsGrid: {
+    gap: 16,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  detailLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    flex: 1,
+  },
+  detailValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 2,
+    textAlign: 'right',
   },
   castContainer: {
     paddingVertical: 8,
@@ -881,107 +780,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     marginTop: 2,
-  },
-  voteCount: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    marginLeft: 4,
-  },
-  additionalInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
-  runtime: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    marginRight: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  seasons: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    marginRight: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  status: {
-    color: '#4CAF50',
-    fontSize: 14,
-    fontWeight: '600',
-    backgroundColor: 'rgba(76,175,80,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  detailsGrid: {
-    gap: 16,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  detailLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    flex: 1,
-  },
-  detailValue: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    flex: 2,
-    textAlign: 'right',
-  },
-  providerContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 16,
-  },
-  providerPlatform: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  providerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  providerName: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  invalidHookWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,107,107,0.1)',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,107,0.3)',
-  },
-  warningText: {
-    color: '#FF6B6B',
-    fontSize: 13,
-    marginLeft: 8,
-    flex: 1,
   },
   bottomSpacer: {
     height: 40,
