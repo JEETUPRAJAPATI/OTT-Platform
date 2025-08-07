@@ -1,432 +1,731 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, Image, View, Alert, TouchableOpacity, Linking } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { tmdbService, TMDbCast, TMDbVideo } from '@/services/tmdbApi';
-import { downloadService } from '@/services/downloadService';
-import { Ionicons } from '@expo/vector-icons';
 
-export default function TMDbContentDetailsScreen() {
-  const { id, type } = useLocalSearchParams<{ id: string; type: 'movie' | 'tv' }>();
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+  ActivityIndicator,
+  ImageBackground,
+  Animated,
+  Share,
+  Alert,
+} from 'react-native';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
+import { downloadService } from '@/services/downloadService';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+type TMDbContent = TMDbMovie | TMDbTVShow;
+
+interface Cast {
+  id: number;
+  name: string;
+  character: string;
+  profile_path: string | null;
+}
+
+interface Video {
+  id: string;
+  key: string;
+  name: string;
+  type: string;
+  site: string;
+}
+
+export default function TMDbContentDetails() {
+  const { id } = useLocalSearchParams();
   const router = useRouter();
-  const [content, setContent] = useState<any>(null);
-  const [cast, setCast] = useState<TMDbCast[]>([]);
-  const [videos, setVideos] = useState<TMDbVideo[]>([]);
+  const [content, setContent] = useState<TMDbContent | null>(null);
+  const [cast, setCast] = useState<Cast[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isWatchlisted, setIsWatchlisted] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  
+  // Animation values
+  const fadeAnim = new Animated.Value(0);
+  const slideAnim = new Animated.Value(50);
+  const scaleAnim = new Animated.Value(0.9);
 
   useEffect(() => {
-    loadContentDetails();
-  }, [id, type]);
+    loadContent();
+    startAnimations();
+  }, [id]);
 
-  const loadContentDetails = async () => {
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const loadContent = async () => {
     try {
       setLoading(true);
-      const contentId = parseInt(id);
-
-      let details;
-      if (type === 'movie') {
-        details = await tmdbService.getMovieDetails(contentId);
-      } else {
-        details = await tmdbService.getTVShowDetails(contentId);
-      }
-
-      setContent(details);
-      setCast(details.credits?.cast?.slice(0, 10) || []);
-      setVideos(details.videos?.results?.filter((v: TMDbVideo) => v.site === 'YouTube') || []);
+      
+      // Fetch content details
+      const contentData = await tmdbService.getMovieDetails(Number(id));
+      setContent(contentData);
+      
+      // Fetch cast
+      const creditsData = await tmdbService.getMovieCredits(Number(id));
+      setCast(creditsData.cast.slice(0, 10));
+      
+      // Fetch videos
+      const videosData = await tmdbService.getMovieVideos(Number(id));
+      setVideos(videosData.results.filter((video: Video) => 
+        video.site === 'YouTube' && (video.type === 'Trailer' || video.type === 'Teaser')
+      ).slice(0, 3));
+      
+      // Check if downloaded
+      const downloaded = await downloadService.isDownloaded(Number(id));
+      setIsDownloaded(downloaded);
+      
     } catch (error) {
-      console.error('Error loading content details:', error);
+      console.error('Error loading content:', error);
       Alert.alert('Error', 'Failed to load content details');
     } finally {
       setLoading(false);
     }
   };
 
-  const openTrailer = (videoKey: string) => {
-    const url = tmdbService.getYouTubeUrl(videoKey);
-    Linking.openURL(url);
+  const handleDownload = async () => {
+    if (!content) return;
+    
+    try {
+      if (isDownloaded) {
+        await downloadService.removeDownload(content.id);
+        setIsDownloaded(false);
+        Alert.alert('Success', 'Removed from downloads');
+      } else {
+        await downloadService.addDownload({
+          id: content.id,
+          title: 'title' in content ? content.title : content.name,
+          poster_path: content.poster_path,
+          overview: content.overview,
+          vote_average: content.vote_average,
+          release_date: 'release_date' in content ? content.release_date : content.first_air_date,
+          downloadedAt: new Date().toISOString(),
+        });
+        setIsDownloaded(true);
+        Alert.alert('Success', 'Added to downloads');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update downloads');
+    }
   };
 
-  const handleDownload = () => {
-    const contentId = id.toString();
-
-    if (downloadService.isDownloaded(contentId)) {
-      Alert.alert('Already Downloaded', `"${title}" is already in your downloads.`);
-      return;
+  const handleShare = async () => {
+    if (!content) return;
+    
+    try {
+      const title = 'title' in content ? content.title : content.name;
+      await Share.share({
+        message: `Check out "${title}" on TMDb!`,
+        url: `https://www.themoviedb.org/${'title' in content ? 'movie' : 'tv'}/${content.id}`,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
     }
+  };
 
-    if (downloadService.isDownloading(contentId)) {
-      Alert.alert('Download in Progress', `"${title}" is currently downloading.`);
-      return;
-    }
-
+  const toggleWatchlist = () => {
+    setIsWatchlisted(!isWatchlisted);
     Alert.alert(
-      'Download Movie',
-      `Would you like to download "${title}"?\n\nNote: This is a demo feature. In a real app, this would connect to your content delivery service.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Download', 
-          onPress: () => {
-            downloadService.addDownload({
-              id: contentId,
-              title,
-              type: type as 'movie' | 'tv',
-              poster_path: content.poster_path,
-            });
-            Alert.alert('Download Started', `"${title}" has been added to your downloads.`);
-          }
-        }
-      ]
+      'Watchlist',
+      isWatchlisted ? 'Removed from watchlist' : 'Added to watchlist'
     );
+  };
+
+  const playTrailer = (videoKey: string) => {
+    Alert.alert('Play Trailer', `Playing trailer: ${videoKey}`);
   };
 
   if (loading) {
     return (
-      <ThemedView style={styles.loadingContainer}>
-        <ThemedText>Loading...</ThemedText>
-      </ThemedView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#E50914" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
     );
   }
 
   if (!content) {
     return (
-      <ThemedView style={styles.errorContainer}>
-        <ThemedText>Content not found</ThemedText>
-      </ThemedView>
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Content not found</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
-  const title = type === 'movie' ? content.title : content.name;
-  const releaseDate = type === 'movie' ? content.release_date : content.first_air_date;
-  const posterUrl = tmdbService.getImageUrl(content.poster_path);
-  const backdropUrl = tmdbService.getImageUrl(content.backdrop_path, 'w780');
+  const title = 'title' in content ? content.title : content.name;
+  const releaseDate = 'release_date' in content ? content.release_date : content.first_air_date;
+  const posterUrl = content.poster_path 
+    ? `https://image.tmdb.org/t/p/w500${content.poster_path}`
+    : 'https://via.placeholder.com/300x450?text=No+Image';
+  const backdropUrl = content.backdrop_path
+    ? `https://image.tmdb.org/t/p/w1280${content.backdrop_path}`
+    : posterUrl;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        {backdropUrl && (
-          <Image source={{ uri: backdropUrl }} style={styles.backdrop} />
-        )}
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <ImageBackground
+            source={{ uri: backdropUrl }}
+            style={styles.backdropImage}
+            resizeMode="cover"
+          >
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)', '#000']}
+              style={styles.heroGradient}
+            >
+              {/* Header */}
+              <View style={styles.header}>
+                <TouchableOpacity 
+                  style={styles.headerButton}
+                  onPress={() => router.back()}
+                >
+                  <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Details</Text>
+                <TouchableOpacity 
+                  style={styles.headerButton}
+                  onPress={handleShare}
+                >
+                  <Ionicons name="share-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
 
-      <ThemedView style={styles.content}>
-        <View style={styles.posterSection}>
-          {posterUrl && (
-            <Image source={{ uri: posterUrl }} style={styles.poster} />
-          )}
-
-          <View style={styles.titleSection}>
-            <ThemedText type="title" style={styles.title}>
-              {title}
-            </ThemedText>
-            <ThemedText style={styles.releaseDate}>
-              {releaseDate ? new Date(releaseDate).getFullYear() : 'N/A'}
-            </ThemedText>
-            <View style={styles.ratingContainer}>
-              <ThemedText style={styles.rating}>
-                ⭐ {content.vote_average?.toFixed(1)} ({content.vote_count} votes)
-              </ThemedText>
-            </View>
-            <View style={styles.genresContainer}>
-              {content.genres?.map((genre: any) => (
-                <View key={genre.id} style={styles.genreTag}>
-                  <ThemedText style={styles.genreText}>{genre.name}</ThemedText>
+              {/* Content Info */}
+              <Animated.View 
+                style={[
+                  styles.heroContent,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }]
+                  }
+                ]}
+              >
+                <View style={styles.posterContainer}>
+                  <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                    <Image source={{ uri: posterUrl }} style={styles.posterImage} />
+                  </Animated.View>
+                  
+                  {/* Quick Actions */}
+                  <View style={styles.quickActions}>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.playButton]}
+                      onPress={() => videos.length > 0 && playTrailer(videos[0].key)}
+                    >
+                      <Ionicons name="play" size={20} color="#fff" />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={toggleWatchlist}
+                    >
+                      <Ionicons 
+                        name={isWatchlisted ? "bookmark" : "bookmark-outline"} 
+                        size={20} 
+                        color="#fff" 
+                      />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={handleDownload}
+                    >
+                      <Ionicons 
+                        name={isDownloaded ? "cloud-done" : "cloud-download-outline"} 
+                        size={20} 
+                        color="#fff" 
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              ))}
-            </View>
-          </View>
+
+                <View style={styles.contentInfo}>
+                  <Text style={styles.contentTitle}>{title}</Text>
+                  
+                  <View style={styles.metaInfo}>
+                    <Text style={styles.year}>
+                      {releaseDate ? new Date(releaseDate).getFullYear() : 'N/A'}
+                    </Text>
+                    <View style={styles.dot} />
+                    <View style={styles.ratingContainer}>
+                      <Ionicons name="star" size={16} color="#FFD700" />
+                      <Text style={styles.rating}>
+                        {content.vote_average.toFixed(1)} ({content.vote_count} votes)
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Genres */}
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.genresContainer}
+                  >
+                    {content.genres?.map((genre) => (
+                      <TouchableOpacity
+                        key={genre.id}
+                        style={[
+                          styles.genreChip,
+                          selectedGenre === genre.id && styles.genreChipSelected
+                        ]}
+                        onPress={() => setSelectedGenre(
+                          selectedGenre === genre.id ? null : genre.id
+                        )}
+                      >
+                        <Text style={[
+                          styles.genreText,
+                          selectedGenre === genre.id && styles.genreTextSelected
+                        ]}>
+                          {genre.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </Animated.View>
+            </LinearGradient>
+          </ImageBackground>
         </View>
 
-        <ThemedView style={styles.section}>
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
-              <ThemedText style={styles.downloadButtonText}>📥 Download</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.watchlistButton}
-              onPress={() => Alert.alert('Added to Watchlist', `"${title}" has been added to your watchlist.`)}
+        {/* Main Action Buttons */}
+        <Animated.View 
+          style={[
+            styles.actionButtonsContainer,
+            { opacity: fadeAnim }
+          ]}
+        >
+          <TouchableOpacity style={styles.primaryButton}>
+            <Ionicons name="play" size={24} color="#fff" />
+            <Text style={styles.primaryButtonText}>Play</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
+            onPress={handleDownload}
+          >
+            <Ionicons 
+              name={isDownloaded ? "checkmark-circle" : "download"} 
+              size={24} 
+              color={isDownloaded ? "#4CAF50" : "#fff"} 
+            />
+            <Text style={[
+              styles.secondaryButtonText,
+              isDownloaded && styles.downloadedButtonText
+            ]}>
+              {isDownloaded ? 'Downloaded' : 'Download'}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Overview Section */}
+        <Animated.View 
+          style={[
+            styles.section,
+            { opacity: fadeAnim }
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Overview</Text>
+          <Text style={styles.overview}>{content.overview}</Text>
+        </Animated.View>
+
+        {/* Cast Section */}
+        {cast.length > 0 && (
+          <Animated.View 
+            style={[
+              styles.section,
+              { opacity: fadeAnim }
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Cast</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.castContainer}
             >
-              <ThemedText style={styles.watchlistButtonText}>+ Watchlist</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </ThemedView>
+              {cast.map((person) => (
+                <TouchableOpacity key={person.id} style={styles.castMember}>
+                  <Image
+                    source={{
+                      uri: person.profile_path
+                        ? `https://image.tmdb.org/t/p/w185${person.profile_path}`
+                        : 'https://via.placeholder.com/100x150?text=No+Photo'
+                    }}
+                    style={styles.castImage}
+                  />
+                  <Text style={styles.castName}>{person.name}</Text>
+                  <Text style={styles.castCharacter}>{person.character}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
 
-        <ThemedView style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Overview
-          </ThemedText>
-          <ThemedText style={styles.overview}>
-            {content.overview || 'No overview available.'}
-          </ThemedText>
-        </ThemedView>
-
+        {/* Videos Section */}
         {videos.length > 0 && (
-          <ThemedView style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
-              Trailers & Videos
-            </ThemedText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Animated.View 
+            style={[
+              styles.section,
+              { opacity: fadeAnim }
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Trailers & Videos</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.videosContainer}
+            >
               {videos.map((video) => (
                 <TouchableOpacity
                   key={video.id}
                   style={styles.videoItem}
-                  onPress={() => openTrailer(video.key)}
+                  onPress={() => playTrailer(video.key)}
                 >
-                  <Image
-                    source={{ uri: `https://img.youtube.com/vi/${video.key}/mqdefault.jpg` }}
-                    style={styles.videoThumbnail}
-                  />
-                  <ThemedText style={styles.videoTitle} numberOfLines={2}>
-                    {video.name}
-                  </ThemedText>
+                  <View style={styles.videoThumbnail}>
+                    <Image
+                      source={{
+                        uri: `https://img.youtube.com/vi/${video.key}/mqdefault.jpg`
+                      }}
+                      style={styles.thumbnailImage}
+                    />
+                    <View style={styles.playOverlay}>
+                      <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
+                    </View>
+                  </View>
+                  <Text style={styles.videoTitle}>{video.name}</Text>
+                  <Text style={styles.videoType}>{video.type}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </ThemedView>
+          </Animated.View>
         )}
-
-        {cast.length > 0 && (
-          <ThemedView style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
-              Cast
-            </ThemedText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {cast.map((actor) => (
-                <View key={actor.id} style={styles.castItem}>
-                  {actor.profile_path ? (
-                    <Image
-                      source={{ uri: tmdbService.getImageUrl(actor.profile_path, 'w185') }}
-                      style={styles.castImage}
-                    />
-                  ) : (
-                    <View style={[styles.castImage, styles.placeholderImage]}>
-                      <ThemedText style={styles.placeholderText}>👤</ThemedText>
-                    </View>
-                  )}
-                  <ThemedText style={styles.actorName} numberOfLines={2}>
-                    {actor.name}
-                  </ThemedText>
-                  <ThemedText style={styles.characterName} numberOfLines={2}>
-                    {actor.character}
-                  </ThemedText>
-                </View>
-              ))}
-            </ScrollView>
-          </ThemedView>
-        )}
-
-        <ThemedView style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Details
-          </ThemedText>
-          {type === 'movie' && content.runtime && (
-            <ThemedText style={styles.detailText}>
-              Runtime: {content.runtime} minutes
-            </ThemedText>
-          )}
-          {content.production_countries?.length > 0 && (
-            <ThemedText style={styles.detailText}>
-              Country: {content.production_countries.map((c: any) => c.name).join(', ')}
-            </ThemedText>
-          )}
-          {content.spoken_languages?.length > 0 && (
-            <ThemedText style={styles.detailText}>
-              Languages: {content.spoken_languages.map((l: any) => l.english_name).join(', ')}
-            </ThemedText>
-          )}
-          {content.budget > 0 && (
-            <ThemedText style={styles.detailText}>
-              Budget: ${content.budget.toLocaleString()}
-            </ThemedText>
-          )}
-          {content.revenue > 0 && (
-            <ThemedText style={styles.detailText}>
-              Revenue: ${content.revenue.toLocaleString()}
-            </ThemedText>
-          )}
-        </ThemedView>
-      </ThemedView>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    position: 'relative',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 40, 
-    left: 15,
-    zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-    padding: 8,
+    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 16,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000',
   },
-  backdrop: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  content: {
-    padding: 20,
-  },
-  posterSection: {
-    flexDirection: 'row',
+  errorText: {
+    color: '#fff',
+    fontSize: 18,
     marginBottom: 20,
   },
-  poster: {
-    width: 120,
-    height: 180,
+  backButton: {
+    backgroundColor: '#E50914',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 8,
-    marginRight: 15,
   },
-  titleSection: {
-    flex: 1,
-    justifyContent: 'flex-start',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  releaseDate: {
-    fontSize: 16,
-    opacity: 0.7,
-    marginBottom: 10,
-  },
-  ratingContainer: {
-    marginBottom: 10,
-  },
-  rating: {
+  backButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  genresContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  scrollView: {
+    flex: 1,
   },
-  genreTag: {
-    backgroundColor: '#E50914',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  heroSection: {
+    height: screenHeight * 0.7,
+  },
+  backdropImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroGradient: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  heroContent: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  posterContainer: {
+    alignItems: 'center',
+  },
+  posterImage: {
+    width: 120,
+    height: 180,
     borderRadius: 12,
-    marginRight: 5,
-    marginBottom: 5,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  playButton: {
+    backgroundColor: '#E50914',
+  },
+  contentInfo: {
+    flex: 1,
+    marginLeft: 20,
+    justifyContent: 'flex-end',
+  },
+  contentTitle: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    lineHeight: 34,
+  },
+  metaInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  year: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    marginHorizontal: 8,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rating: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  genresContainer: {
+    marginTop: 8,
+  },
+  genreChip: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  genreChipSelected: {
+    backgroundColor: '#E50914',
+    borderColor: '#E50914',
   },
   genreText: {
-    color: '#fff',
+    color: 'rgba(255,255,255,0.9)',
     fontSize: 12,
     fontWeight: '500',
   },
+  genreTextSelected: {
+    color: '#fff',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    gap: 12,
+  },
+  primaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E50914',
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  downloadedButton: {
+    backgroundColor: 'rgba(76,175,80,0.15)',
+    borderColor: '#4CAF50',
+  },
+  secondaryButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  downloadedButtonText: {
+    color: '#4CAF50',
+  },
   section: {
-    marginBottom: 25,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 10,
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
   },
   overview: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 16,
     lineHeight: 24,
-    opacity: 0.8,
   },
-  videoItem: {
-    marginRight: 15,
-    width: 200,
+  castContainer: {
+    paddingVertical: 8,
   },
-  videoThumbnail: {
-    width: 200,
-    height: 112,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  videoTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  castItem: {
-    marginRight: 15,
+  castMember: {
     width: 100,
+    marginRight: 16,
     alignItems: 'center',
   },
   castImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginBottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  placeholderImage: {
-    backgroundColor: '#ccc',
+  castName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  castCharacter: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  videosContainer: {
+    paddingVertical: 8,
+  },
+  videoItem: {
+    width: 200,
+    marginRight: 16,
+  },
+  videoThumbnail: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: 112,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  playOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  placeholderText: {
-    fontSize: 24,
-  },
-  actorName: {
+  videoTitle: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 4,
+    marginTop: 8,
   },
-  characterName: {
+  videoType: {
+    color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
-    opacity: 0.7,
-    textAlign: 'center',
-  },
-  detailText: {
-    fontSize: 14,
-    marginBottom: 5,
-    opacity: 0.8,
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    gap: 15,
-    marginBottom: 10,
-  },
-  downloadButton: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    flex: 1,
-    alignItems: 'center',
-  },
-  downloadButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  watchlistButton: {
-    backgroundColor: '#6c757d',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    flex: 1,
-    alignItems: 'center',
-  },
-  watchlistButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    marginTop: 2,
   },
 });
