@@ -238,9 +238,7 @@ export default function HomeScreen() {
     );
   };
 
-  const renderContentRow = ({ item: section }: { item: ContentSection }) => {
-    if (!section.data || section.data.length === 0) return null;
-
+  const ContentRow = ({ section }: { section: ContentSection }) => {
     const flatListRef = useRef<FlatList>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -260,6 +258,8 @@ export default function HomeScreen() {
         return () => clearInterval(interval);
       }
     }, [section.data.length]);
+
+    if (!section.data || section.data.length === 0) return null;
 
     return (
       <View style={styles.contentSection}>
@@ -327,7 +327,7 @@ export default function HomeScreen() {
           if (item.type === 'hero') {
             return renderHeroSection();
           }
-          return renderContentRow({ item: item.section });
+          return <ContentRow section={item.section} />;
         }}
         keyExtractor={(item, index) => 
           item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`
