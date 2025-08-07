@@ -8,6 +8,7 @@ import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Text } from 'react-native';
 
 const { width } = Dimensions.get('window');
 

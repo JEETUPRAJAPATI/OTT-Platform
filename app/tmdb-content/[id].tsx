@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -39,6 +38,10 @@ interface Video {
   site: string;
 }
 
+// Dummy ThemedText component to allow the code to compile
+const ThemedText = (props: any) => <Text {...props} />;
+
+
 export default function TMDbContentDetails() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -56,13 +59,13 @@ export default function TMDbContentDetails() {
   const loadContent = async () => {
     try {
       setLoading(true);
-      
+
       // Determine if it's a movie or TV show and fetch accordingly
       const isMovie = !id.toString().includes('tv-');
       let contentData;
       let creditsData;
       let videosData;
-      
+
       if (isMovie) {
         contentData = await tmdbService.getMovieDetails(Number(id));
         creditsData = await tmdbService.getMovieCredits(Number(id));
@@ -73,18 +76,18 @@ export default function TMDbContentDetails() {
         creditsData = await tmdbService.getTVCredits(Number(tvId));
         videosData = await tmdbService.getTVVideos(Number(tvId));
       }
-      
+
       console.log('Content loaded:', contentData);
       setContent(contentData);
       setCast(creditsData.cast.slice(0, 10));
       setVideos(videosData.results.filter((video: Video) => 
         video.site === 'YouTube' && (video.type === 'Trailer' || video.type === 'Teaser')
       ).slice(0, 3));
-      
+
       // Check if downloaded
       const downloaded = await downloadService.isDownloaded(Number(id));
       setIsDownloaded(downloaded);
-      
+
     } catch (error) {
       console.error('Error loading content:', error);
       Alert.alert('Error', 'Failed to load content details');
@@ -95,8 +98,18 @@ export default function TMDbContentDetails() {
 
   const handleDownload = async () => {
     if (!content) return;
-    
+
     try {
+      // Placeholder for login check before download
+      const isLoggedIn = true; // Replace with actual login check
+
+      if (!isLoggedIn) {
+        Alert.alert('Login Required', 'Please log in to download content.');
+        // Navigate to login screen if not logged in
+        // router.push('/login'); 
+        return;
+      }
+
       if (isDownloaded) {
         await downloadService.removeDownload(content.id);
         setIsDownloaded(false);
@@ -121,7 +134,7 @@ export default function TMDbContentDetails() {
 
   const handleShare = async () => {
     if (!content) return;
-    
+
     try {
       const title = 'title' in content ? content.title : content.name;
       await Share.share({
@@ -142,6 +155,7 @@ export default function TMDbContentDetails() {
   };
 
   const playTrailer = (videoKey: string) => {
+    // Placeholder for actual video player integration
     Alert.alert('Play Trailer', `Playing trailer: ${videoKey}`);
   };
 
@@ -173,12 +187,18 @@ export default function TMDbContentDetails() {
   const backdropUrl = content.backdrop_path
     ? `https://image.tmdb.org/t/p/w1280${content.backdrop_path}`
     : posterUrl;
+  
+  const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
+  const runtime = content.runtime 
+    ? `${Math.floor(content.runtime / 60)}h ${content.runtime % 60}m` 
+    : (content.number_of_seasons ? `${content.number_of_seasons} Season(s)` : 'N/A');
+
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <Stack.Screen options={{ headerShown: false }} />
-      
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -215,10 +235,10 @@ export default function TMDbContentDetails() {
 
                 <View style={styles.contentInfo}>
                   <Text style={styles.contentTitle} numberOfLines={2}>{title}</Text>
-                  
+
                   <View style={styles.metaInfo}>
                     <Text style={styles.year}>
-                      {releaseDate ? new Date(releaseDate).getFullYear() : 'N/A'}
+                      {releaseYear}
                     </Text>
                     <View style={styles.dot} />
                     <View style={styles.ratingContainer}>
@@ -275,7 +295,7 @@ export default function TMDbContentDetails() {
             <Ionicons name="play" size={24} color="#fff" />
             <Text style={styles.primaryButtonText}>Play</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity 
             style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
             onPress={handleDownload}
@@ -292,7 +312,7 @@ export default function TMDbContentDetails() {
               {isDownloaded ? 'Downloaded' : 'Download'}
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity 
             style={styles.secondaryButton}
             onPress={toggleWatchlist}
@@ -324,7 +344,7 @@ export default function TMDbContentDetails() {
                 </Text>
               </View>
             )}
-            
+
             {content.revenue && content.revenue > 0 && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Revenue</Text>
@@ -333,7 +353,7 @@ export default function TMDbContentDetails() {
                 </Text>
               </View>
             )}
-            
+
             {content.original_language && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Original Language</Text>
@@ -342,7 +362,7 @@ export default function TMDbContentDetails() {
                 </Text>
               </View>
             )}
-            
+
             {content.production_countries && content.production_countries.length > 0 && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Country</Text>
@@ -783,5 +803,131 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+
+  // Added styles based on the changes
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginVertical: 20,
+  },
+  playButton: {
+    flex: 2,
+  },
+  playGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  playButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    gap: 4,
+  },
+  secondaryButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  overviewSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  overview: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  genresSection: {
+    marginBottom: 24,
+  },
+  genresContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  genreChip: {
+    backgroundColor: 'rgba(229,9,20,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E50914',
+  },
+  genreText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  castSection: {
+    marginBottom: 24,
+  },
+  castMember: {
+    width: 100,
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  castImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 8,
+  },
+  castPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  castName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  castCharacter: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  additionalInfo: {
+    marginBottom: 24,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    width: 100,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    flex: 1,
   },
 });
