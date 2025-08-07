@@ -37,6 +37,14 @@ export default function RootLayout() {
             presentation: 'modal'
           }} 
         />
+        <Stack.Screen 
+          name="tmdb-content/[id]" 
+          options={{ 
+            title: 'Movie/TV Details',
+            headerShown: true,
+            presentation: 'modal'
+          }} 
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

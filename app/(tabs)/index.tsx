@@ -7,10 +7,13 @@ import { ThemedView } from '@/components/ThemedView';
 import { SplashScreen } from '@/components/SplashScreen';
 import { PlatformLogo } from '@/components/PlatformLogo';
 import { SliderBanner } from '@/components/SliderBanner';
+import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { platforms, contentData, Content } from '@/data/ottPlatforms';
+import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 
 export default function HomeScreen() {
   const [showSplash, setShowSplash] = useState(true);
+  const [trendingContent, setTrendingContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const router = useRouter();
 
   const handlePlatformPress = (platformId: string) => {
@@ -19,6 +22,30 @@ export default function HomeScreen() {
 
   const handleContentPress = (content: Content) => {
     router.push(`/content/${content.id}`);
+  };
+
+  const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
+    const type = (content as any).title ? 'movie' : 'tv';
+    router.push(`/tmdb-content/${content.id}?type=${type}`);
+  };
+
+  const loadTrendingContent = async () => {
+    try {
+      const trending = await tmdbService.getTrending();
+      setTrendingContent(trending.slice(0, 6));
+    } catch (error) {
+      console.error('Error loading trending content:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!showSplash) {
+      loadTrendingContent();
+    }
+  }, [showSplash]);
+
+  const determineMediaType = (item: any): 'movie' | 'tv' => {
+    return item.title ? 'movie' : 'tv';
   };
 
   // Get newest releases (latest 4 content items by release year)
@@ -46,6 +73,31 @@ export default function HomeScreen() {
           content={newReleases} 
           onContentPress={handleContentPress}
         />
+
+        {trendingContent.length > 0 && (
+          <ThemedView style={styles.section}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Trending Worldwide
+            </ThemedText>
+            <FlatList
+              data={trendingContent}
+              renderItem={({ item }) => {
+                const mediaType = determineMediaType(item);
+                return (
+                  <TMDbContentCard
+                    content={item}
+                    type={mediaType}
+                    onPress={() => handleTMDbContentPress(item)}
+                  />
+                );
+              }}
+              keyExtractor={(item) => `trending-${item.id}`}
+              numColumns={2}
+              contentContainerStyle={styles.contentGrid}
+              scrollEnabled={false}
+            />
+          </ThemedView>
+        )}
 
         <ThemedView style={styles.platformsContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
@@ -108,5 +160,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+  },
+  section: {
+    marginBottom: 30,
+  },
+  contentGrid: {
+    paddingBottom: 10,
   },
 });
