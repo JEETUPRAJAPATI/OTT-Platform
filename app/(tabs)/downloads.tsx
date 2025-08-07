@@ -1,27 +1,25 @@
+
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { downloadService, DownloadItem } from '@/services/downloadService';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { tmdbService } from '@/services/tmdbApi';
+import { Image } from 'react-native';
 
 export default function DownloadsScreen() {
   const router = useRouter();
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // In real app, get from context/storage
 
   useEffect(() => {
-    loadDownloads();
-  }, []);
+    // Refresh downloads every second to show progress
+    const interval = setInterval(() => {
+      setDownloads(downloadService.getDownloads());
+    }, 1000);
 
-  const loadDownloads = () => {
-    if (isLoggedIn) {
-      const downloadList = downloadService.getDownloads();
-      setDownloads(downloadList);
-    }
-  };
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDeleteDownload = (id: string, title: string) => {
     Alert.alert(
@@ -29,8 +27,8 @@ export default function DownloadsScreen() {
       `Are you sure you want to delete "${title}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
+        { 
+          text: 'Delete', 
           style: 'destructive',
           onPress: () => {
             downloadService.removeDownload(id);
@@ -47,8 +45,8 @@ export default function DownloadsScreen() {
       'Remove all completed downloads?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
+        { 
+          text: 'Clear', 
           onPress: () => {
             downloadService.clearCompleted();
             setDownloads(downloadService.getDownloads());
@@ -60,9 +58,9 @@ export default function DownloadsScreen() {
 
   const renderDownloadItem = ({ item }: { item: DownloadItem }) => {
     const posterUrl = tmdbService.getImageUrl(item.poster_path);
-
+    
     return (
-      <TouchableOpacity
+      <TouchableOpacity 
         style={styles.downloadItem}
         onPress={() => {
           if (item.status === 'completed') {
@@ -78,12 +76,12 @@ export default function DownloadsScreen() {
               <ThemedText style={styles.placeholderText}>📱</ThemedText>
             </View>
           )}
-
+          
           <View style={styles.itemInfo}>
             <ThemedText type="defaultSemiBold" numberOfLines={2} style={styles.title}>
               {item.title}
             </ThemedText>
-
+            
             <View style={styles.statusContainer}>
               <View style={[styles.statusBadge, getStatusColor(item.status)]}>
                 <ThemedText style={styles.statusText}>
@@ -111,7 +109,7 @@ export default function DownloadsScreen() {
             )}
           </View>
 
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.deleteButton}
             onPress={() => handleDeleteDownload(item.id, item.title)}
           >
@@ -142,71 +140,26 @@ export default function DownloadsScreen() {
     }
   };
 
-  if (!isLoggedIn) {
-    return (
-      <ScrollView style={styles.container}>
-        <LinearGradient
-          colors={['#0a0a0a', '#1a1a1a']}
-          style={styles.header}
-        >
-          <View style={styles.headerContent}>
-            <Ionicons name="download-outline" size={80} color="rgba(255,255,255,0.3)" />
-            <ThemedText style={styles.welcomeText}>Downloads</ThemedText>
-            <ThemedText style={styles.subtitleText}>Sign in to download content</ThemedText>
-          </View>
-        </LinearGradient>
-
-        <ThemedView style={styles.content}>
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={() => router.push('/profile')}
-          >
-            <LinearGradient
-              colors={['#E50914', '#B8070F']}
-              style={styles.gradientButton}
-            >
-              <Ionicons name="log-in" size={24} color="#fff" />
-              <ThemedText style={styles.loginButtonText}>Sign In to Download</ThemedText>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <View style={styles.featuresSection}>
-            <ThemedText style={styles.featuresTitle}>Download Benefits</ThemedText>
-            <View style={styles.feature}>
-              <Ionicons name="wifi-off" size={24} color="#E50914" />
-              <ThemedText style={styles.featureText}>Watch offline without internet</ThemedText>
-            </View>
-            <View style={styles.feature}>
-              <Ionicons name="save" size={24} color="#E50914" />
-              <ThemedText style={styles.featureText}>Save data while traveling</ThemedText>
-            </View>
-            <View style={styles.feature}>
-              <Ionicons name="time" size={24} color="#E50914" />
-              <ThemedText style={styles.featureText}>Watch anytime, anywhere</ThemedText>
-            </View>
-          </View>
-        </ThemedView>
-      </ScrollView>
-    );
-  }
-
   return (
     <ScrollView style={styles.container}>
       <ThemedView style={styles.content}>
-        <ThemedText type="title" style={styles.title}>
-          Downloads
-        </ThemedText>
+        <View style={styles.header}>
+          <ThemedText type="title" style={styles.headerTitle}>Downloads</ThemedText>
+          {downloads.some(d => d.status === 'completed') && (
+            <TouchableOpacity onPress={clearCompletedDownloads}>
+              <ThemedText style={styles.clearButton}>Clear Completed</ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {downloads.length === 0 ? (
-          <ThemedView style={styles.emptyContainer}>
-            <Ionicons name="download-outline" size={64} color="#666" />
-            <ThemedText style={styles.emptyText}>
-              No downloads yet
+          <View style={styles.emptyState}>
+            <ThemedText style={styles.emptyText}>📥</ThemedText>
+            <ThemedText type="subtitle" style={styles.emptyTitle}>No Downloads</ThemedText>
+            <ThemedText style={styles.emptyDescription}>
+              Download movies and TV shows to watch offline
             </ThemedText>
-            <ThemedText style={styles.emptySubtext}>
-              Download content to watch offline
-            </ThemedText>
-          </ThemedView>
+          </View>
         ) : (
           <FlatList
             data={downloads}
@@ -223,102 +176,18 @@ export default function DownloadsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 30,
-  },
-  headerContent: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  welcomeText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  subtitleText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
   },
   content: {
-    flex: 1,
     padding: 20,
-  },
-  loginButton: {
-    marginVertical: 30,
-  },
-  gradientButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 12,
-  },
-  loginButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  featuresSection: {
-    marginTop: 20,
-  },
-  featuresTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 20,
-  },
-  feature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 16,
-  },
-  featureText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    flex: 1,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#fff',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 24,
-    color: '#fff',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
-    backgroundColor: '#0a0a0a',
   },
   headerTitle: {
     fontSize: 28,
-    color: '#fff',
-    fontWeight: 'bold',
   },
   clearButton: {
     color: '#007bff',
@@ -332,8 +201,7 @@ const styles = StyleSheet.create({
   itemContent: {
     flexDirection: 'row',
     padding: 15,
-    backgroundColor: '#1a1a1a',
-    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
   },
   poster: {
     width: 80,
@@ -342,7 +210,7 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   placeholderPoster: {
-    backgroundColor: '#333',
+    backgroundColor: '#ddd',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -355,7 +223,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     marginBottom: 8,
-    color: '#fff',
   },
   statusContainer: {
     flexDirection: 'row',
@@ -390,7 +257,7 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 6,
-    backgroundColor: '#444',
+    backgroundColor: '#e0e0e0',
     borderRadius: 3,
     marginRight: 8,
   },
@@ -402,12 +269,10 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 12,
     minWidth: 35,
-    color: '#fff',
   },
   downloadDate: {
     fontSize: 12,
     opacity: 0.7,
-    color: '#eee',
   },
   deleteButton: {
     padding: 8,

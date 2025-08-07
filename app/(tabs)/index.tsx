@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-  View,
-  TouchableOpacity,
+import { 
+  ScrollView, 
+  StyleSheet, 
+  FlatList, 
+  RefreshControl, 
+  View, 
+  TouchableOpacity, 
   Dimensions,
   StatusBar,
   ImageBackground,
@@ -147,11 +148,11 @@ export default function HomeScreen() {
 
   const renderHeroSection = () => {
     if (!featuredContent.length) return null;
-
+    
     const heroItem = featuredContent[currentHero];
     const title = (heroItem as any).title || (heroItem as any).name;
     const backdropUrl = `https://image.tmdb.org/t/p/w1280${heroItem.backdrop_path}`;
-
+    
     return (
       <View style={styles.heroContainer}>
         <ImageBackground
@@ -171,16 +172,16 @@ export default function HomeScreen() {
                   <Text style={styles.profileIcon}>👤</Text>
                 </TouchableOpacity>
               </View>
-
+              
               <View style={styles.heroBottomSection}>
                 <View style={styles.newReleaseBadge}>
                   <Text style={styles.badgeText}>NEW RELEASE</Text>
                 </View>
-
+                
                 <Text style={styles.heroTitle} numberOfLines={2}>
                   {title}
                 </Text>
-
+                
                 <View style={styles.heroMeta}>
                   <Text style={styles.heroYear}>
                     {new Date((heroItem as any).release_date || (heroItem as any).first_air_date).getFullYear()}
@@ -194,21 +195,21 @@ export default function HomeScreen() {
                     {(heroItem as any).title ? 'Movie' : 'Series'}
                   </Text>
                 </View>
-
+                
                 <Text style={styles.heroDescription} numberOfLines={3}>
                   {heroItem.overview}
                 </Text>
-
+                
                 <View style={styles.heroButtons}>
-                  <TouchableOpacity
+                  <TouchableOpacity 
                     style={styles.playButton}
                     onPress={() => handleTMDbContentPress(heroItem)}
                   >
                     <Text style={styles.playIcon}>▶</Text>
                     <Text style={styles.playText}>Play</Text>
                   </TouchableOpacity>
-
-                  <TouchableOpacity
+                  
+                  <TouchableOpacity 
                     style={styles.infoButton}
                     onPress={() => handleTMDbContentPress(heroItem)}
                   >
@@ -216,7 +217,7 @@ export default function HomeScreen() {
                     <Text style={styles.infoText}>More Info</Text>
                   </TouchableOpacity>
                 </View>
-
+                
                 {/* Hero Indicators */}
                 <View style={styles.heroIndicators}>
                   {featuredContent.map((_, index) => (
@@ -246,9 +247,9 @@ export default function HomeScreen() {
         const interval = setInterval(() => {
           setCurrentIndex(prevIndex => {
             const nextIndex = (prevIndex + 1) % Math.max(1, section.data.length - 2);
-            flatListRef.current?.scrollToIndex({
-              index: nextIndex,
-              animated: true
+            flatListRef.current?.scrollToIndex({ 
+              index: nextIndex, 
+              animated: true 
             });
             return nextIndex;
           });
@@ -270,7 +271,7 @@ export default function HomeScreen() {
             <Text style={styles.viewAllButton}>View All →</Text>
           </TouchableOpacity>
         </View>
-
+        
         <FlatList
           ref={flatListRef}
           data={section.data}
@@ -319,7 +320,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
+      
       <FlatList
         data={[{ type: 'hero' }, ...contentSections.map(section => ({ type: 'section', section }))]}
         renderItem={({ item }) => {
@@ -328,12 +329,12 @@ export default function HomeScreen() {
           }
           return <ContentRow section={item.section} />;
         }}
-        keyExtractor={(item, index) =>
+        keyExtractor={(item, index) => 
           item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`
         }
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
+          <RefreshControl 
+            refreshing={refreshing} 
             onRefresh={onRefresh}
             tintColor="#E50914"
             progressBackgroundColor="#000"
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
   },
-
+  
   // Hero Section
   heroContainer: {
     height: screenHeight * 0.75,
@@ -512,7 +513,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E50914',
     width: 20,
   },
-
+  
   // Content Sections
   contentSection: {
     marginBottom: 30,
@@ -566,44 +567,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
-  },
-
-  // Added styles for categories section
-  section: {
-    paddingVertical: 20,
-    paddingHorizontal: 15,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 5,
-  },
-  categoryCard: {
-    width: '30%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  categoryIcon: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  horizontalList: {
-    paddingLeft: 20,
-    paddingRight: 10,
   },
 });
