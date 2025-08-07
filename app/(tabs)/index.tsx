@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, FlatList, RefreshControl, View, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, FlatList, RefreshControl, View, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -11,11 +11,17 @@ import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { platforms, contentData, Content } from '@/data/ottPlatforms';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 
+const { width: screenWidth } = Dimensions.get('window');
+
 export default function HomeScreen() {
   const [showSplash, setShowSplash] = useState(true);
   const [trendingContent, setTrendingContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [popularMovies, setPopularMovies] = useState<TMDbMovie[]>([]);
   const [topRatedTv, setTopRatedTv] = useState<TMDbTVShow[]>([]);
+  const [upcomingMovies, setUpcomingMovies] = useState<TMDbMovie[]>([]);
+  const [hindiMovies, setHindiMovies] = useState<TMDbMovie[]>([]);
+  const [southIndianMovies, setSouthIndianMovies] = useState<TMDbMovie[]>([]);
+  const [marvelMovies, setMarvelMovies] = useState<TMDbMovie[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
@@ -34,15 +40,23 @@ export default function HomeScreen() {
 
   const loadContent = async () => {
     try {
-      const [trending, popular, topRated] = await Promise.all([
+      const [trending, popular, topRated, upcoming, hindi, south, marvel] = await Promise.all([
         tmdbService.getTrending(),
         tmdbService.getPopularMovies(),
-        tmdbService.getTopRatedTVShows()
+        tmdbService.getTopRatedTVShows(),
+        tmdbService.getUpcomingMovies?.() || tmdbService.getPopularMovies(),
+        tmdbService.getHindiMovies(),
+        tmdbService.getSouthIndianMovies(),
+        tmdbService.getMarvelMovies()
       ]);
       
-      setTrendingContent(trending.slice(0, 6));
-      setPopularMovies(popular.slice(0, 6));
-      setTopRatedTv(topRated.slice(0, 6));
+      setTrendingContent(trending.slice(0, 10));
+      setPopularMovies(popular.slice(0, 10));
+      setTopRatedTv(topRated.slice(0, 10));
+      setUpcomingMovies(upcoming.slice(0, 10));
+      setHindiMovies(hindi.slice(0, 10));
+      setSouthIndianMovies(south.slice(0, 10));
+      setMarvelMovies(marvel.slice(0, 10));
     } catch (error) {
       console.error('Error loading content:', error);
     }
@@ -64,10 +78,55 @@ export default function HomeScreen() {
     return item.title ? 'movie' : 'tv';
   };
 
-  // Get newest releases (latest 4 content items by release year)
+  // Get newest releases for the hero slider
   const newReleases = contentData && contentData.length > 0 
-    ? [...contentData].sort((a, b) => b.releaseYear - a.releaseYear).slice(0, 4)
+    ? [...contentData].sort((a, b) => b.releaseYear - a.releaseYear).slice(0, 6)
     : [];
+
+  const renderHorizontalSection = (
+    title: string, 
+    data: any[], 
+    icon: string,
+    showViewAll: boolean = true
+  ) => (
+    <ThemedView style={styles.horizontalSection}>
+      <View style={styles.sectionHeader}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          {icon} {title}
+        </ThemedText>
+        {showViewAll && (
+          <TouchableOpacity onPress={() => router.push('/discover')}>
+            <ThemedText style={styles.viewAllText}>View All →</ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
+      <FlatList
+        data={data}
+        renderItem={({ item, index }) => {
+          const mediaType = determineMediaType(item);
+          return (
+            <View style={styles.horizontalCard}>
+              {title.includes('Top 10') && (
+                <View style={styles.rankBadge}>
+                  <ThemedText style={styles.rankText}>{index + 1}</ThemedText>
+                </View>
+              )}
+              <TMDbContentCard
+                content={item}
+                type={mediaType}
+                onPress={() => handleTMDbContentPress(item)}
+                style={styles.cardInHorizontal}
+              />
+            </View>
+          );
+        }}
+        keyExtractor={(item, index) => `${title}-${item.id}-${index}`}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalList}
+      />
+    </ThemedView>
+  );
 
   if (showSplash) {
     return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;
@@ -81,6 +140,7 @@ export default function HomeScreen() {
       }
     >
       <ThemedView style={styles.content}>
+        {/* Header */}
         <ThemedView style={styles.header}>
           <ThemedText type="title" style={styles.title}>
             RK SWOT
@@ -90,6 +150,7 @@ export default function HomeScreen() {
           </ThemedText>
         </ThemedView>
 
+        {/* Hero Slider */}
         <SliderBanner 
           content={newReleases} 
           onContentPress={handleContentPress}
@@ -125,91 +186,47 @@ export default function HomeScreen() {
           </View>
         </ThemedView>
 
-        {/* Trending Section */}
-        {trendingContent.length > 0 && (
-          <ThemedView style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
-                🔥 Trending Worldwide
-              </ThemedText>
-              <TouchableOpacity onPress={() => router.push('/discover')}>
-                <ThemedText style={styles.seeAllText}>See All</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={trendingContent}
-              renderItem={({ item }) => {
-                const mediaType = determineMediaType(item);
-                return (
-                  <TMDbContentCard
-                    content={item}
-                    type={mediaType}
-                    onPress={() => handleTMDbContentPress(item)}
-                  />
-                );
-              }}
-              keyExtractor={(item) => `trending-${item.id}`}
-              numColumns={2}
-              contentContainerStyle={styles.contentGrid}
-              scrollEnabled={false}
-            />
-          </ThemedView>
+        {/* Content Sections */}
+        {trendingContent.length > 0 && renderHorizontalSection(
+          'International Hits', 
+          trendingContent, 
+          '🌍'
         )}
 
-        {/* Popular Movies Section */}
-        {popularMovies.length > 0 && (
-          <ThemedView style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
-                🍿 Popular Movies
-              </ThemedText>
-              <TouchableOpacity onPress={() => router.push('/discover')}>
-                <ThemedText style={styles.seeAllText}>See All</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={popularMovies}
-              renderItem={({ item }) => (
-                <TMDbContentCard
-                  content={item}
-                  type="movie"
-                  onPress={() => handleTMDbContentPress(item)}
-                />
-              )}
-              keyExtractor={(item) => `popular-${item.id}`}
-              numColumns={2}
-              contentContainerStyle={styles.contentGrid}
-              scrollEnabled={false}
-            />
-          </ThemedView>
+        {hindiMovies.length > 0 && renderHorizontalSection(
+          'Top 10 in India Today - Hindi', 
+          hindiMovies, 
+          '🇮🇳'
         )}
 
-        {/* Top Rated TV Shows Section */}
-        {topRatedTv.length > 0 && (
-          <ThemedView style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
-                📺 Top Rated TV Shows
-              </ThemedText>
-              <TouchableOpacity onPress={() => router.push('/discover')}>
-                <ThemedText style={styles.seeAllText}>See All</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={topRatedTv}
-              renderItem={({ item }) => (
-                <TMDbContentCard
-                  content={item}
-                  type="tv"
-                  onPress={() => handleTMDbContentPress(item)}
-                />
-              )}
-              keyExtractor={(item) => `toprated-${item.id}`}
-              numColumns={2}
-              contentContainerStyle={styles.contentGrid}
-              scrollEnabled={false}
-            />
-          </ThemedView>
+        {southIndianMovies.length > 0 && renderHorizontalSection(
+          'South Indian Cinema', 
+          southIndianMovies, 
+          '🎭'
+        )}
+
+        {marvelMovies.length > 0 && renderHorizontalSection(
+          'Marvel Universe', 
+          marvelMovies, 
+          '🦸'
+        )}
+
+        {upcomingMovies.length > 0 && renderHorizontalSection(
+          'Latest Releases', 
+          upcomingMovies, 
+          '🆕'
+        )}
+
+        {popularMovies.length > 0 && renderHorizontalSection(
+          'Popular Movies', 
+          popularMovies, 
+          '🍿'
+        )}
+
+        {topRatedTv.length > 0 && renderHorizontalSection(
+          'Top Rated TV Shows', 
+          topRatedTv, 
+          '📺'
         )}
 
         {/* Platforms Section */}
@@ -239,15 +256,16 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
   content: {
     flex: 1,
-    padding: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
     marginTop: 20,
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 32,
@@ -259,9 +277,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     opacity: 0.8,
+    color: '#fff',
   },
   quickActionsSection: {
     marginBottom: 30,
+    paddingHorizontal: 20,
   },
   quickActions: {
     flexDirection: 'row',
@@ -272,8 +292,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderRadius: 12,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#1a1a1a',
     minWidth: 80,
+    borderWidth: 1,
+    borderColor: '#333',
   },
   quickActionIcon: {
     fontSize: 24,
@@ -282,37 +304,68 @@ const styles = StyleSheet.create({
   quickActionText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#fff',
   },
-  platformsContainer: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 15,
+  horizontalSection: {
+    marginBottom: 25,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
+    paddingHorizontal: 20,
   },
-  seeAllText: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  viewAllText: {
     color: '#E50914',
     fontSize: 14,
     fontWeight: '600',
+  },
+  horizontalList: {
+    paddingLeft: 20,
+    paddingRight: 10,
+  },
+  horizontalCard: {
+    marginRight: 10,
+    position: 'relative',
+  },
+  cardInHorizontal: {
+    width: screenWidth * 0.35,
+    height: screenWidth * 0.52,
+  },
+  rankBadge: {
+    position: 'absolute',
+    top: -5,
+    left: -5,
+    backgroundColor: '#E50914',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 2,
+    borderColor: '#000',
+  },
+  rankText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  platformsContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
   platformGrid: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-  },
-  section: {
-    marginBottom: 30,
-  },
-  contentGrid: {
-    paddingBottom: 10,
   },
 });

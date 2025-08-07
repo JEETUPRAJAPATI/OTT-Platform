@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { TMDbMovie, TMDbTVShow, tmdbService } from '../services/tmdbApi';
@@ -7,11 +6,12 @@ import { ThemedView } from './ThemedView';
 
 interface TMDbContentCardProps {
   content: TMDbMovie | TMDbTVShow;
-  onPress: () => void;
   type: 'movie' | 'tv';
+  onPress: () => void;
+  style?: any;
 }
 
-export function TMDbContentCard({ content, onPress, type }: TMDbContentCardProps) {
+export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCardProps) {
   const title = type === 'movie' ? (content as TMDbMovie).title : (content as TMDbTVShow).name;
   const releaseDate = type === 'movie' 
     ? (content as TMDbMovie).release_date 
@@ -21,7 +21,7 @@ export function TMDbContentCard({ content, onPress, type }: TMDbContentCardProps
 
   return (
     <TouchableOpacity onPress={onPress} style={styles.container}>
-      <ThemedView style={styles.card}>
+      <ThemedView style={[styles.card, style]}>
         {posterUrl ? (
           <Image source={{ uri: posterUrl }} style={styles.poster} />
         ) : (

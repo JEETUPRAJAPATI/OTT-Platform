@@ -83,6 +83,12 @@ class TMDbService {
     return response.data.results;
   }
 
+  // Get upcoming movies
+  async getUpcomingMovies(page: number = 1) {
+    const response = await tmdbApi.get('/movie/upcoming', { params: { page } });
+    return response.data.results;
+  }
+
   // Get movies by genre
   async getMoviesByGenre(genreId: number, page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
