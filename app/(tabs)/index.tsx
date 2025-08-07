@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ScrollView, 
   StyleSheet, 
@@ -241,6 +241,26 @@ export default function HomeScreen() {
   const renderContentRow = ({ item: section }: { item: ContentSection }) => {
     if (!section.data || section.data.length === 0) return null;
 
+    const flatListRef = useRef<FlatList>(null);
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    useEffect(() => {
+      if (section.data.length > 3) {
+        const interval = setInterval(() => {
+          setCurrentIndex(prevIndex => {
+            const nextIndex = (prevIndex + 1) % Math.max(1, section.data.length - 2);
+            flatListRef.current?.scrollToIndex({ 
+              index: nextIndex, 
+              animated: true 
+            });
+            return nextIndex;
+          });
+        }, 4000);
+
+        return () => clearInterval(interval);
+      }
+    }, [section.data.length]);
+
     return (
       <View style={styles.contentSection}>
         <View style={styles.sectionHeader}>
@@ -253,6 +273,7 @@ export default function HomeScreen() {
         </View>
         
         <FlatList
+          ref={flatListRef}
           data={section.data}
           renderItem={({ item, index }) => {
             const mediaType = (item as any).title ? 'movie' : 'tv';
@@ -281,6 +302,12 @@ export default function HomeScreen() {
           contentContainerStyle={styles.contentRow}
           snapToInterval={screenWidth * 0.35}
           decelerationRate="fast"
+          onScrollToIndexFailed={(info) => {
+            const wait = new Promise(resolve => setTimeout(resolve, 500));
+            wait.then(() => {
+              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+            });
+          }}
         />
       </View>
     );

@@ -12,10 +12,9 @@ interface TMDbContentCardProps {
 }
 
 export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCardProps) {
-  const title = type === 'movie' ? (content as TMDbMovie).title : (content as TMDbTVShow).name;
-  const releaseDate = type === 'movie' 
-    ? (content as TMDbMovie).release_date 
-    : (content as TMDbTVShow).first_air_date;
+  // Better title extraction logic
+  const title = (content as any).title || (content as any).name || 'Unknown Title';
+  const releaseDate = (content as any).release_date || (content as any).first_air_date;
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
   const posterUrl = tmdbService.getImageUrl(content.poster_path);
 
@@ -130,10 +129,11 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    lineHeight: 18,
-    marginBottom: 4,
+    lineHeight: 16,
+    marginBottom: 6,
+    textAlign: 'left',
   },
   metaContainer: {
     flexDirection: 'row',
