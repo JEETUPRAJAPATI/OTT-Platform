@@ -1,11 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert, View, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
+import { Ionicons } from '@expo/vector-icons';
+
+const { width } = Dimensions.get('window');
+const cardWidth = (width - 60) / 2;
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -14,13 +18,13 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(false);
 
   const categories = [
-    { id: 'trending', name: 'Trending', icon: '🔥' },
-    { id: 'hindi', name: 'Hindi Movies', icon: '🇮🇳' },
-    { id: 'south', name: 'South Indian', icon: '🎬' },
-    { id: 'marvel', name: 'Marvel', icon: '🦸' },
-    { id: 'thriller2025', name: 'Thrillers 2025', icon: '😱' },
-    { id: 'toprated', name: 'Top Rated', icon: '⭐' },
-    { id: 'popular', name: 'Popular', icon: '👥' },
+    { id: 'trending', name: 'Trending', icon: '🔥', color: '#FF6B6B' },
+    { id: 'hindi', name: 'Hindi Movies', icon: '🇮🇳', color: '#4ECDC4' },
+    { id: 'south', name: 'South Indian', icon: '🎬', color: '#45B7D1' },
+    { id: 'marvel', name: 'Marvel', icon: '🦸', color: '#96CEB4' },
+    { id: 'thriller2025', name: 'Thrillers 2025', icon: '😱', color: '#FFEAA7' },
+    { id: 'toprated', name: 'Top Rated', icon: '⭐', color: '#DDA0DD' },
+    { id: 'popular', name: 'Popular', icon: '👥', color: '#98D8C8' },
   ];
 
   useEffect(() => {
@@ -61,7 +65,6 @@ export default function DiscoverScreen() {
       setContent(results);
     } catch (error) {
       console.error('Error loading category content:', error);
-      Alert.alert('Error', 'Failed to load content');
     } finally {
       setLoading(false);
     }
@@ -79,48 +82,76 @@ export default function DiscoverScreen() {
   const getCategoryDescription = (category: string) => {
     switch (category) {
       case 'trending':
-        return 'What\'s hot right now';
+        return 'What\'s hot right now across all platforms';
       case 'hindi':
-        return 'Best of Bollywood';
+        return 'Best of Bollywood cinema';
       case 'south':
         return 'Tamil, Telugu, Malayalam & Kannada cinema';
       case 'marvel':
-        return 'Marvel Cinematic Universe';
+        return 'Marvel Cinematic Universe collection';
       case 'thriller2025':
-        return 'Latest thriller releases';
+        return 'Latest spine-chilling thrillers';
       case 'toprated':
-        return 'Highest rated content';
+        return 'Highest rated movies and shows';
       case 'popular':
-        return 'Most popular movies';
+        return 'Most popular content worldwide';
       default:
         return 'Discover amazing content';
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <ThemedView style={styles.content}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            Discover
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Explore content by category
-          </ThemedText>
-        </ThemedView>
+  const getSelectedCategory = () => {
+    return categories.find(c => c.id === selectedCategory);
+  };
 
-        <ThemedView style={styles.categoriesSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
+  const renderContentItem = ({ item, index }: { item: any, index: number }) => {
+    const mediaType = determineMediaType(item);
+    return (
+      <View style={[styles.contentItem, { width: cardWidth }]}>
+        <TMDbContentCard
+          content={item}
+          type={mediaType}
+          onPress={() => handleContentPress(item)}
+          style={styles.card}
+        />
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <ThemedText type="title" style={styles.title}>
+          Discover
+        </ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Explore content by category
+        </ThemedText>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Categories */}
+        <View style={styles.categoriesSection}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.categoriesContainer}
+          >
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
                 style={[
-                  styles.categoryChip,
-                  selectedCategory === category.id && styles.activeCategoryChip
+                  styles.categoryCard,
+                  selectedCategory === category.id && [
+                    styles.activeCategoryCard,
+                    { backgroundColor: category.color }
+                  ]
                 ]}
                 onPress={() => setSelectedCategory(category.id)}
+                activeOpacity={0.8}
               >
-                <ThemedText style={styles.categoryIcon}>{category.icon}</ThemedText>
+                <Text style={styles.categoryIcon}>{category.icon}</Text>
                 <ThemedText style={[
                   styles.categoryText,
                   selectedCategory === category.id && styles.activeCategoryText
@@ -130,117 +161,225 @@ export default function DiscoverScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </ThemedView>
+        </View>
 
-        <ThemedView style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            {categories.find(c => c.id === selectedCategory)?.name}
-          </ThemedText>
-          <ThemedText style={styles.sectionDescription}>
-            {getCategoryDescription(selectedCategory)}
-          </ThemedText>
-          
+        {/* Current Category Info */}
+        <View style={styles.categoryInfoSection}>
+          <View style={styles.categoryHeader}>
+            <View style={styles.categoryTitleContainer}>
+              <Text style={styles.categoryDisplayIcon}>
+                {getSelectedCategory()?.icon}
+              </Text>
+              <View>
+                <ThemedText style={styles.categoryTitle}>
+                  {getSelectedCategory()?.name}
+                </ThemedText>
+                <ThemedText style={styles.categoryDescription}>
+                  {getCategoryDescription(selectedCategory)}
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.contentCount}>
+              <ThemedText style={styles.contentCountText}>
+                {content.length}
+              </ThemedText>
+              <ThemedText style={styles.contentCountLabel}>
+                items
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+
+        {/* Content Grid */}
+        <View style={styles.contentSection}>
           {loading ? (
-            <ThemedText style={styles.loadingText}>Loading...</ThemedText>
-          ) : (
+            <View style={styles.loadingContainer}>
+              <View style={styles.loadingSpinner}>
+                <Ionicons name="refresh" size={32} color="#E50914" />
+              </View>
+              <ThemedText style={styles.loadingText}>
+                Loading {getSelectedCategory()?.name.toLowerCase()}...
+              </ThemedText>
+            </View>
+          ) : content.length > 0 ? (
             <FlatList
               data={content}
-              renderItem={({ item }) => {
-                const mediaType = determineMediaType(item);
-                return (
-                  <TMDbContentCard
-                    content={item}
-                    type={mediaType}
-                    onPress={() => handleContentPress(item)}
-                  />
-                );
-              }}
+              renderItem={renderContentItem}
               keyExtractor={(item) => `${item.id}-${determineMediaType(item)}`}
               numColumns={2}
+              columnWrapperStyle={styles.row}
               contentContainerStyle={styles.contentGrid}
               scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
             />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="library-outline" size={48} color="#666" />
+              <ThemedText style={styles.emptyText}>
+                No content available
+              </ThemedText>
+              <ThemedText style={styles.emptySubtext}>
+                Try selecting a different category
+              </ThemedText>
+            </View>
           )}
-        </ThemedView>
-      </ThemedView>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
+    backgroundColor: '#000',
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 10,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: '#111',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.8,
+    color: '#999',
+  },
+  content: {
+    flex: 1,
+    backgroundColor: '#000',
   },
   categoriesSection: {
-    marginBottom: 20,
+    paddingVertical: 20,
   },
-  categoriesScroll: {
-    marginBottom: 10,
+  categoriesContainer: {
+    paddingHorizontal: 20,
   },
-  categoryChip: {
-    flexDirection: 'row',
+  categoryCard: {
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 12,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: 'transparent',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginRight: 16,
+    borderRadius: 16,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 2,
+    borderColor: '#333',
+    minWidth: 100,
   },
-  activeCategoryChip: {
-    backgroundColor: '#E50914',
-    borderColor: '#E50914',
+  activeCategoryCard: {
+    borderColor: 'transparent',
+    transform: [{ scale: 1.05 }],
   },
   categoryIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 24,
+    marginBottom: 8,
   },
   categoryText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
   },
   activeCategoryText: {
+    color: '#000',
+  },
+  categoryInfoSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#111',
+    borderRadius: 16,
+    padding: 20,
+  },
+  categoryTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  categoryDisplayIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  categoryTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  categoryDescription: {
+    fontSize: 14,
+    color: '#999',
+    maxWidth: 200,
+  },
+  contentCount: {
+    alignItems: 'center',
+    backgroundColor: '#E50914',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  contentCountText: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#fff',
   },
-  section: {
-    marginBottom: 30,
+  contentCountLabel: {
+    fontSize: 10,
+    color: '#fff',
+    textTransform: 'uppercase',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  sectionDescription: {
-    fontSize: 16,
-    opacity: 0.7,
-    marginBottom: 20,
+  contentSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
   },
   contentGrid: {
-    paddingBottom: 10,
+    paddingBottom: 20,
+  },
+  row: {
+    justifyContent: 'space-between',
+  },
+  contentItem: {
+    marginBottom: 20,
+  },
+  card: {
+    width: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingSpinner: {
+    marginBottom: 16,
   },
   loadingText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    marginTop: 20,
-    opacity: 0.7,
   },
 });

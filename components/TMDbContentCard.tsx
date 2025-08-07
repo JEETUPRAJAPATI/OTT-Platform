@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { TMDbMovie, TMDbTVShow, tmdbService } from '../services/tmdbApi';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 interface TMDbContentCardProps {
   content: TMDbMovie | TMDbTVShow;
@@ -12,11 +13,20 @@ interface TMDbContentCardProps {
 }
 
 export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCardProps) {
-  // Better title extraction logic
   const title = (content as any).title || (content as any).name || 'Unknown Title';
   const releaseDate = (content as any).release_date || (content as any).first_air_date;
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
   const posterUrl = tmdbService.getImageUrl(content.poster_path);
+  const rating = content.vote_average || 0;
+
+  // Get rating color based on score
+  const getRatingColor = (rating: number) => {
+    if (rating >= 8) return '#4CAF50'; // Green for excellent
+    if (rating >= 7) return '#8BC34A'; // Light green for very good
+    if (rating >= 6) return '#FFC107'; // Yellow for good
+    if (rating >= 5) return '#FF9800'; // Orange for average
+    return '#F44336'; // Red for poor
+  };
 
   return (
     <TouchableOpacity 
@@ -29,23 +39,44 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
           <Image source={{ uri: posterUrl }} style={styles.poster} />
         ) : (
           <View style={styles.placeholderContainer}>
+            <Ionicons name="image-outline" size={32} color="#666" />
             <Text style={styles.placeholderText}>No Image</Text>
           </View>
         )}
         
-        {/* Overlay with gradient */}
+        {/* Top badges */}
+        <View style={styles.topBadges}>
+          <View style={styles.qualityBadge}>
+            <Text style={styles.qualityText}>HD</Text>
+          </View>
+          <View style={[styles.typeBadge, { backgroundColor: type === 'movie' ? '#E50914' : '#4ECDC4' }]}>
+            <Text style={styles.typeText}>{type === 'movie' ? 'MOVIE' : 'SERIES'}</Text>
+          </View>
+        </View>
+        
+        {/* Bottom overlay with gradient */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          colors={['transparent', 'rgba(0,0,0,0.9)']}
           style={styles.overlay}
         >
-          <View style={styles.ratingContainer}>
-            <Text style={styles.rating}>⭐ {content.vote_average.toFixed(1)}</Text>
+          <View style={styles.bottomInfo}>
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={12} color="#FFD700" />
+              <Text style={[styles.rating, { color: getRatingColor(rating) }]}>
+                {rating.toFixed(1)}
+              </Text>
+            </View>
+            <View style={styles.yearContainer}>
+              <Text style={styles.year}>{year}</Text>
+            </View>
           </View>
         </LinearGradient>
         
-        {/* Quality badge */}
-        <View style={styles.qualityBadge}>
-          <Text style={styles.qualityText}>HD</Text>
+        {/* Play button overlay */}
+        <View style={styles.playButtonContainer}>
+          <View style={styles.playButton}>
+            <Ionicons name="play" size={20} color="#fff" />
+          </View>
         </View>
       </View>
       
@@ -54,9 +85,17 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
           {title}
         </Text>
         <View style={styles.metaContainer}>
-          <Text style={styles.year}>{year}</Text>
+          <Text style={styles.metaText}>{year}</Text>
           <View style={styles.dot} />
-          <Text style={styles.type}>{type === 'movie' ? 'Movie' : 'Series'}</Text>
+          <Text style={styles.metaText}>{type === 'movie' ? 'Movie' : 'Series'}</Text>
+          {rating > 0 && (
+            <>
+              <View style={styles.dot} />
+              <Text style={[styles.metaText, { color: getRatingColor(rating) }]}>
+                ⭐ {rating.toFixed(1)}
+              </Text>
+            </>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -65,9 +104,14 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#1a1a1a',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   imageContainer: {
     position: 'relative',
@@ -80,13 +124,41 @@ const styles = StyleSheet.create({
   },
   placeholderContainer: {
     flex: 1,
-    backgroundColor: '#333',
+    backgroundColor: '#2a2a2a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderText: {
     color: '#666',
-    fontSize: 12,
+    fontSize: 10,
+    marginTop: 8,
+  },
+  topBadges: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    gap: 6,
+  },
+  qualityBadge: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  qualityText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  typeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+  },
+  typeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: 'bold',
   },
   overlay: {
     position: 'absolute',
@@ -98,50 +170,69 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingHorizontal: 8,
   },
+  bottomInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   ratingContainer: {
-    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 3,
   },
   rating: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    fontSize: 11,
+    fontWeight: 'bold',
   },
-  qualityBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#E50914',
+  yearContainer: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
     paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 3,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
-  qualityText: {
+  year: {
     color: '#fff',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '500',
+  },
+  playButtonContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -20 }, { translateY: -20 }],
+    opacity: 0.8,
+  },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(229, 9, 20, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   infoContainer: {
     padding: 12,
   },
   title: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 16,
-    marginBottom: 6,
-    textAlign: 'left',
+    lineHeight: 18,
+    marginBottom: 8,
   },
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  year: {
+  metaText: {
     color: '#999',
-    fontSize: 12,
+    fontSize: 11,
   },
   dot: {
     width: 3,
@@ -149,10 +240,5 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     backgroundColor: '#666',
     marginHorizontal: 6,
-  },
-  type: {
-    color: '#999',
-    fontSize: 12,
-    textTransform: 'capitalize',
   },
 });
