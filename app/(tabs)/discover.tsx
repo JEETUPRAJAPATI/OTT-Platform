@@ -1,11 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert, View, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -14,13 +18,13 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(false);
 
   const categories = [
-    { id: 'trending', name: 'Trending', icon: '🔥' },
-    { id: 'hindi', name: 'Hindi Movies', icon: '🇮🇳' },
-    { id: 'south', name: 'South Indian', icon: '🎬' },
-    { id: 'marvel', name: 'Marvel', icon: '🦸' },
-    { id: 'thriller2025', name: 'Thrillers 2025', icon: '😱' },
-    { id: 'toprated', name: 'Top Rated', icon: '⭐' },
-    { id: 'popular', name: 'Popular', icon: '👥' },
+    { id: 'trending', name: 'Trending', icon: '🔥', color: '#E50914' },
+    { id: 'hindi', name: 'Hindi Movies', icon: '🇮🇳', color: '#FF6B35' },
+    { id: 'south', name: 'South Indian', icon: '🎭', color: '#4ECDC4' },
+    { id: 'marvel', name: 'Marvel', icon: '🦸', color: '#FF4757' },
+    { id: 'thriller2025', name: 'Thrillers 2025', icon: '😱', color: '#5F27CD' },
+    { id: 'toprated', name: 'Top Rated', icon: '⭐', color: '#FFA502' },
+    { id: 'popular', name: 'Popular', icon: '👥', color: '#3742FA' },
   ];
 
   useEffect(() => {
@@ -79,89 +83,164 @@ export default function DiscoverScreen() {
   const getCategoryDescription = (category: string) => {
     switch (category) {
       case 'trending':
-        return 'What\'s hot right now';
+        return 'What\'s hot right now across all platforms';
       case 'hindi':
-        return 'Best of Bollywood';
+        return 'Latest and greatest from Bollywood';
       case 'south':
         return 'Tamil, Telugu, Malayalam & Kannada cinema';
       case 'marvel':
-        return 'Marvel Cinematic Universe';
+        return 'Marvel Cinematic Universe collection';
       case 'thriller2025':
-        return 'Latest thriller releases';
+        return 'Edge-of-your-seat thrillers from 2025';
       case 'toprated':
-        return 'Highest rated content';
+        return 'Highest rated content by critics and audiences';
       case 'popular':
-        return 'Most popular movies';
+        return 'Most watched movies worldwide';
       default:
         return 'Discover amazing content';
     }
   };
 
+  const activeCategory = categories.find(c => c.id === selectedCategory);
+
   return (
-    <ScrollView style={styles.container}>
-      <ThemedView style={styles.content}>
-        <ThemedView style={styles.header}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <LinearGradient
+        colors={['#0a0a0a', '#1a1a1a']}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
           <ThemedText type="title" style={styles.title}>
             Discover
           </ThemedText>
           <ThemedText style={styles.subtitle}>
             Explore content by category
           </ThemedText>
-        </ThemedView>
+        </View>
+      </LinearGradient>
 
-        <ThemedView style={styles.categoriesSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
+      <ThemedView style={styles.content}>
+        {/* Categories Section */}
+        <View style={styles.categoriesSection}>
+          <ThemedText style={styles.sectionTitle}>Categories</ThemedText>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.categoriesScroll}
+            contentContainerStyle={styles.categoriesContainer}
+          >
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
                 style={[
-                  styles.categoryChip,
-                  selectedCategory === category.id && styles.activeCategoryChip
+                  styles.categoryCard,
+                  selectedCategory === category.id && {
+                    backgroundColor: category.color,
+                    transform: [{ scale: 1.05 }],
+                  }
                 ]}
                 onPress={() => setSelectedCategory(category.id)}
+                activeOpacity={0.8}
               >
-                <ThemedText style={styles.categoryIcon}>{category.icon}</ThemedText>
-                <ThemedText style={[
-                  styles.categoryText,
-                  selectedCategory === category.id && styles.activeCategoryText
-                ]}>
-                  {category.name}
-                </ThemedText>
+                <LinearGradient
+                  colors={selectedCategory === category.id 
+                    ? [category.color, `${category.color}DD`] 
+                    : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+                  style={styles.categoryGradient}
+                >
+                  <Text style={styles.categoryIcon}>{category.icon}</Text>
+                  <ThemedText style={[
+                    styles.categoryText,
+                    selectedCategory === category.id && styles.activeCategoryText
+                  ]}>
+                    {category.name}
+                  </ThemedText>
+                </LinearGradient>
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </ThemedView>
+        </View>
 
-        <ThemedView style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            {categories.find(c => c.id === selectedCategory)?.name}
-          </ThemedText>
-          <ThemedText style={styles.sectionDescription}>
-            {getCategoryDescription(selectedCategory)}
-          </ThemedText>
+        {/* Selected Category Info */}
+        <View style={styles.categoryInfoSection}>
+          <LinearGradient
+            colors={[`${activeCategory?.color}20`, 'transparent']}
+            style={styles.categoryInfoCard}
+          >
+            <View style={styles.categoryInfoHeader}>
+              <Text style={styles.categoryInfoIcon}>{activeCategory?.icon}</Text>
+              <View style={styles.categoryInfoText}>
+                <ThemedText style={styles.categoryInfoTitle}>
+                  {activeCategory?.name}
+                </ThemedText>
+                <ThemedText style={styles.categoryInfoDescription}>
+                  {getCategoryDescription(selectedCategory)}
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.categoryStats}>
+              <View style={styles.statItem}>
+                <ThemedText style={styles.statNumber}>{content.length}</ThemedText>
+                <ThemedText style={styles.statLabel}>Items</ThemedText>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <ThemedText style={styles.statNumber}>4.2</ThemedText>
+                <ThemedText style={styles.statLabel}>Avg Rating</ThemedText>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Content Grid */}
+        <View style={styles.contentSection}>
+          <View style={styles.contentHeader}>
+            <ThemedText style={styles.contentTitle}>
+              {activeCategory?.name} Collection
+            </ThemedText>
+            <TouchableOpacity style={styles.shuffleButton}>
+              <Ionicons name="shuffle" size={16} color="#fff" />
+              <ThemedText style={styles.shuffleText}>Shuffle</ThemedText>
+            </TouchableOpacity>
+          </View>
           
           {loading ? (
-            <ThemedText style={styles.loadingText}>Loading...</ThemedText>
+            <View style={styles.loadingContainer}>
+              <LinearGradient
+                colors={['#333', '#555', '#333']}
+                style={styles.loadingGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              />
+              <ThemedText style={styles.loadingText}>Loading amazing content...</ThemedText>
+            </View>
           ) : (
             <FlatList
               data={content}
-              renderItem={({ item }) => {
+              renderItem={({ item, index }) => {
                 const mediaType = determineMediaType(item);
                 return (
-                  <TMDbContentCard
-                    content={item}
-                    type={mediaType}
-                    onPress={() => handleContentPress(item)}
-                  />
+                  <View style={[styles.cardContainer, { 
+                    opacity: 0,
+                    transform: [{ translateY: 20 }],
+                    // Simple fade-in animation would be added here
+                  }]}>
+                    <TMDbContentCard
+                      content={item}
+                      type={mediaType}
+                      onPress={() => handleContentPress(item)}
+                    />
+                  </View>
                 );
               }}
               keyExtractor={(item) => `${item.id}-${determineMediaType(item)}`}
               numColumns={2}
-              contentContainerStyle={styles.contentGrid}
+              columnWrapperStyle={styles.row}
               scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
             />
           )}
-        </ThemedView>
+        </View>
       </ThemedView>
     </ScrollView>
   );
@@ -170,77 +249,179 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
+    backgroundColor: '#000',
   },
   header: {
+    paddingTop: 60,
+    paddingBottom: 30,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 10,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
-    opacity: 0.8,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   categoriesSection: {
-    marginBottom: 20,
+    marginBottom: 25,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 15,
   },
   categoriesScroll: {
     marginBottom: 10,
   },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 12,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: 'transparent',
+  categoriesContainer: {
+    paddingRight: 20,
   },
-  activeCategoryChip: {
-    backgroundColor: '#E50914',
-    borderColor: '#E50914',
+  categoryCard: {
+    marginRight: 15,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  categoryGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    alignItems: 'center',
+    minWidth: 120,
   },
   categoryIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 24,
+    marginBottom: 8,
   },
   categoryText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
   },
   activeCategoryText: {
     color: '#fff',
   },
-  section: {
+  categoryInfoSection: {
+    marginBottom: 25,
+  },
+  categoryInfoCard: {
+    borderRadius: 16,
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  categoryInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  categoryInfoIcon: {
+    fontSize: 32,
+    marginRight: 15,
+  },
+  categoryInfoText: {
+    flex: 1,
+  },
+  categoryInfoTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  categoryInfoDescription: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 20,
+  },
+  categoryStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginHorizontal: 20,
+  },
+  contentSection: {
     marginBottom: 30,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  sectionDescription: {
-    fontSize: 16,
-    opacity: 0.7,
+  contentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
-  contentGrid: {
-    paddingBottom: 10,
+  contentTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  shuffleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  shuffleText: {
+    fontSize: 12,
+    color: '#fff',
+    marginLeft: 6,
+  },
+  cardContainer: {
+    flex: 1,
+    margin: 8,
+  },
+  row: {
+    justifyContent: 'space-between',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  loadingGradient: {
+    width: 60,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 16,
   },
   loadingText: {
-    textAlign: 'center',
-    marginTop: 20,
-    opacity: 0.7,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
   },
 });
