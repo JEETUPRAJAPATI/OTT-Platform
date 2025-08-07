@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert, View, Dimensions, Text } from 'react-native';
+import { ScrollView, StyleSheet, FlatList, TouchableOpacity, View, Dimensions, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -11,64 +11,80 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 60) / 2;
 
+interface Genre {
+  id: number;
+  name: string;
+}
+
 export default function DiscoverScreen() {
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<string>('trending');
+  const [searchQuery, setSearchQuery] = useState('');
   const [content, setContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
 
-  const categories = [
-    { id: 'trending', name: 'Trending', icon: '🔥', color: '#FF453A', description: 'What\'s hot right now' },
-    { id: 'hindi', name: 'Hindi', icon: '🇮🇳', color: '#34C759', description: 'Bollywood cinema' },
-    { id: 'south', name: 'South Indian', icon: '🎬', color: '#007AFF', description: 'Regional cinema' },
-    { id: 'marvel', name: 'Marvel', icon: '🦸', color: '#FF9500', description: 'Superhero universe' },
-    { id: 'thriller2025', name: 'Thriller', icon: '😱', color: '#AF52DE', description: 'Spine-chilling' },
-    { id: 'toprated', name: 'Top Rated', icon: '⭐', color: '#FFD60A', description: 'Highest rated' },
-    { id: 'popular', name: 'Popular', icon: '👥', color: '#32D74B', description: 'Most popular' },
-    { id: 'action', name: 'Action', icon: '💥', color: '#FF6B35', description: 'High-octane' },
+  const genres: Genre[] = [
+    { id: 28, name: 'Action' },
+    { id: 12, name: 'Adventure' },
+    { id: 16, name: 'Animation' },
+    { id: 35, name: 'Comedy' },
+    { id: 80, name: 'Crime' },
+    { id: 99, name: 'Documentary' },
+    { id: 18, name: 'Drama' },
+    { id: 10751, name: 'Family' },
+    { id: 14, name: 'Fantasy' },
+    { id: 27, name: 'Horror' },
+    { id: 10402, name: 'Music' },
+    { id: 9648, name: 'Mystery' },
+    { id: 10749, name: 'Romance' },
+    { id: 878, name: 'Sci-Fi' },
+    { id: 53, name: 'Thriller' },
+    { id: 10752, name: 'War' },
   ];
 
   useEffect(() => {
-    loadCategoryContent(selectedCategory);
-  }, [selectedCategory]);
+    // Load trending content by default
+    loadTrendingContent();
+  }, []);
 
-  const loadCategoryContent = async (category: string) => {
+  const loadTrendingContent = async () => {
     try {
       setLoading(true);
-      let results: (TMDbMovie | TMDbTVShow)[] = [];
-
-      switch (category) {
-        case 'trending':
-          results = await tmdbService.getTrending();
-          break;
-        case 'hindi':
-          results = await tmdbService.getHindiMovies();
-          break;
-        case 'south':
-          results = await tmdbService.getSouthIndianMovies();
-          break;
-        case 'marvel':
-          results = await tmdbService.getMarvelMovies();
-          break;
-        case 'thriller2025':
-          results = await tmdbService.getThrillerMovies2025();
-          break;
-        case 'toprated':
-          results = await tmdbService.getTopRatedMovies();
-          break;
-        case 'popular':
-          results = await tmdbService.getPopularMovies();
-          break;
-        case 'action':
-          results = await tmdbService.getPopularMovies(); // Use popular as fallback for action
-          break;
-        default:
-          results = await tmdbService.getTrending();
-      }
-
+      const results = await tmdbService.getTrending();
       setContent(results);
     } catch (error) {
-      console.error('Error loading category content:', error);
+      console.error('Loading trending content error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async (query: string) => {
+    if (query.trim().length < 2) {
+      loadTrendingContent();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const results = await tmdbService.searchContent(query);
+      setContent(results);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenreFilter = async (genreId: number) => {
+    setSelectedGenre(genreId);
+    setSearchQuery('');
+    try {
+      setLoading(true);
+      const results = await tmdbService.getMoviesByGenre(genreId);
+      setContent(results);
+    } catch (error) {
+      console.error('Genre filter error:', error);
     } finally {
       setLoading(false);
     }
@@ -81,10 +97,6 @@ export default function DiscoverScreen() {
 
   const determineMediaType = (item: any): 'movie' | 'tv' => {
     return item.title ? 'movie' : 'tv';
-  };
-
-  const getSelectedCategory = () => {
-    return categories.find(c => c.id === selectedCategory);
   };
 
   const renderContentItem = ({ item, index }: { item: any, index: number }) => {
@@ -108,82 +120,101 @@ export default function DiscoverScreen() {
         <ThemedText style={styles.title}>
           Discover
         </ThemedText>
-        <ThemedText style={styles.subtitle}>
-          Explore content by category
-        </ThemedText>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Categories Grid */}
-        <View style={styles.categoriesSection}>
-          <View style={styles.categoriesGrid}>
-            {categories.map((category, index) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryCard,
-                  selectedCategory === category.id && [
-                    styles.activeCategoryCard,
-                    { backgroundColor: category.color }
-                  ]
-                ]}
-                onPress={() => setSelectedCategory(category.id)}
-                activeOpacity={0.8}
+        {/* Search Section */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search movies and TV shows..."
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                handleSearch(text);
+              }}
+              placeholderTextColor="#8E8E93"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => {
+                  setSearchQuery('');
+                  setSelectedGenre(null);
+                  loadTrendingContent();
+                }}
+                style={styles.clearButton}
               >
-                <View style={styles.categoryIconContainer}>
-                  <Text style={styles.categoryIcon}>{category.icon}</Text>
-                </View>
+                <Ionicons name="close" size={18} color="#8E8E93" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Filter by Genre */}
+        <View style={styles.genreSection}>
+          <ThemedText style={styles.sectionTitle}>Filter by Genre</ThemedText>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genreScroll}>
+            <TouchableOpacity
+              style={[
+                styles.genreChip,
+                !selectedGenre && styles.activeGenreChip
+              ]}
+              onPress={() => {
+                setSelectedGenre(null);
+                setSearchQuery('');
+                loadTrendingContent();
+              }}
+            >
+              <ThemedText style={[
+                styles.genreText,
+                !selectedGenre && styles.activeGenreText
+              ]}>
+                All
+              </ThemedText>
+            </TouchableOpacity>
+
+            {genres.map((genre) => (
+              <TouchableOpacity
+                key={genre.id}
+                style={[
+                  styles.genreChip,
+                  selectedGenre === genre.id && styles.activeGenreChip
+                ]}
+                onPress={() => handleGenreFilter(genre.id)}
+              >
                 <ThemedText style={[
-                  styles.categoryName,
-                  selectedCategory === category.id && styles.activeCategoryName
+                  styles.genreText,
+                  selectedGenre === genre.id && styles.activeGenreText
                 ]}>
-                  {category.name}
-                </ThemedText>
-                <ThemedText style={[
-                  styles.categoryDescription,
-                  selectedCategory === category.id && styles.activeCategoryDescription
-                ]}>
-                  {category.description}
+                  {genre.name}
                 </ThemedText>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
-        {/* Current Category Header */}
-        <View style={styles.categoryHeaderSection}>
-          <View style={[styles.categoryHeaderCard, { borderLeftColor: getSelectedCategory()?.color }]}>
-            <View style={styles.categoryHeaderContent}>
-              <Text style={styles.categoryHeaderIcon}>
-                {getSelectedCategory()?.icon}
-              </Text>
-              <View style={styles.categoryHeaderText}>
-                <ThemedText style={styles.categoryHeaderTitle}>
-                  {getSelectedCategory()?.name}
-                </ThemedText>
-                <ThemedText style={styles.categoryHeaderSubtitle}>
-                  {getSelectedCategory()?.description}
-                </ThemedText>
-              </View>
-            </View>
-            <View style={[styles.contentCountBadge, { backgroundColor: getSelectedCategory()?.color }]}>
-              <ThemedText style={styles.contentCountText}>
-                {content.length}
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-
-        {/* Content Grid */}
+        {/* Content Section */}
         <View style={styles.contentSection}>
+          <View style={styles.resultHeader}>
+            <ThemedText style={styles.sectionTitle}>
+              {searchQuery.trim() ? 'Search Results' : selectedGenre ? 'Filtered Results' : 'Trending Now'}
+            </ThemedText>
+            {content.length > 0 && (
+              <ThemedText style={styles.resultCount}>
+                {content.length} {content.length === 1 ? 'item' : 'items'}
+              </ThemedText>
+            )}
+          </View>
+
           {loading ? (
             <View style={styles.loadingContainer}>
               <View style={styles.loadingSpinner}>
                 <Ionicons name="refresh" size={32} color="#FF453A" />
               </View>
-              <ThemedText style={styles.loadingText}>
-                Loading {getSelectedCategory()?.name.toLowerCase()}...
-              </ThemedText>
+              <ThemedText style={styles.loadingText}>Loading content...</ThemedText>
             </View>
           ) : content.length > 0 ? (
             <FlatList
@@ -203,7 +234,7 @@ export default function DiscoverScreen() {
                 No content available
               </ThemedText>
               <ThemedText style={styles.emptySubtext}>
-                Try selecting a different category
+                Try adjusting your search or filter
               </ThemedText>
             </View>
           )}
@@ -228,116 +259,87 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 8,
     letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#8E8E93',
-    fontWeight: '400',
   },
   content: {
     flex: 1,
     backgroundColor: '#1C1C1E',
   },
-  categoriesSection: {
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2C2C2E',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 52,
+    borderWidth: 1,
+    borderColor: '#3A3A3C',
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '400',
+  },
+  clearButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  genreSection: {
     paddingHorizontal: 20,
     paddingBottom: 32,
   },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  categoryCard: {
-    width: (width - 68) / 2,
-    backgroundColor: '#2C2C2E',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#3A3A3C',
-  },
-  activeCategoryCard: {
-    borderColor: 'transparent',
-    transform: [{ scale: 1.02 }],
-  },
-  categoryIconContainer: {
-    marginBottom: 12,
-  },
-  categoryIcon: {
-    fontSize: 32,
-  },
-  categoryName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  activeCategoryName: {
-    color: '#FFFFFF',
-  },
-  categoryDescription: {
-    fontSize: 12,
-    color: '#8E8E93',
-    textAlign: 'center',
-    fontWeight: '400',
-  },
-  activeCategoryDescription: {
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
-  categoryHeaderSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  categoryHeaderCard: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderLeftWidth: 4,
-  },
-  categoryHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  categoryHeaderIcon: {
-    fontSize: 28,
-    marginRight: 16,
-  },
-  categoryHeaderText: {
-    flex: 1,
-  },
-  categoryHeaderTitle: {
+  sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 16,
   },
-  categoryHeaderSubtitle: {
+  genreScroll: {
+    flexDirection: 'row',
+  },
+  genreChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#2C2C2E',
+    borderWidth: 1,
+    borderColor: '#3A3A3C',
+    marginRight: 12,
+  },
+  activeGenreChip: {
+    backgroundColor: '#FF453A',
+    borderColor: '#FF453A',
+  },
+  genreText: {
     fontSize: 14,
-    color: '#8E8E93',
-    fontWeight: '400',
+    fontWeight: '500',
+    color: '#FFFFFF',
   },
-  contentCountBadge: {
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  contentCountText: {
-    fontSize: 16,
-    fontWeight: '700',
+  activeGenreText: {
     color: '#FFFFFF',
   },
   contentSection: {
     paddingHorizontal: 20,
     paddingBottom: 100,
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  resultCount: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '500',
   },
   contentGrid: {
     paddingBottom: 20,
