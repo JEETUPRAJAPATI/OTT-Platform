@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert, View, Dimensions } from 'react-native';
+import { ScrollView, StyleSheet, FlatList, TouchableOpacity, Alert, View, Dimensions, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
