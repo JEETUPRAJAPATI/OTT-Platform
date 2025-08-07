@@ -87,6 +87,7 @@ export default function TMDbContentDetails() {
       
       // Fetch content details
       const contentData = await tmdbService.getMovieDetails(Number(id));
+      console.log('Content loaded:', contentData);
       setContent(contentData);
       
       // Fetch cast
@@ -203,10 +204,9 @@ export default function TMDbContentDetails() {
           <ImageBackground
             source={{ uri: backdropUrl }}
             style={styles.backdropImage}
-            resizeMode="cover"
           >
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)', '#000']}
+              colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.9)', '#000']}
               style={styles.heroGradient}
             >
               {/* Header */}
@@ -217,7 +217,7 @@ export default function TMDbContentDetails() {
                 >
                   <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Details</Text>
+                <Text style={styles.headerTitle}>Movie/TV Details</Text>
                 <TouchableOpacity 
                   style={styles.headerButton}
                   onPress={handleShare}
@@ -227,19 +227,9 @@ export default function TMDbContentDetails() {
               </View>
 
               {/* Content Info */}
-              <Animated.View 
-                style={[
-                  styles.heroContent,
-                  {
-                    opacity: fadeAnim,
-                    transform: [{ translateY: slideAnim }]
-                  }
-                ]}
-              >
+              <View style={styles.heroContent}>
                 <View style={styles.posterContainer}>
-                  <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                    <Image source={{ uri: posterUrl }} style={styles.posterImage} />
-                  </Animated.View>
+                  <Image source={{ uri: posterUrl }} style={styles.posterImage} />
                   
                   {/* Quick Actions */}
                   <View style={styles.quickActions}>
@@ -275,7 +265,7 @@ export default function TMDbContentDetails() {
                 </View>
 
                 <View style={styles.contentInfo}>
-                  <Text style={styles.contentTitle}>{title}</Text>
+                  <Text style={styles.contentTitle} numberOfLines={2}>{title}</Text>
                   
                   <View style={styles.metaInfo}>
                     <Text style={styles.year}>
@@ -285,39 +275,41 @@ export default function TMDbContentDetails() {
                     <View style={styles.ratingContainer}>
                       <Ionicons name="star" size={16} color="#FFD700" />
                       <Text style={styles.rating}>
-                        {content.vote_average.toFixed(1)} ({content.vote_count} votes)
+                        {content.vote_average ? content.vote_average.toFixed(1) : 'N/A'}
                       </Text>
                     </View>
                   </View>
 
                   {/* Genres */}
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.genresContainer}
-                  >
-                    {content.genres?.map((genre) => (
-                      <TouchableOpacity
-                        key={genre.id}
-                        style={[
-                          styles.genreChip,
-                          selectedGenre === genre.id && styles.genreChipSelected
-                        ]}
-                        onPress={() => setSelectedGenre(
-                          selectedGenre === genre.id ? null : genre.id
-                        )}
-                      >
-                        <Text style={[
-                          styles.genreText,
-                          selectedGenre === genre.id && styles.genreTextSelected
-                        ]}>
-                          {genre.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  {content.genres && content.genres.length > 0 && (
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.genresContainer}
+                    >
+                      {content.genres.map((genre) => (
+                        <TouchableOpacity
+                          key={genre.id}
+                          style={[
+                            styles.genreChip,
+                            selectedGenre === genre.id && styles.genreChipSelected
+                          ]}
+                          onPress={() => setSelectedGenre(
+                            selectedGenre === genre.id ? null : genre.id
+                          )}
+                        >
+                          <Text style={[
+                            styles.genreText,
+                            selectedGenre === genre.id && styles.genreTextSelected
+                          ]}>
+                            {genre.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
                 </View>
-              </Animated.View>
+              </View>
             </LinearGradient>
           </ImageBackground>
         </View>
@@ -480,7 +472,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroSection: {
-    height: screenHeight * 0.7,
+    height: screenHeight * 0.75,
   },
   backdropImage: {
     width: '100%',
@@ -489,6 +481,7 @@ const styles = StyleSheet.create({
   heroGradient: {
     flex: 1,
     justifyContent: 'space-between',
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -497,108 +490,140 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
+    zIndex: 1,
   },
   headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   headerTitle: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
   },
   heroContent: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 20,
+    alignItems: 'flex-end',
+    minHeight: 200,
   },
   posterContainer: {
     alignItems: 'center',
+    marginRight: 20,
   },
   posterImage: {
-    width: 120,
-    height: 180,
+    width: 130,
+    height: 195,
     borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   quickActions: {
     flexDirection: 'row',
     marginTop: 12,
+    justifyContent: 'center',
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   playButton: {
     backgroundColor: '#E50914',
+    borderColor: '#E50914',
   },
   contentInfo: {
     flex: 1,
-    marginLeft: 20,
     justifyContent: 'flex-end',
   },
   contentTitle: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 8,
-    lineHeight: 34,
+    marginBottom: 12,
+    lineHeight: 32,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
   },
   metaInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   year: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   dot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    marginHorizontal: 8,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    marginHorizontal: 12,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   rating: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   genresContainer: {
     marginTop: 8,
+    maxHeight: 35,
   },
   genreChip: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    marginRight: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   genreChipSelected: {
     backgroundColor: '#E50914',
     borderColor: '#E50914',
   },
   genreText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 12,
-    fontWeight: '500',
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 13,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   genreTextSelected: {
     color: '#fff',
