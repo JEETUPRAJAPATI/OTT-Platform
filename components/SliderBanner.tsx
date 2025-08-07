@@ -2,262 +2,283 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
-  ScrollView, 
-  Dimensions, 
+  Text, 
   StyleSheet, 
-  TouchableOpacity,
-  Image,
-  Animated
+  Dimensions, 
+  TouchableOpacity, 
+  Image, 
+  FlatList, 
+  ImageBackground,
+  ScrollView 
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from './ThemedText';
-import { ThemedView } from './ThemedView';
-import { Content } from '../data/ottPlatforms';
+import { TMDbMovie, TMDbTVShow } from '../services/tmdbApi';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface SliderBannerProps {
-  content: Content[];
-  onContentPress: (content: Content) => void;
+  content: (TMDbMovie | TMDbTVShow)[];
+  onContentPress: (item: TMDbMovie | TMDbTVShow) => void;
+  onWatchNow?: (item: TMDbMovie | TMDbTVShow) => void;
 }
 
-export function SliderBanner({ content, onContentPress }: SliderBannerProps) {
+export function SliderBanner({ content, onContentPress, onWatchNow }: SliderBannerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const screenWidth = Dimensions.get('window').width;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    if (!content || content.length === 0) return;
+    if (content.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentIndex(prevIndex => {
+          const nextIndex = (prevIndex + 1) % content.length;
+          flatListRef.current?.scrollToIndex({ 
+            index: nextIndex, 
+            animated: true 
+          });
+          return nextIndex;
+        });
+      }, 5000);
 
-    const interval = setInterval(() => {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.7,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      const nextIndex = (currentIndex + 1) % content.length;
-      setCurrentIndex(nextIndex);
-      scrollViewRef.current?.scrollTo({
-        x: nextIndex * screenWidth,
-        animated: true,
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [currentIndex, content.length, screenWidth, fadeAnim]);
-
-  const handleScroll = (event: any) => {
-    const contentOffset = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffset / screenWidth);
-    setCurrentIndex(index);
-  };
+      return () => clearInterval(interval);
+    }
+  }, [content.length]);
 
   if (!content || content.length === 0) {
-    return (
-      <ThemedView style={styles.container}>
-        <ThemedText type="subtitle" style={styles.title}>
-          🔥 New Releases
-        </ThemedText>
-        <ThemedView style={styles.emptyContainer}>
-          <ThemedText style={styles.emptyText}>
-            Loading latest releases...
-          </ThemedText>
-        </ThemedView>
-      </ThemedView>
-    );
+    return null;
   }
 
-  return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="subtitle" style={styles.title}>
-        🔥 New Releases
-      </ThemedText>
-      
-      <Animated.View style={[styles.sliderContainer, { opacity: fadeAnim }]}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScroll}
-          style={styles.slider}
-        >
-          {content.map((item, index) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.slide, { width: screenWidth - 40 }]}
-              onPress={() => onContentPress(item)}
-            >
-              <Image 
-                source={{ uri: item.poster }} 
-                style={styles.posterImage}
-                contentFit="cover"
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)']}
-                style={styles.overlay}
-              >
-                <View style={styles.contentInfo}>
-                  <ThemedText type="defaultSemiBold" style={styles.slideTitle}>
-                    {item.title}
-                  </ThemedText>
-                  <ThemedText style={styles.slideYear}>
-                    {item.releaseYear}
-                  </ThemedText>
-                  <View style={styles.slideMetadata}>
-                    <ThemedText style={styles.slideRating}>
-                      ⭐ {item.imdbRating}
-                    </ThemedText>
-                    <View style={[
-                      styles.typeBadge, 
-                      { backgroundColor: item.type === 'movie' ? '#FF6B6B' : '#4ECDC4' }
-                    ]}>
-                      <ThemedText style={styles.typeText}>
-                        {item.type.toUpperCase()}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  <ThemedText style={styles.slideDescription} numberOfLines={3}>
-                    {item.description}
-                  </ThemedText>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </Animated.View>
+  const renderSliderItem = ({ item, index }: { item: TMDbMovie | TMDbTVShow, index: number }) => {
+    const title = (item as any).title || (item as any).name;
+    const backdropUrl = `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`;
+    const posterUrl = `https://image.tmdb.org/t/p/w500${item.poster_path}`;
 
+    return (
+      <View style={styles.slideItem}>
+        <ImageBackground
+          source={{ uri: backdropUrl }}
+          style={styles.backgroundImage}
+          imageStyle={styles.backgroundImageStyle}
+        >
+          <View style={styles.overlay} />
+          <View style={styles.contentContainer}>
+            <View style={styles.leftContent}>
+              <View style={styles.badgeContainer}>
+                <Text style={styles.badge}>NEW RELEASE</Text>
+              </View>
+              <ThemedText style={styles.slideTitle} numberOfLines={2}>
+                {title}
+              </ThemedText>
+              <ThemedText style={styles.slideDescription} numberOfLines={3}>
+                {item.overview}
+              </ThemedText>
+              <View style={styles.metadata}>
+                <Text style={styles.year}>
+                  {new Date((item as any).release_date || (item as any).first_air_date).getFullYear()}
+                </Text>
+                <Text style={styles.rating}>⭐ {item.vote_average.toFixed(1)}</Text>
+                <Text style={styles.type}>
+                  {(item as any).title ? 'Movie' : 'TV Series'}
+                </Text>
+              </View>
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity 
+                  style={styles.watchButton}
+                  onPress={() => onWatchNow?.(item)}
+                >
+                  <Text style={styles.watchButtonText}>▶ Watch Now</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.infoButton}
+                  onPress={() => onContentPress(item)}
+                >
+                  <Text style={styles.infoButtonText}>+ More Info</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.rightContent}>
+              <Image source={{ uri: posterUrl }} style={styles.posterImage} />
+            </View>
+          </View>
+        </ImageBackground>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        ref={flatListRef}
+        data={content}
+        renderItem={renderSliderItem}
+        keyExtractor={(item, index) => `slider-${item.id}-${index}`}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(event) => {
+          const index = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
+          setCurrentIndex(index);
+        }}
+      />
+      
+      {/* Pagination Indicators */}
       <View style={styles.pagination}>
         {content.map((_, index) => (
           <View
             key={index}
             style={[
               styles.paginationDot,
-              { 
-                backgroundColor: index === currentIndex ? '#E50914' : '#ccc',
-                width: index === currentIndex ? 20 : 8,
-              }
+              index === currentIndex && styles.paginationDotActive
             ]}
           />
         ))}
       </View>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginBottom: 15,
-    marginLeft: 20,
-    color: '#E50914',
-  },
-  sliderContainer: {
-    height: 300,
-    marginHorizontal: 10,
-  },
-  slider: {
-    height: 300,
-  },
-  slide: {
-    marginHorizontal: 10,
-    borderRadius: 15,
-    overflow: 'hidden',
+    height: screenHeight * 0.6,
     position: 'relative',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    backgroundColor: '#f0f0f0',
   },
-  posterImage: {
-    width: '100%',
+  slideItem: {
+    width: screenWidth,
     height: '100%',
   },
-  overlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-    justifyContent: 'flex-end',
-    padding: 20,
-  },
-  contentInfo: {
+  backgroundImage: {
     flex: 1,
     justifyContent: 'flex-end',
   },
-  slideTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
+  backgroundImageStyle: {
+    resizeMode: 'cover',
   },
-  slideYear: {
-    fontSize: 16,
-    color: '#ccc',
-    marginBottom: 8,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  slideMetadata: {
+  contentContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 40,
+    alignItems: 'flex-end',
+  },
+  leftContent: {
+    flex: 1,
+    paddingRight: 20,
+  },
+  rightContent: {
+    width: 120,
+  },
+  badgeContainer: {
     marginBottom: 10,
-    gap: 10,
   },
-  slideRating: {
-    fontSize: 14,
+  badge: {
+    backgroundColor: '#E50914',
     color: '#fff',
-    fontWeight: '600',
-  },
-  typeBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 12,
-  },
-  typeText: {
-    color: '#fff',
+    borderRadius: 4,
     fontSize: 10,
     fontWeight: 'bold',
+    alignSelf: 'flex-start',
+  },
+  slideTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   slideDescription: {
     fontSize: 14,
-    color: '#ddd',
+    color: '#fff',
+    opacity: 0.9,
     lineHeight: 20,
+    marginBottom: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  metadata: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  year: {
+    color: '#fff',
+    fontSize: 12,
+    marginRight: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  rating: {
+    color: '#fff',
+    fontSize: 12,
+    marginRight: 12,
+  },
+  type: {
+    color: '#fff',
+    fontSize: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  watchButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  watchButtonText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  infoButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  infoButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  posterImage: {
+    width: 120,
+    height: 180,
+    borderRadius: 8,
+    resizeMode: 'cover',
   },
   pagination: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 15,
-    gap: 8,
   },
   paginationDot: {
+    width: 8,
     height: 8,
     borderRadius: 4,
-    transition: 'all 0.3s ease',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 4,
   },
-  emptyContainer: {
-    height: 300,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 15,
-    marginHorizontal: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    opacity: 0.6,
+  paginationDotActive: {
+    backgroundColor: '#E50914',
+    width: 20,
   },
 });
