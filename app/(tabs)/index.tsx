@@ -65,9 +65,9 @@ export default function HomeScreen() {
   };
 
   // Get newest releases (latest 4 content items by release year)
-  const newReleases = [...contentData]
-    .sort((a, b) => b.releaseYear - a.releaseYear)
-    .slice(0, 4);
+  const newReleases = contentData && contentData.length > 0 
+    ? [...contentData].sort((a, b) => b.releaseYear - a.releaseYear).slice(0, 4)
+    : [];
 
   if (showSplash) {
     return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;

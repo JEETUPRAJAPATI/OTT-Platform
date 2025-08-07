@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, Image, FlatList, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { ContentCard } from '@/components/ContentCard';
-import { contentData, platforms, Content } from '@/data/ottPlatforms';
+import { platforms, contentData, Content } from '@/data/ottPlatforms';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function PlatformScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,20 +27,45 @@ export default function PlatformScreen() {
   if (!platform) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText>Platform not found</ThemedText>
+        <ThemedView style={styles.content}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <ThemedText style={styles.headerTitle}>
+              Platform not found
+            </ThemedText>
+          </View>
+        </ThemedView>
       </ThemedView>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <ThemedText style={styles.headerTitle}>
+          {platform.name}
+        </ThemedText>
+      </View>
+
       <ThemedView style={styles.content}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="title" style={[styles.title, { color: platform.color }]}>
+        <ThemedView style={styles.platformHeader}>
+          <Image source={{ uri: platform.logo }} style={styles.platformLogo} />
+          <ThemedText type="title" style={styles.platformName}>
             {platform.name}
           </ThemedText>
-          <ThemedText style={styles.contentCount}>
-            {filteredContent.length} {selectedFilter === 'all' ? 'items' : selectedFilter + 's'} available
+          <ThemedText style={styles.platformDescription}>
+            {platform.description}
           </ThemedText>
         </ThemedView>
 
@@ -86,19 +111,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    zIndex: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
   content: {
     flex: 1,
     padding: 20,
   },
-  header: {
+  platformHeader: {
     alignItems: 'center',
     marginBottom: 20,
     marginTop: 20,
   },
-  title: {
+  platformLogo: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 15,
+    resizeMode: 'contain',
+  },
+  platformName: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  platformDescription: {
+    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
   },
   contentCount: {
     fontSize: 14,

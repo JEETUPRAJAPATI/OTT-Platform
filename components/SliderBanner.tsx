@@ -26,6 +26,8 @@ export function SliderBanner({ content, onContentPress }: SliderBannerProps) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (!content || content.length === 0) return;
+
     const interval = setInterval(() => {
       Animated.sequence([
         Animated.timing(fadeAnim, {
@@ -57,6 +59,21 @@ export function SliderBanner({ content, onContentPress }: SliderBannerProps) {
     setCurrentIndex(index);
   };
 
+  if (!content || content.length === 0) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText type="subtitle" style={styles.title}>
+          🔥 New Releases
+        </ThemedText>
+        <ThemedView style={styles.emptyContainer}>
+          <ThemedText style={styles.emptyText}>
+            Loading latest releases...
+          </ThemedText>
+        </ThemedView>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="subtitle" style={styles.title}>
@@ -81,7 +98,7 @@ export function SliderBanner({ content, onContentPress }: SliderBannerProps) {
               <Image 
                 source={{ uri: item.poster }} 
                 style={styles.posterImage}
-                resizeMode="cover"
+                contentFit="cover"
               />
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -230,5 +247,17 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     transition: 'all 0.3s ease',
+  },
+  emptyContainer: {
+    height: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 15,
+    marginHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    opacity: 0.6,
   },
 });

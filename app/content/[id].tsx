@@ -1,16 +1,17 @@
-
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View, Alert, Linking } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { contentData, platforms } from '@/data/ottPlatforms';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ContentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [showTrailer, setShowTrailer] = useState(false);
   const [expandedSeason, setExpandedSeason] = useState<number | null>(null);
 
@@ -57,14 +58,28 @@ export default function ContentDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <ThemedText style={styles.headerTitle}>
+          {content.type === 'movie' ? 'Movie Details' : 'TV Show Details'}
+        </ThemedText>
+      </View>
+
       <ThemedView style={styles.content}>
-        <Image source={{ uri: content.poster }} style={styles.poster} />
-        
+        <View style={styles.posterContainer}>
+          <Image source={{ uri: content.poster }} style={styles.poster} />
+        </View>
+
         <ThemedView style={styles.info}>
           <ThemedText type="title" style={styles.title}>
             {content.title}
           </ThemedText>
-          
+
           <View style={styles.metaInfo}>
             <ThemedText style={styles.year}>{content.releaseYear}</ThemedText>
             <ThemedText style={styles.rating}>⭐ {content.imdbRating}</ThemedText>
@@ -92,14 +107,14 @@ export default function ContentDetailScreen() {
             >
               <ThemedText style={styles.buttonText}>📥 Download</ThemedText>
             </TouchableOpacity>
-            
+
             <TouchableOpacity 
               style={[styles.button, styles.shareButton]} 
               onPress={handleShare}
             >
               <ThemedText style={styles.buttonText}>🔗 Share</ThemedText>
             </TouchableOpacity>
-            
+
             <TouchableOpacity 
               style={[styles.button, styles.trailerButton, { backgroundColor: platform.color }]} 
               onPress={() => setShowTrailer(!showTrailer)}
@@ -141,7 +156,7 @@ export default function ContentDetailScreen() {
                       {expandedSeason === season.seasonNumber ? '▼' : '▶'}
                     </ThemedText>
                   </TouchableOpacity>
-                  
+
                   {expandedSeason === season.seasonNumber && (
                     <View style={styles.episodesList}>
                       {season.episodes.map((episode) => (
@@ -178,12 +193,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 15,
+    backgroundColor: '#000',
+    height: 60,
+  },
+  backButton: {
+    padding: 10,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+  },
   content: {
     flex: 1,
   },
-  poster: {
+  posterContainer: {
     width: '100%',
     height: 400,
+  },
+  poster: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover',
   },
   info: {

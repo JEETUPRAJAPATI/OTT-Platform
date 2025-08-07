@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, Image, View, Alert, TouchableOpacity, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -6,6 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { tmdbService, TMDbCast, TMDbVideo } from '@/services/tmdbApi';
 import { downloadService } from '@/services/downloadService';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TMDbContentDetailsScreen() {
   const { id, type } = useLocalSearchParams<{ id: string; type: 'movie' | 'tv' }>();
@@ -23,14 +23,14 @@ export default function TMDbContentDetailsScreen() {
     try {
       setLoading(true);
       const contentId = parseInt(id);
-      
+
       let details;
       if (type === 'movie') {
         details = await tmdbService.getMovieDetails(contentId);
       } else {
         details = await tmdbService.getTVShowDetails(contentId);
       }
-      
+
       setContent(details);
       setCast(details.credits?.cast?.slice(0, 10) || []);
       setVideos(details.videos?.results?.filter((v: TMDbVideo) => v.site === 'YouTube') || []);
@@ -49,7 +49,7 @@ export default function TMDbContentDetailsScreen() {
 
   const handleDownload = () => {
     const contentId = id.toString();
-    
+
     if (downloadService.isDownloaded(contentId)) {
       Alert.alert('Already Downloaded', `"${title}" is already in your downloads.`);
       return;
@@ -104,16 +104,21 @@ export default function TMDbContentDetailsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      {backdropUrl && (
-        <Image source={{ uri: backdropUrl }} style={styles.backdrop} />
-      )}
-      
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        {backdropUrl && (
+          <Image source={{ uri: backdropUrl }} style={styles.backdrop} />
+        )}
+      </View>
+
       <ThemedView style={styles.content}>
         <View style={styles.posterSection}>
           {posterUrl && (
             <Image source={{ uri: posterUrl }} style={styles.poster} />
           )}
-          
+
           <View style={styles.titleSection}>
             <ThemedText type="title" style={styles.title}>
               {title}
@@ -252,6 +257,18 @@ export default function TMDbContentDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 40, 
+    left: 15,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
   },
   loadingContainer: {
     flex: 1,
