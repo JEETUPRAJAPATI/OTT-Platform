@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, FlatList, RefreshControl, View, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -6,9 +5,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { SplashScreen } from '@/components/SplashScreen';
 import { PlatformLogo } from '@/components/PlatformLogo';
-import { SliderBanner } from '@/components/SliderBanner';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
-import { platforms, contentData, Content } from '@/data/ottPlatforms';
+import { platforms } from '@/data/ottPlatforms';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -29,10 +27,6 @@ export default function HomeScreen() {
     router.push(`/platform/${platformId}`);
   };
 
-  const handleContentPress = (content: Content) => {
-    router.push(`/content/${content.id}`);
-  };
-
   const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
     const type = (content as any).title ? 'movie' : 'tv';
     router.push(`/tmdb-content/${content.id}?type=${type}`);
@@ -44,12 +38,12 @@ export default function HomeScreen() {
         tmdbService.getTrending(),
         tmdbService.getPopularMovies(),
         tmdbService.getTopRatedTVShows(),
-        tmdbService.getUpcomingMovies?.() || tmdbService.getPopularMovies(),
+        tmdbService.getUpcomingMovies(),
         tmdbService.getHindiMovies(),
         tmdbService.getSouthIndianMovies(),
         tmdbService.getMarvelMovies()
       ]);
-      
+
       setTrendingContent(trending.slice(0, 10));
       setPopularMovies(popular.slice(0, 10));
       setTopRatedTv(topRated.slice(0, 10));
@@ -78,55 +72,54 @@ export default function HomeScreen() {
     return item.title ? 'movie' : 'tv';
   };
 
-  // Get newest releases for the hero slider
-  const newReleases = contentData && contentData.length > 0 
-    ? [...contentData].sort((a, b) => b.releaseYear - a.releaseYear).slice(0, 6)
-    : [];
-
   const renderHorizontalSection = (
     title: string, 
     data: any[], 
     icon: string,
     showViewAll: boolean = true
-  ) => (
-    <ThemedView style={styles.horizontalSection}>
-      <View style={styles.sectionHeader}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          {icon} {title}
-        </ThemedText>
-        {showViewAll && (
-          <TouchableOpacity onPress={() => router.push('/discover')}>
-            <ThemedText style={styles.viewAllText}>View All →</ThemedText>
-          </TouchableOpacity>
-        )}
-      </View>
-      <FlatList
-        data={data}
-        renderItem={({ item, index }) => {
-          const mediaType = determineMediaType(item);
-          return (
-            <View style={styles.horizontalCard}>
-              {title.includes('Top 10') && (
-                <View style={styles.rankBadge}>
-                  <ThemedText style={styles.rankText}>{index + 1}</ThemedText>
-                </View>
-              )}
-              <TMDbContentCard
-                content={item}
-                type={mediaType}
-                onPress={() => handleTMDbContentPress(item)}
-                style={styles.cardInHorizontal}
-              />
-            </View>
-          );
-        }}
-        keyExtractor={(item, index) => `${title}-${item.id}-${index}`}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.horizontalList}
-      />
-    </ThemedView>
-  );
+  ) => {
+    if (!data || data.length === 0) return null;
+
+    return (
+      <ThemedView style={styles.horizontalSection}>
+        <View style={styles.sectionHeader}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            {icon} {title}
+          </ThemedText>
+          {showViewAll && (
+            <TouchableOpacity onPress={() => router.push('/discover')}>
+              <ThemedText style={styles.viewAllText}>View All →</ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
+        <FlatList
+          data={data}
+          renderItem={({ item, index }) => {
+            const mediaType = determineMediaType(item);
+            return (
+              <View style={styles.horizontalCard}>
+                {title.includes('Top 10') && (
+                  <View style={styles.rankBadge}>
+                    <ThemedText style={styles.rankText}>{index + 1}</ThemedText>
+                  </View>
+                )}
+                <TMDbContentCard
+                  content={item}
+                  type={mediaType}
+                  onPress={() => handleTMDbContentPress(item)}
+                  style={styles.cardInHorizontal}
+                />
+              </View>
+            );
+          }}
+          keyExtractor={(item, index) => `${title}-${item.id}-${index}`}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalList}
+        />
+      </ThemedView>
+    );
+  };
 
   if (showSplash) {
     return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;
@@ -149,12 +142,6 @@ export default function HomeScreen() {
             Your Ultimate Entertainment Hub
           </ThemedText>
         </ThemedView>
-
-        {/* Hero Slider */}
-        <SliderBanner 
-          content={newReleases} 
-          onContentPress={handleContentPress}
-        />
 
         {/* Quick Actions */}
         <ThemedView style={styles.quickActionsSection}>
@@ -187,47 +174,13 @@ export default function HomeScreen() {
         </ThemedView>
 
         {/* Content Sections */}
-        {trendingContent.length > 0 && renderHorizontalSection(
-          'International Hits', 
-          trendingContent, 
-          '🌍'
-        )}
-
-        {hindiMovies.length > 0 && renderHorizontalSection(
-          'Top 10 in India Today - Hindi', 
-          hindiMovies, 
-          '🇮🇳'
-        )}
-
-        {southIndianMovies.length > 0 && renderHorizontalSection(
-          'South Indian Cinema', 
-          southIndianMovies, 
-          '🎭'
-        )}
-
-        {marvelMovies.length > 0 && renderHorizontalSection(
-          'Marvel Universe', 
-          marvelMovies, 
-          '🦸'
-        )}
-
-        {upcomingMovies.length > 0 && renderHorizontalSection(
-          'Latest Releases', 
-          upcomingMovies, 
-          '🆕'
-        )}
-
-        {popularMovies.length > 0 && renderHorizontalSection(
-          'Popular Movies', 
-          popularMovies, 
-          '🍿'
-        )}
-
-        {topRatedTv.length > 0 && renderHorizontalSection(
-          'Top Rated TV Shows', 
-          topRatedTv, 
-          '📺'
-        )}
+        {renderHorizontalSection('Trending Now', trendingContent, '🔥')}
+        {renderHorizontalSection('Top 10 in India Today - Hindi', hindiMovies, '🇮🇳')}
+        {renderHorizontalSection('South Indian Cinema', southIndianMovies, '🎭')}
+        {renderHorizontalSection('Marvel Universe', marvelMovies, '🦸')}
+        {renderHorizontalSection('Latest Releases', upcomingMovies, '🆕')}
+        {renderHorizontalSection('Popular Movies', popularMovies, '🍿')}
+        {renderHorizontalSection('Top Rated TV Shows', topRatedTv, '📺')}
 
         {/* Platforms Section */}
         <ThemedView style={styles.platformsContainer}>
