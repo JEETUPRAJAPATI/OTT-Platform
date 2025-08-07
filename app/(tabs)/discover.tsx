@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, FlatList, TouchableOpacity, View, Dimensions, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -22,8 +22,6 @@ export default function DiscoverScreen() {
   const [content, setContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
-  const carouselRef = useRef<FlatList>(null);
-  const [carouselIndex, setCarouselIndex] = useState(0);
 
   const genres: Genre[] = [
     { id: 28, name: 'Action' },
@@ -48,27 +46,6 @@ export default function DiscoverScreen() {
     // Load trending content by default
     loadTrendingContent();
   }, []);
-
-  // Auto-scroll carousel
-  useEffect(() => {
-    if (content.length > 4 && !searchQuery.trim() && !selectedGenre) {
-      const interval = setInterval(() => {
-        setCarouselIndex(prevIndex => {
-          const maxItems = Math.max(1, content.slice(0, 10).length - 2);
-          const nextIndex = (prevIndex + 1) % maxItems;
-          
-          carouselRef.current?.scrollToIndex({ 
-            index: nextIndex, 
-            animated: true 
-          });
-          
-          return nextIndex;
-        });
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }
-  }, [content.length, searchQuery, selectedGenre]);
 
   const loadTrendingContent = async () => {
     try {
@@ -218,48 +195,6 @@ export default function DiscoverScreen() {
             ))}
           </ScrollView>
         </View>
-
-        {/* Auto-Sliding Content Carousel */}
-        {!searchQuery.trim() && !selectedGenre && content.length > 0 && (
-          <View style={styles.carouselSection}>
-            <ThemedText style={styles.sectionTitle}>Featured Content</ThemedText>
-            <FlatList
-              ref={carouselRef}
-              data={content.slice(0, 10)}
-              renderItem={({ item, index }) => {
-                const mediaType = determineMediaType(item);
-                const nextItem = content.slice(0, 10)[index + 1];
-                const nextMediaType = nextItem ? determineMediaType(nextItem) : null;
-                
-                return (
-                  <View style={styles.carouselItem}>
-                    <TMDbContentCard
-                      content={item}
-                      type={mediaType}
-                      onPress={() => handleContentPress(item)}
-                      style={styles.carouselCard}
-                    />
-                    {nextItem && (
-                      <TMDbContentCard
-                        content={nextItem}
-                        type={nextMediaType!}
-                        onPress={() => handleContentPress(nextItem)}
-                        style={styles.carouselCard}
-                      />
-                    )}
-                  </View>
-                );
-              }}
-              keyExtractor={(item) => `carousel-${item.id}-${determineMediaType(item)}`}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              pagingEnabled
-              snapToInterval={cardWidth * 2 + 20}
-              decelerationRate="fast"
-              contentContainerStyle={styles.carouselContainer}
-            />
-          </View>
-        )}
 
         {/* Content Section */}
         <View style={styles.contentSection}>
@@ -447,23 +382,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     textAlign: 'center',
-  },
-  carouselSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  carouselContainer: {
-    paddingHorizontal: 10,
-  },
-  carouselItem: {
-    width: cardWidth * 2 + 10,
-    marginHorizontal: 5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  carouselCard: {
-    width: cardWidth,
-    borderRadius: 12,
-    overflow: 'hidden',
   },
 });
