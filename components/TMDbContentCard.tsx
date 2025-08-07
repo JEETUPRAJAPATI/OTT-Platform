@@ -1,8 +1,8 @@
+
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { TMDbMovie, TMDbTVShow, tmdbService } from '../services/tmdbApi';
-import { ThemedText } from './ThemedText';
-import { ThemedView } from './ThemedView';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface TMDbContentCardProps {
   content: TMDbMovie | TMDbTVShow;
@@ -20,88 +20,139 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
   const posterUrl = tmdbService.getImageUrl(content.poster_path);
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.container}>
-      <ThemedView style={[styles.card, style]}>
+    <TouchableOpacity 
+      style={[styles.container, style]} 
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <View style={styles.imageContainer}>
         {posterUrl ? (
           <Image source={{ uri: posterUrl }} style={styles.poster} />
         ) : (
-          <View style={[styles.poster, styles.placeholderPoster]}>
-            <ThemedText style={styles.placeholderText}>No Image</ThemedText>
+          <View style={styles.placeholderContainer}>
+            <Text style={styles.placeholderText}>No Image</Text>
           </View>
         )}
-        <View style={styles.info}>
-          <ThemedText type="defaultSemiBold" numberOfLines={2} style={styles.title}>
-            {title}
-          </ThemedText>
-          <ThemedText style={styles.year}>{year}</ThemedText>
+        
+        {/* Overlay with gradient */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          style={styles.overlay}
+        >
           <View style={styles.ratingContainer}>
-            <ThemedText style={styles.rating}>⭐ {content.vote_average.toFixed(1)}</ThemedText>
-            <View style={[styles.typeBadge, { backgroundColor: type === 'movie' ? '#FF6B6B' : '#4ECDC4' }]}>
-              <Text style={styles.typeText}>{type.toUpperCase()}</Text>
-            </View>
+            <Text style={styles.rating}>⭐ {content.vote_average.toFixed(1)}</Text>
           </View>
+        </LinearGradient>
+        
+        {/* Quality badge */}
+        <View style={styles.qualityBadge}>
+          <Text style={styles.qualityText}>HD</Text>
         </View>
-      </ThemedView>
+      </View>
+      
+      <View style={styles.infoContainer}>
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
+        </Text>
+        <View style={styles.metaContainer}>
+          <Text style={styles.year}>{year}</Text>
+          <View style={styles.dot} />
+          <Text style={styles.type}>{type === 'movie' ? 'Movie' : 'Series'}</Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    margin: 8,
-  },
-  card: {
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    backgroundColor: '#1a1a1a',
+  },
+  imageContainer: {
+    position: 'relative',
+    aspectRatio: 2/3,
   },
   poster: {
     width: '100%',
-    height: 200,
+    height: '100%',
     resizeMode: 'cover',
   },
-  placeholderPoster: {
-    backgroundColor: '#ccc',
+  placeholderContainer: {
+    flex: 1,
+    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderText: {
-    opacity: 0.6,
+    color: '#666',
+    fontSize: 12,
   },
-  info: {
-    padding: 12,
-  },
-  title: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  year: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 8,
+  overlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    justifyContent: 'flex-end',
+    paddingBottom: 8,
+    paddingHorizontal: 8,
   },
   ratingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignSelf: 'flex-start',
   },
   rating: {
-    fontSize: 14,
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '600',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  qualityBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#E50914',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
   },
-  typeText: {
+  qualityText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  infoContainer: {
+    padding: 12,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  metaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  year: {
+    color: '#999',
+    fontSize: 12,
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#666',
+    marginHorizontal: 6,
+  },
+  type: {
+    color: '#999',
+    fontSize: 12,
+    textTransform: 'capitalize',
   },
 });
