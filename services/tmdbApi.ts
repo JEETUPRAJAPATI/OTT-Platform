@@ -162,11 +162,35 @@ class TMDbService {
     return response.data;
   }
 
+  // Get movie credits
+  async getMovieCredits(movieId: number) {
+    const response = await tmdbApi.get(`/movie/${movieId}/credits`);
+    return response.data;
+  }
+
+  // Get movie videos
+  async getMovieVideos(movieId: number) {
+    const response = await tmdbApi.get(`/movie/${movieId}/videos`);
+    return response.data;
+  }
+
   // Get TV show details
   async getTVShowDetails(tvId: number) {
     const response = await tmdbApi.get(`/tv/${tvId}`, {
       params: { append_to_response: 'credits,videos' }
     });
+    return response.data;
+  }
+
+  // Get TV show credits
+  async getTVCredits(tvId: number) {
+    const response = await tmdbApi.get(`/tv/${tvId}/credits`);
+    return response.data;
+  }
+
+  // Get TV show videos
+  async getTVVideos(tvId: number) {
+    const response = await tmdbApi.get(`/tv/${tvId}/videos`);
     return response.data;
   }
 

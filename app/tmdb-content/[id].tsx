@@ -85,17 +85,26 @@ export default function TMDbContentDetails() {
     try {
       setLoading(true);
       
-      // Fetch content details
-      const contentData = await tmdbService.getMovieDetails(Number(id));
+      // Determine if it's a movie or TV show and fetch accordingly
+      const isMovie = !id.toString().includes('tv-');
+      let contentData;
+      let creditsData;
+      let videosData;
+      
+      if (isMovie) {
+        contentData = await tmdbService.getMovieDetails(Number(id));
+        creditsData = await tmdbService.getMovieCredits(Number(id));
+        videosData = await tmdbService.getMovieVideos(Number(id));
+      } else {
+        const tvId = id.toString().replace('tv-', '');
+        contentData = await tmdbService.getTVShowDetails(Number(tvId));
+        creditsData = await tmdbService.getTVCredits(Number(tvId));
+        videosData = await tmdbService.getTVVideos(Number(tvId));
+      }
+      
       console.log('Content loaded:', contentData);
       setContent(contentData);
-      
-      // Fetch cast
-      const creditsData = await tmdbService.getMovieCredits(Number(id));
       setCast(creditsData.cast.slice(0, 10));
-      
-      // Fetch videos
-      const videosData = await tmdbService.getMovieVideos(Number(id));
       setVideos(videosData.results.filter((video: Video) => 
         video.site === 'YouTube' && (video.type === 'Trailer' || video.type === 'Teaser')
       ).slice(0, 3));
@@ -277,7 +286,27 @@ export default function TMDbContentDetails() {
                       <Text style={styles.rating}>
                         {content.vote_average ? content.vote_average.toFixed(1) : 'N/A'}
                       </Text>
+                      <Text style={styles.voteCount}>
+                        ({content.vote_count || 0} votes)
+                      </Text>
                     </View>
+                  </View>
+
+                  {/* Runtime/Seasons info */}
+                  <View style={styles.additionalInfo}>
+                    {content.runtime && (
+                      <Text style={styles.runtime}>
+                        {Math.floor(content.runtime / 60)}h {content.runtime % 60}m
+                      </Text>
+                    )}
+                    {content.number_of_seasons && (
+                      <Text style={styles.seasons}>
+                        {content.number_of_seasons} Season{content.number_of_seasons > 1 ? 's' : ''}
+                      </Text>
+                    )}
+                    {content.status && (
+                      <Text style={styles.status}>{content.status}</Text>
+                    )}
                   </View>
 
                   {/* Genres */}
@@ -355,6 +384,71 @@ export default function TMDbContentDetails() {
           <Text style={styles.overview}>{content.overview}</Text>
         </Animated.View>
 
+        {/* Movie Details Section */}
+        <Animated.View 
+          style={[
+            styles.section,
+            { opacity: fadeAnim }
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Details</Text>
+          <View style={styles.detailsGrid}>
+            {content.budget && content.budget > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Budget</Text>
+                <Text style={styles.detailValue}>
+                  ${content.budget.toLocaleString()}
+                </Text>
+              </View>
+            )}
+            
+            {content.revenue && content.revenue > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Revenue</Text>
+                <Text style={styles.detailValue}>
+                  ${content.revenue.toLocaleString()}
+                </Text>
+              </View>
+            )}
+            
+            {content.original_language && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Original Language</Text>
+                <Text style={styles.detailValue}>
+                  {content.original_language.toUpperCase()}
+                </Text>
+              </View>
+            )}
+            
+            {content.production_countries && content.production_countries.length > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Country</Text>
+                <Text style={styles.detailValue}>
+                  {content.production_countries.map(country => country.name).join(', ')}
+                </Text>
+              </View>
+            )}
+
+            {content.production_companies && content.production_companies.length > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Production</Text>
+                <Text style={styles.detailValue}>
+                  {content.production_companies.slice(0, 2).map(company => company.name).join(', ')}
+                </Text>
+              </View>
+            )}
+
+            {content.networks && content.networks.length > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Network</Text>
+                <Text style={styles.detailValue}>
+                  {content.networks.map(network => network.name).join(', ')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
+
         {/* Cast Section */}
         {cast.length > 0 && (
           <Animated.View 
@@ -425,6 +519,41 @@ export default function TMDbContentDetails() {
             </ScrollView>
           </Animated.View>
         )}
+
+        {/* Provider Information */}
+        <Animated.View 
+          style={[
+            styles.section,
+            { opacity: fadeAnim }
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Where to Watch</Text>
+          <View style={styles.providerContainer}>
+            <View style={styles.providerPlatform}>
+              <Image 
+                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg' }}
+                style={styles.providerLogo}
+              />
+              <Text style={styles.providerName}>Netflix</Text>
+            </View>
+            <View style={styles.providerPlatform}>
+              <Image 
+                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.png' }}
+                style={styles.providerLogo}
+              />
+              <Text style={styles.providerName}>Prime Video</Text>
+            </View>
+          </View>
+          
+          <TouchableOpacity style={styles.invalidHookWarning}>
+            <Ionicons name="warning" size={16} color="#FF6B6B" />
+            <Text style={styles.warningText}>
+              Invalid hook call. Hooks can only be used inside function components.
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
   );
@@ -752,5 +881,109 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     marginTop: 2,
+  },
+  voteCount: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  additionalInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  runtime: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginRight: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  seasons: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginRight: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  status: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+    backgroundColor: 'rgba(76,175,80,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  detailsGrid: {
+    gap: 16,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  detailLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    flex: 1,
+  },
+  detailValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 2,
+    textAlign: 'right',
+  },
+  providerContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 16,
+  },
+  providerPlatform: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  providerLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  providerName: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  invalidHookWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,107,107,0.1)',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,107,0.3)',
+  },
+  warningText: {
+    color: '#FF6B6B',
+    fontSize: 13,
+    marginLeft: 8,
+    flex: 1,
+  },
+  bottomSpacer: {
+    height: 40,
   },
 });
