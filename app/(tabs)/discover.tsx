@@ -18,13 +18,14 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(false);
 
   const categories = [
-    { id: 'trending', name: 'Trending', icon: '🔥', color: '#FF6B6B' },
-    { id: 'hindi', name: 'Hindi Movies', icon: '🇮🇳', color: '#4ECDC4' },
-    { id: 'south', name: 'South Indian', icon: '🎬', color: '#45B7D1' },
-    { id: 'marvel', name: 'Marvel', icon: '🦸', color: '#96CEB4' },
-    { id: 'thriller2025', name: 'Thrillers 2025', icon: '😱', color: '#FFEAA7' },
-    { id: 'toprated', name: 'Top Rated', icon: '⭐', color: '#DDA0DD' },
-    { id: 'popular', name: 'Popular', icon: '👥', color: '#98D8C8' },
+    { id: 'trending', name: 'Trending', icon: '🔥', color: '#FF453A', description: 'What\'s hot right now' },
+    { id: 'hindi', name: 'Hindi', icon: '🇮🇳', color: '#34C759', description: 'Bollywood cinema' },
+    { id: 'south', name: 'South Indian', icon: '🎬', color: '#007AFF', description: 'Regional cinema' },
+    { id: 'marvel', name: 'Marvel', icon: '🦸', color: '#FF9500', description: 'Superhero universe' },
+    { id: 'thriller2025', name: 'Thriller', icon: '😱', color: '#AF52DE', description: 'Spine-chilling' },
+    { id: 'toprated', name: 'Top Rated', icon: '⭐', color: '#FFD60A', description: 'Highest rated' },
+    { id: 'popular', name: 'Popular', icon: '👥', color: '#32D74B', description: 'Most popular' },
+    { id: 'action', name: 'Action', icon: '💥', color: '#FF6B35', description: 'High-octane' },
   ];
 
   useEffect(() => {
@@ -58,6 +59,9 @@ export default function DiscoverScreen() {
         case 'popular':
           results = await tmdbService.getPopularMovies();
           break;
+        case 'action':
+          results = await tmdbService.getPopularMovies(); // Use popular as fallback for action
+          break;
         default:
           results = await tmdbService.getTrending();
       }
@@ -77,27 +81,6 @@ export default function DiscoverScreen() {
 
   const determineMediaType = (item: any): 'movie' | 'tv' => {
     return item.title ? 'movie' : 'tv';
-  };
-
-  const getCategoryDescription = (category: string) => {
-    switch (category) {
-      case 'trending':
-        return 'What\'s hot right now across all platforms';
-      case 'hindi':
-        return 'Best of Bollywood cinema';
-      case 'south':
-        return 'Tamil, Telugu, Malayalam & Kannada cinema';
-      case 'marvel':
-        return 'Marvel Cinematic Universe collection';
-      case 'thriller2025':
-        return 'Latest spine-chilling thrillers';
-      case 'toprated':
-        return 'Highest rated movies and shows';
-      case 'popular':
-        return 'Most popular content worldwide';
-      default:
-        return 'Discover amazing content';
-    }
   };
 
   const getSelectedCategory = () => {
@@ -122,7 +105,7 @@ export default function DiscoverScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText style={styles.title}>
           Discover
         </ThemedText>
         <ThemedText style={styles.subtitle}>
@@ -131,14 +114,10 @@ export default function DiscoverScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Categories */}
+        {/* Categories Grid */}
         <View style={styles.categoriesSection}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {categories.map((category) => (
+          <View style={styles.categoriesGrid}>
+            {categories.map((category, index) => (
               <TouchableOpacity
                 key={category.id}
                 style={[
@@ -151,40 +130,45 @@ export default function DiscoverScreen() {
                 onPress={() => setSelectedCategory(category.id)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
+                <View style={styles.categoryIconContainer}>
+                  <Text style={styles.categoryIcon}>{category.icon}</Text>
+                </View>
                 <ThemedText style={[
-                  styles.categoryText,
-                  selectedCategory === category.id && styles.activeCategoryText
+                  styles.categoryName,
+                  selectedCategory === category.id && styles.activeCategoryName
                 ]}>
                   {category.name}
                 </ThemedText>
+                <ThemedText style={[
+                  styles.categoryDescription,
+                  selectedCategory === category.id && styles.activeCategoryDescription
+                ]}>
+                  {category.description}
+                </ThemedText>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         </View>
 
-        {/* Current Category Info */}
-        <View style={styles.categoryInfoSection}>
-          <View style={styles.categoryHeader}>
-            <View style={styles.categoryTitleContainer}>
-              <Text style={styles.categoryDisplayIcon}>
+        {/* Current Category Header */}
+        <View style={styles.categoryHeaderSection}>
+          <View style={[styles.categoryHeaderCard, { borderLeftColor: getSelectedCategory()?.color }]}>
+            <View style={styles.categoryHeaderContent}>
+              <Text style={styles.categoryHeaderIcon}>
                 {getSelectedCategory()?.icon}
               </Text>
-              <View>
-                <ThemedText style={styles.categoryTitle}>
+              <View style={styles.categoryHeaderText}>
+                <ThemedText style={styles.categoryHeaderTitle}>
                   {getSelectedCategory()?.name}
                 </ThemedText>
-                <ThemedText style={styles.categoryDescription}>
-                  {getCategoryDescription(selectedCategory)}
+                <ThemedText style={styles.categoryHeaderSubtitle}>
+                  {getSelectedCategory()?.description}
                 </ThemedText>
               </View>
             </View>
-            <View style={styles.contentCount}>
+            <View style={[styles.contentCountBadge, { backgroundColor: getSelectedCategory()?.color }]}>
               <ThemedText style={styles.contentCountText}>
                 {content.length}
-              </ThemedText>
-              <ThemedText style={styles.contentCountLabel}>
-                items
               </ThemedText>
             </View>
           </View>
@@ -195,7 +179,7 @@ export default function DiscoverScreen() {
           {loading ? (
             <View style={styles.loadingContainer}>
               <View style={styles.loadingSpinner}>
-                <Ionicons name="refresh" size={32} color="#E50914" />
+                <Ionicons name="refresh" size={32} color="#FF453A" />
               </View>
               <ThemedText style={styles.loadingText}>
                 Loading {getSelectedCategory()?.name.toLowerCase()}...
@@ -214,7 +198,7 @@ export default function DiscoverScreen() {
             />
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="library-outline" size={48} color="#666" />
+              <Ionicons name="library-outline" size={48} color="#8E8E93" />
               <ThemedText style={styles.emptyText}>
                 No content available
               </ThemedText>
@@ -232,110 +216,124 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#1C1C1E',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: '#111',
+    paddingBottom: 24,
+    backgroundColor: '#1C1C1E',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#999',
+    color: '#8E8E93',
+    fontWeight: '400',
   },
   content: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#1C1C1E',
   },
   categoriesSection: {
-    paddingVertical: 20,
-  },
-  categoriesContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
   },
   categoryCard: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginRight: 16,
+    width: (width - 68) / 2,
+    backgroundColor: '#2C2C2E',
     borderRadius: 16,
-    backgroundColor: '#1a1a1a',
+    padding: 20,
+    alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#333',
-    minWidth: 100,
+    borderColor: '#3A3A3C',
   },
   activeCategoryCard: {
     borderColor: 'transparent',
-    transform: [{ scale: 1.05 }],
+    transform: [{ scale: 1.02 }],
+  },
+  categoryIconContainer: {
+    marginBottom: 12,
   },
   categoryIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: 32,
   },
-  categoryText: {
-    fontSize: 12,
+  categoryName: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#FFFFFF',
     textAlign: 'center',
+    marginBottom: 6,
   },
-  activeCategoryText: {
-    color: '#000',
+  activeCategoryName: {
+    color: '#FFFFFF',
   },
-  categoryInfoSection: {
+  categoryDescription: {
+    fontSize: 12,
+    color: '#8E8E93',
+    textAlign: 'center',
+    fontWeight: '400',
+  },
+  activeCategoryDescription: {
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  categoryHeaderSection: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#111',
+  categoryHeaderCard: {
+    backgroundColor: '#2C2C2E',
     borderRadius: 16,
     padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderLeftWidth: 4,
   },
-  categoryTitleContainer: {
+  categoryHeaderContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  categoryDisplayIcon: {
-    fontSize: 32,
+  categoryHeaderIcon: {
+    fontSize: 28,
     marginRight: 16,
   },
-  categoryTitle: {
+  categoryHeaderText: {
+    flex: 1,
+  },
+  categoryHeaderTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '600',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
-  categoryDescription: {
+  categoryHeaderSubtitle: {
     fontSize: 14,
-    color: '#999',
-    maxWidth: 200,
+    color: '#8E8E93',
+    fontWeight: '400',
   },
-  contentCount: {
-    alignItems: 'center',
-    backgroundColor: '#E50914',
+  contentCountBadge: {
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 16,
+    alignItems: 'center',
   },
   contentCountText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  contentCountLabel: {
-    fontSize: 10,
-    color: '#fff',
-    textTransform: 'uppercase',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   contentSection: {
     paddingHorizontal: 20,
@@ -352,7 +350,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   loadingContainer: {
@@ -364,7 +362,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: '#8E8E93',
+    fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -373,13 +372,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#FFFFFF',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#666',
+    color: '#8E8E93',
     textAlign: 'center',
   },
 });
