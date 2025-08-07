@@ -51,7 +51,18 @@ export default function TabLayout() {
         name="search"
         options={{
           title: 'Search',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chevron.right" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? 'magnifyingglass' : 'magnifyingglass'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="downloads"
+        options={{
+          title: 'Downloads',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? 'arrow.down.circle.fill' : 'arrow.down.circle'} color={color} />
+          ),
         }}
       />
     </Tabs>

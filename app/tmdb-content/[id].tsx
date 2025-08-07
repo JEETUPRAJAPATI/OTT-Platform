@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { tmdbService, TMDbCast, TMDbVideo } from '@/services/tmdbApi';
+import { downloadService } from '@/services/downloadService';
 
 export default function TMDbContentDetailsScreen() {
   const { id, type } = useLocalSearchParams<{ id: string; type: 'movie' | 'tv' }>();
@@ -44,6 +45,40 @@ export default function TMDbContentDetailsScreen() {
   const openTrailer = (videoKey: string) => {
     const url = tmdbService.getYouTubeUrl(videoKey);
     Linking.openURL(url);
+  };
+
+  const handleDownload = () => {
+    const contentId = id.toString();
+    
+    if (downloadService.isDownloaded(contentId)) {
+      Alert.alert('Already Downloaded', `"${title}" is already in your downloads.`);
+      return;
+    }
+
+    if (downloadService.isDownloading(contentId)) {
+      Alert.alert('Download in Progress', `"${title}" is currently downloading.`);
+      return;
+    }
+
+    Alert.alert(
+      'Download Movie',
+      `Would you like to download "${title}"?\n\nNote: This is a demo feature. In a real app, this would connect to your content delivery service.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Download', 
+          onPress: () => {
+            downloadService.addDownload({
+              id: contentId,
+              title,
+              type: type as 'movie' | 'tv',
+              poster_path: content.poster_path,
+            });
+            Alert.alert('Download Started', `"${title}" has been added to your downloads.`);
+          }
+        }
+      ]
+    );
   };
 
   if (loading) {
@@ -100,6 +135,20 @@ export default function TMDbContentDetailsScreen() {
             </View>
           </View>
         </View>
+
+        <ThemedView style={styles.section}>
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
+              <ThemedText style={styles.downloadButtonText}>📥 Download</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.watchlistButton}
+              onPress={() => Alert.alert('Added to Watchlist', `"${title}" has been added to your watchlist.`)}
+            >
+              <ThemedText style={styles.watchlistButtonText}>+ Watchlist</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </ThemedView>
 
         <ThemedView style={styles.section}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
@@ -331,5 +380,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 5,
     opacity: 0.8,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 10,
+  },
+  downloadButton: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    flex: 1,
+    alignItems: 'center',
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  watchlistButton: {
+    backgroundColor: '#6c757d',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    flex: 1,
+    alignItems: 'center',
+  },
+  watchlistButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
