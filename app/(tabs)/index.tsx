@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-  View,
-  TouchableOpacity,
+import { 
+  ScrollView, 
+  StyleSheet, 
+  FlatList, 
+  RefreshControl, 
+  View, 
+  TouchableOpacity, 
   Dimensions,
   StatusBar,
   ImageBackground,
@@ -19,9 +20,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { SplashScreen } from '@/components/SplashScreen';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
-import Ionicons from '@expo/vector-icons/Ionicons';
 
-const { width, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface ContentSection {
   id: string;
@@ -29,17 +29,7 @@ interface ContentSection {
   icon: string;
   data: (TMDbMovie | TMDbTVShow)[];
   showRanking?: boolean;
-  layout?: 'horizontal' | 'grid' | 'featured' | 'carousel';
-  cardSize?: 'small' | 'medium' | 'large';
-  autoSlide?: boolean;
-  slideInterval?: number;
-  showRating?: boolean;
 }
-
-// Helper function to determine media type
-const determineMediaType = (item: TMDbMovie | TMDbTVShow) => {
-  return (item as any).title ? 'movie' : 'tv';
-};
 
 export default function HomeScreen() {
   const [showSplash, setShowSplash] = useState(true);
@@ -50,7 +40,7 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
-    const type = determineMediaType(content);
+    const type = (content as any).title ? 'movie' : 'tv';
     router.push(`/tmdb-content/${content.id}?type=${type}`);
   };
 
@@ -84,11 +74,6 @@ export default function HomeScreen() {
           title: 'Trending Now',
           icon: '🔥',
           data: trending.slice(0, 15),
-          layout: 'horizontal',
-          cardSize: 'medium',
-          autoSlide: true,
-          slideInterval: 4000,
-          showRating: true,
         },
         {
           id: 'hindi-top10',
@@ -96,59 +81,42 @@ export default function HomeScreen() {
           icon: '🇮🇳',
           data: hindi.slice(0, 10),
           showRanking: true,
-          layout: 'grid',
-          cardSize: 'small',
         },
         {
           id: 'popular',
           title: 'Popular on RK SWOT',
           icon: '⭐',
           data: popular.slice(0, 15),
-          layout: 'carousel',
         },
         {
           id: 'latest',
           title: 'New Releases',
           icon: '🎬',
           data: upcoming.slice(0, 15),
-          layout: 'horizontal',
-          cardSize: 'large',
-          showRating: true,
         },
         {
           id: 'action',
           title: 'Action Movies',
           icon: '💥',
           data: marvel.slice(0, 15),
-          layout: 'featured',
         },
         {
           id: 'thriller',
           title: 'Thrillers',
           icon: '😱',
           data: thriller2025.slice(0, 15),
-          layout: 'horizontal',
-          cardSize: 'medium',
-          autoSlide: true,
-          slideInterval: 3500,
-          showRating: true,
         },
         {
           id: 'south',
           title: 'South Indian Cinema',
           icon: '🎭',
           data: south.slice(0, 15),
-          layout: 'grid',
-          cardSize: 'medium',
         },
         {
           id: 'toprated',
           title: 'Critics Choice',
           icon: '🏆',
           data: topRated.slice(0, 15),
-          layout: 'horizontal',
-          cardSize: 'medium',
-          showRating: true,
         },
       ]);
     } catch (error) {
@@ -180,11 +148,11 @@ export default function HomeScreen() {
 
   const renderHeroSection = () => {
     if (!featuredContent.length) return null;
-
+    
     const heroItem = featuredContent[currentHero];
     const title = (heroItem as any).title || (heroItem as any).name;
     const backdropUrl = `https://image.tmdb.org/t/p/w1280${heroItem.backdrop_path}`;
-
+    
     return (
       <View style={styles.heroContainer}>
         <ImageBackground
@@ -204,16 +172,16 @@ export default function HomeScreen() {
                   <Text style={styles.profileIcon}>👤</Text>
                 </TouchableOpacity>
               </View>
-
+              
               <View style={styles.heroBottomSection}>
                 <View style={styles.newReleaseBadge}>
                   <Text style={styles.badgeText}>NEW RELEASE</Text>
                 </View>
-
+                
                 <Text style={styles.heroTitle} numberOfLines={2}>
                   {title}
                 </Text>
-
+                
                 <View style={styles.heroMeta}>
                   <Text style={styles.heroYear}>
                     {new Date((heroItem as any).release_date || (heroItem as any).first_air_date).getFullYear()}
@@ -224,24 +192,24 @@ export default function HomeScreen() {
                   </Text>
                   <View style={styles.heroDot} />
                   <Text style={styles.heroType}>
-                    {determineMediaType(heroItem)}
+                    {(heroItem as any).title ? 'Movie' : 'Series'}
                   </Text>
                 </View>
-
+                
                 <Text style={styles.heroDescription} numberOfLines={3}>
                   {heroItem.overview}
                 </Text>
-
+                
                 <View style={styles.heroButtons}>
-                  <TouchableOpacity
+                  <TouchableOpacity 
                     style={styles.playButton}
                     onPress={() => handleTMDbContentPress(heroItem)}
                   >
                     <Text style={styles.playIcon}>▶</Text>
                     <Text style={styles.playText}>Play</Text>
                   </TouchableOpacity>
-
-                  <TouchableOpacity
+                  
+                  <TouchableOpacity 
                     style={styles.infoButton}
                     onPress={() => handleTMDbContentPress(heroItem)}
                   >
@@ -249,7 +217,7 @@ export default function HomeScreen() {
                     <Text style={styles.infoText}>More Info</Text>
                   </TouchableOpacity>
                 </View>
-
+                
                 {/* Hero Indicators */}
                 <View style={styles.heroIndicators}>
                   {featuredContent.map((_, index) => (
@@ -275,202 +243,72 @@ export default function HomeScreen() {
     const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {
-      if (section.autoSlide && section.data.length > 0) {
+      if (section.data.length > 3) {
         const interval = setInterval(() => {
           setCurrentIndex(prevIndex => {
-            const nextIndex = (prevIndex + 1) % section.data.length;
-            flatListRef.current?.scrollToIndex({
-              index: nextIndex,
-              animated: true,
+            const nextIndex = (prevIndex + 1) % Math.max(1, section.data.length - 2);
+            flatListRef.current?.scrollToIndex({ 
+              index: nextIndex, 
+              animated: true 
             });
             return nextIndex;
           });
-        }, section.slideInterval || 3000);
+        }, 4000);
 
         return () => clearInterval(interval);
       }
-    }, [section.data.length, section.autoSlide, section.slideInterval]);
+    }, [section.data.length]);
 
     if (!section.data || section.data.length === 0) return null;
-
-    const getCardWidth = () => {
-      switch (section.cardSize) {
-        case 'small': return 120;
-        case 'large': return 180;
-        default: return 140;
-      }
-    };
-
-    const cardWidth = getCardWidth();
-
-    const renderHorizontalLayout = () => (
-      <FlatList
-        ref={flatListRef}
-        data={section.data}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item, index }) => (
-          <View style={[
-            styles.contentCard,
-            { width: cardWidth },
-            section.showRanking && styles.rankedCard
-          ]}>
-            {section.showRanking && (
-              <View style={styles.rankBadge}>
-                <ThemedText style={styles.rankNumber}>{index + 1}</ThemedText>
-              </View>
-            )}
-            <TMDbContentCard
-              content={item}
-              type={determineMediaType(item)}
-              onPress={() => handleTMDbContentPress(item)}
-              style={[styles.card, { width: cardWidth }]}
-            />
-            {section.showRating && (
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <ThemedText style={styles.ratingText}>
-                  {item.vote_average.toFixed(1)}
-                </ThemedText>
-              </View>
-            )}
-          </View>
-        )}
-        keyExtractor={(item) => `${section.id}-${item.id}`}
-        contentContainerStyle={styles.horizontalScrollContent}
-        snapToInterval={cardWidth + 16}
-        decelerationRate="fast"
-        snapToAlignment="start"
-      />
-    );
-
-    const renderGridLayout = () => (
-      <FlatList
-        data={section.data}
-        numColumns={section.cardSize === 'large' ? 2 : 3}
-        renderItem={({ item, index }) => (
-          <View style={[
-            styles.gridCard,
-            { width: section.cardSize === 'large' ? '48%' : '30%' }
-          ]}>
-            <TMDbContentCard
-              content={item}
-              type={determineMediaType(item)}
-              onPress={() => handleTMDbContentPress(item)}
-              style={styles.card}
-            />
-            {section.showRating && (
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <ThemedText style={styles.ratingText}>
-                  {item.vote_average.toFixed(1)}
-                </ThemedText>
-              </View>
-            )}
-          </View>
-        )}
-        keyExtractor={(item) => `${section.id}-${item.id}`}
-        contentContainerStyle={styles.gridContent}
-        scrollEnabled={false}
-      />
-    );
-
-    const renderFeaturedLayout = () => (
-      <View style={styles.featuredLayout}>
-        {section.data.slice(0, 3).map((item, index) => (
-          <TouchableOpacity
-            key={`${section.id}-${item.id}`}
-            style={[styles.featuredCard, index === 0 && styles.mainFeaturedCard]}
-            onPress={() => handleTMDbContentPress(item)}
-          >
-            <TMDbContentCard
-              content={item}
-              type={determineMediaType(item)}
-              onPress={() => handleTMDbContentPress(item)}
-              style={[styles.card, index === 0 && styles.mainFeaturedCardImage]}
-            />
-            <View style={styles.featuredOverlay}>
-              <ThemedText style={[
-                styles.featuredTitle,
-                index === 0 && styles.mainFeaturedTitle
-              ]}>
-                {determineMediaType(item) === 'movie' ? (item as TMDbMovie).title : (item as TMDbTVShow).name}
-              </ThemedText>
-              {section.showRating && (
-                <View style={styles.featuredRating}>
-                  <Ionicons name="star" size={14} color="#FFD700" />
-                  <ThemedText style={styles.featuredRatingText}>
-                    {item.vote_average.toFixed(1)}
-                  </ThemedText>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-
-    const renderCarouselLayout = () => (
-      <View style={styles.carouselContainer}>
-        <FlatList
-          ref={flatListRef}
-          data={section.data}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={styles.carouselCard}>
-              <TMDbContentCard
-                content={item}
-                type={determineMediaType(item)}
-                onPress={() => handleTMDbContentPress(item)}
-                style={styles.carouselImage}
-              />
-              <View style={styles.carouselOverlay}>
-                <ThemedText style={styles.carouselTitle}>
-                  {determineMediaType(item) === 'movie' ? (item as TMDbMovie).title : (item as TMDbTVShow).name}
-                </ThemedText>
-              </View>
-            </View>
-          )}
-          keyExtractor={(item) => `${section.id}-${item.id}`}
-          snapToInterval={width - 40}
-          decelerationRate="fast"
-        />
-        <View style={styles.carouselIndicators}>
-          {section.data.slice(0, 5).map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.indicator,
-                index === currentIndex % 5 && styles.activeIndicator
-              ]}
-            />
-          ))}
-        </View>
-      </View>
-    );
 
     return (
       <View style={styles.contentSection}>
         <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionIcon}>{section.icon}</Text>
-            <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
-          </View>
-          <TouchableOpacity
-            style={styles.viewAllButton}
-            onPress={() => router.push('/discover')}
-          >
-            <ThemedText style={styles.viewAllText}>View All</ThemedText>
-            <Ionicons name="chevron-forward" size={16} color="#E50914" />
+          <Text style={styles.sectionTitle}>
+            {section.icon} {section.title}
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/discover')}>
+            <Text style={styles.viewAllButton}>View All →</Text>
           </TouchableOpacity>
         </View>
-
-        {section.layout === 'grid' && renderGridLayout()}
-        {section.layout === 'featured' && renderFeaturedLayout()}
-        {section.layout === 'carousel' && renderCarouselLayout()}
-        {(!section.layout || section.layout === 'horizontal') && renderHorizontalLayout()}
+        
+        <FlatList
+          ref={flatListRef}
+          data={section.data}
+          renderItem={({ item, index }) => {
+            const mediaType = (item as any).title ? 'movie' : 'tv';
+            return (
+              <View style={styles.contentItemWrapper}>
+                {section.showRanking && (
+                  <View style={styles.rankingBadge}>
+                    <Text style={styles.rankingNumber}>{index + 1}</Text>
+                  </View>
+                )}
+                <TMDbContentCard
+                  content={item}
+                  type={mediaType}
+                  onPress={() => handleTMDbContentPress(item)}
+                  style={[
+                    styles.contentCard,
+                    section.showRanking && styles.contentCardWithRank
+                  ]}
+                />
+              </View>
+            );
+          }}
+          keyExtractor={(item, index) => `${section.id}-${item.id}-${index}`}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.contentRow}
+          snapToInterval={screenWidth * 0.35}
+          decelerationRate="fast"
+          onScrollToIndexFailed={(info) => {
+            const wait = new Promise(resolve => setTimeout(resolve, 500));
+            wait.then(() => {
+              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+            });
+          }}
+        />
       </View>
     );
   };
@@ -482,7 +320,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
+      
       <FlatList
         data={[{ type: 'hero' }, ...contentSections.map(section => ({ type: 'section', section }))]}
         renderItem={({ item }) => {
@@ -491,12 +329,12 @@ export default function HomeScreen() {
           }
           return <ContentRow section={item.section} />;
         }}
-        keyExtractor={(item, index) =>
+        keyExtractor={(item, index) => 
           item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`
         }
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
+          <RefreshControl 
+            refreshing={refreshing} 
             onRefresh={onRefresh}
             tintColor="#E50914"
             progressBackgroundColor="#000"
@@ -518,7 +356,7 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
   },
-
+  
   // Hero Section
   heroContainer: {
     height: screenHeight * 0.75,
@@ -675,7 +513,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E50914',
     width: 20,
   },
-
+  
   // Content Sections
   contentSection: {
     marginBottom: 30,
@@ -687,30 +525,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 16,
   },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionIcon: {
-    fontSize: 20,
-    marginRight: 10,
-  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
   viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  viewAllText: {
     color: '#E50914',
     fontSize: 14,
     fontWeight: '600',
-    marginRight: 4,
   },
-  horizontalScrollContent: {
+  contentRow: {
     paddingLeft: 20,
   },
   contentItemWrapper: {
@@ -718,18 +543,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   contentCard: {
-    // width: screenWidth * 0.32, // Default width, overridden by section.cardSize
-    // height: screenWidth * 0.48, // Default height, overridden by section.cardSize
-    borderRadius: 8,
-    overflow: 'hidden',
+    width: screenWidth * 0.32,
+    height: screenWidth * 0.48,
   },
-  card: {
-    flex: 1,
-  },
-  rankedCard: {
+  contentCardWithRank: {
     marginTop: 20,
   },
-  rankBadge: {
+  rankingBadge: {
     position: 'absolute',
     top: -15,
     left: -8,
@@ -743,117 +563,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  rankNumber: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  gridCard: {
-    marginBottom: 16,
-    marginHorizontal: '1.5%',
-  },
-  gridContent: {
-    paddingHorizontal: 8,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    justifyContent: 'center',
-  },
-  ratingText: {
-    color: '#fff',
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  featuredLayout: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  featuredCard: {
-    width: '48%',
-    marginBottom: 16,
-    position: 'relative',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  mainFeaturedCard: {
-    width: '100%',
-    height: 200,
-  },
-  mainFeaturedCardImage: {
-    height: 200,
-  },
-  featuredOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 12,
-  },
-  featuredTitle: {
+  rankingNumber: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  mainFeaturedTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  featuredRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  featuredRatingText: {
-    color: '#fff',
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  carouselContainer: {
-    position: 'relative',
-  },
-  carouselCard: {
-    width: width - 40,
-    marginHorizontal: 20,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  carouselImage: {
-    width: '100%',
-    height: 180,
-  },
-  carouselOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    padding: 16,
-  },
-  carouselTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  carouselIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 12,
-  },
-  indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    marginHorizontal: 4,
-  },
-  activeIndicator: {
-    backgroundColor: '#E50914',
+    fontWeight: 'bold',
   },
 });

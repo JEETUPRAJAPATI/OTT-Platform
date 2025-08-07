@@ -108,6 +108,9 @@ export default function DiscoverScreen() {
         <ThemedText style={styles.title}>
           Discover
         </ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Explore content by category
+        </ThemedText>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
