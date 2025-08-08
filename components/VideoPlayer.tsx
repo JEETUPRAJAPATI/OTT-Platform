@@ -16,7 +16,7 @@ import {
 import { Video, ResizeMode, VideoFullscreenUpdate } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Slider from '@react-native-community/slider';
+import { Slider } from 'react-native';
 import { userService } from '@/services/userService';
 import { downloadService } from '@/services/downloadService';
 
@@ -370,7 +370,6 @@ export function VideoPlayer({
                 onValueChange={handleVolumeChange}
                 minimumTrackTintColor="#E50914"
                 maximumTrackTintColor="#333"
-                thumbStyle={styles.sliderThumb}
               />
               <Ionicons name="volume-high" size={20} color="#fff" />
             </View>
@@ -506,7 +505,6 @@ export function VideoPlayer({
                   onValueChange={handleSeek}
                   minimumTrackTintColor="#E50914"
                   maximumTrackTintColor="rgba(255,255,255,0.3)"
-                  thumbStyle={styles.sliderThumb}
                 />
                 
                 <Text style={styles.timeText}>
@@ -651,11 +649,7 @@ const styles = StyleSheet.create({
     height: 40,
     marginHorizontal: 8,
   },
-  sliderThumb: {
-    backgroundColor: '#E50914',
-    width: 16,
-    height: 16,
-  },
+  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
