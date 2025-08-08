@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Platform, // Import Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadService } from '@/services/downloadService';
@@ -32,6 +33,7 @@ interface MovieDownloaderProps {
   posterPath?: string;
 }
 
+// Direct Internet Archive API calls - no backend needed
 export function MovieDownloader({
   visible,
   onClose,
@@ -179,29 +181,90 @@ export function MovieDownloader({
 
     if (movieFiles.length === 1) {
       // If only one file, download directly
-      downloadMovie(movieFiles[0]);
+      downloadMovie(archiveIdentifier, searchTitle || movieTitle); // Pass identifier and title
     } else {
       // Show quality selection modal
       setShowQualityModal(true);
     }
   };
 
-  const downloadMovie = async (file: MovieFile) => {
+  const downloadMovie = async (identifier: string, title: string) => {
     try {
       setShowQualityModal(false);
 
-      console.log('Opening download for file:', file);
-      console.log('Download URL:', file.downloadUrl);
+      console.log(`Starting download for: ${title} (${identifier})`);
 
-      // Simply open the download URL in browser
-      await downloadService.downloadFile(file.downloadUrl, file.name);
+      // Get metadata to find video files
+      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      console.log('Fetching metadata from:', metadataUrl);
+
+      const metadataResponse = await fetch(metadataUrl);
+      if (!metadataResponse.ok) {
+        throw new Error(`Failed to get metadata: ${metadataResponse.status}`);
+      }
+
+      const metadata = await response.json();
+      console.log('Metadata response:', metadata);
+
+      if (!metadata.files || !Array.isArray(metadata.files)) {
+        throw new Error('No files found in metadata');
+      }
+
+      // Filter video files
+      const videoFiles = metadata.files.filter((file: any) => 
+        file.format && (
+          file.format.includes('MPEG4') ||
+          file.format.includes('Matroska') ||
+          file.format.includes('Ogg Video') ||
+          file.format.includes('MP4') ||
+          file.format.includes('AVI')
+        )
+      ).sort((a: any, b: any) => {
+        // Sort by file size (largest first)
+        const sizeA = parseInt(a.size || '0');
+        const sizeB = parseInt(b.size || '0');
+        return sizeB - sizeA;
+      });
+
+      console.log('Found video files:', videoFiles);
+
+      if (videoFiles.length === 0) {
+        throw new Error('No video files found for this movie');
+      }
+
+      // Use the first (largest) video file
+      const selectedFile = videoFiles[0];
+      const downloadUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(selectedFile.name)}`;
+
+      console.log('Download URL:', downloadUrl);
+      console.log('File info:', selectedFile);
+
+      // For React Native, we'll open the direct download link
+      if (Platform.OS === 'web') {
+        // For web, create download link
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = selectedFile.name;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        // For mobile, use Linking to open browser
+        const { Linking } = require('react-native');
+        await Linking.openURL(downloadUrl);
+      }
+
+      console.log('Download started successfully');
 
       // Close the modal after opening URL
       onClose();
 
     } catch (error) {
       console.error('Download error:', error);
-      showToast('Download Failed', 'Failed to open download URL. Please try again.');
+      Alert.alert('Download Error', error instanceof Error ? error.message : 'Failed to download movie');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -210,8 +273,71 @@ export function MovieDownloader({
       showToast('Error', 'No video files available for playback');
       return;
     }
-    
-    setShowVideoPlayer(true);
+
+    // Use the first found movie file for playback
+    if (archiveIdentifier) {
+      playMovie(archiveIdentifier, searchTitle || movieTitle);
+    } else {
+      showToast('Error', 'Movie identifier not found. Please search again.');
+    }
+  };
+
+  const playMovie = async (identifier: string, title: string) => {
+    try {
+      setLoadingVideoId(identifier);
+      console.log(`Getting video URL for: ${title} (${identifier})`);
+
+      // Get metadata to find video files
+      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      const metadataResponse = await fetch(metadataUrl);
+
+      if (!metadataResponse.ok) {
+        throw new Error(`Failed to get metadata: ${metadataResponse.status}`);
+      }
+
+      const metadata = await metadataResponse.json();
+
+      if (!metadata.files || !Array.isArray(metadata.files)) {
+        throw new Error('No files found in metadata');
+      }
+
+      // Filter video files
+      const videoFiles = metadata.files.filter((file: any) => 
+        file.format && (
+          file.format.includes('MPEG4') ||
+          file.format.includes('Matroska') ||
+          file.format.includes('Ogg Video') ||
+          file.format.includes('MP4') ||
+          file.format.includes('AVI')
+        )
+      ).sort((a: any, b: any) => {
+        const sizeA = parseInt(a.size || '0');
+        const sizeB = parseInt(b.size || '0');
+        return sizeB - sizeA;
+      });
+
+      if (videoFiles.length === 0) {
+        throw new Error('No video files found for this movie');
+      }
+
+      const selectedFile = videoFiles[0];
+      const videoUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(selectedFile.name)}`;
+
+      console.log('Video URL:', videoUrl);
+
+      setCurrentVideo({
+        url: videoUrl,
+        title: title,
+        identifier: identifier
+      });
+      setVideoModalVisible(true);
+
+    } catch (error) {
+      console.error('Play error:', error);
+      Alert.alert('Play Error', error instanceof Error ? error.message : 'Failed to load video');
+    } finally {
+      setLoadingVideoId(null);
+    }
   };
 
   const cancelDownload = () => {
@@ -231,11 +357,13 @@ export function MovieDownloader({
     }
   };
 
-  const formatFileSize = (sizeInMB: number): string => {
-    if (sizeInMB >= 1024) {
-      return `${(sizeInMB / 1024).toFixed(1)}GB`;
-    }
-    return `${sizeInMB}MB`;
+  const formatFileSize = (sizeInBytes: number): string => {
+    if (sizeInBytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = 2;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(sizeInBytes) / Math.log(k));
+    return parseFloat((sizeInBytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
   const formatSpeed = (bytesPerSecond: number): string => {
@@ -293,7 +421,7 @@ export function MovieDownloader({
               <TouchableOpacity
                 key={index}
                 style={styles.qualityOption}
-                onPress={() => downloadMovie(file)}
+                onPress={() => downloadMovie(archiveIdentifier, searchTitle || movieTitle)}
               >
                 <View style={styles.qualityInfo}>
                   <Text style={styles.qualityText}>
@@ -311,6 +439,11 @@ export function MovieDownloader({
       </View>
     </Modal>
   );
+
+  // Mock state for VideoPlayerModal
+  const [currentVideo, setCurrentVideo] = useState<{ url: string; title: string; identifier: string } | null>(null);
+  const [videoModalVisible, setVideoModalVisible] = useState(false);
+  const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
 
   return (
     <Modal
@@ -390,7 +523,7 @@ export function MovieDownloader({
                   <Text style={styles.actionButtonText}>Download</Text>
                 </TouchableOpacity>
               </View>
-              
+
               <Text style={styles.playbackNote}>
                 💡 Some videos may only support download due to Internet Archive streaming limitations
               </Text>
@@ -401,7 +534,7 @@ export function MovieDownloader({
                   <TouchableOpacity
                     key={index}
                     style={styles.fileInfoContainer}
-                    onPress={() => downloadMovie(file)}
+                    onPress={() => downloadMovie(archiveIdentifier, searchTitle || movieTitle)}
                   >
                     <View style={styles.fileDetails}>
                       <Text style={styles.fileInfo}>
@@ -464,10 +597,11 @@ export function MovieDownloader({
         {renderQualityModal()}
 
         <VideoPlayerModal
-          visible={showVideoPlayer}
-          onClose={() => setShowVideoPlayer(false)}
+          visible={videoModalVisible}
+          onClose={() => setVideoModalVisible(false)}
           videoFiles={movieFiles}
           movieTitle={searchTitle || movieTitle}
+          currentVideo={currentVideo} // Pass currentVideo
         />
       </SafeAreaView>
     </Modal>
@@ -595,11 +729,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 2,
-  },
-  fileName: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
-    fontStyle: 'italic',
   },
   moreFiles: {
     color: 'rgba(255,255,255,0.6)',
@@ -838,9 +967,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
-  },
-  fileName: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
   },
 });
