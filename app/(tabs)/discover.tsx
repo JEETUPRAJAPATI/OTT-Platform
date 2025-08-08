@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
@@ -121,7 +120,6 @@ export default function DiscoverScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-      
       <Footer currentRoute="/discover" />
     </ThemedView>
   );

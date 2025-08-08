@@ -51,11 +51,10 @@ export default function TMDbContentDetails() {
   const [cast, setCast] = useState<Cast[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [isFavorited, setIsFavorited] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [showPlayer, setShowPlayer] = useState(false);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [recommendations, setRecommendations] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
 
   useEffect(() => {
@@ -63,7 +62,7 @@ export default function TMDbContentDetails() {
       loadContent();
       checkFavoriteStatus();
       checkWatchlistStatus();
-      
+
     }
   }, [id, type]);
 

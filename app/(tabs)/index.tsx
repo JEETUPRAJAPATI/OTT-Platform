@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
@@ -34,7 +33,7 @@ export default function HomeScreen() {
         apiService.getFavorites(),
         apiService.getWatchlist(),
       ]);
-      
+
       setFavorites(favoritesData);
       setWatchlist(watchlistData);
     } catch (error) {
@@ -81,7 +80,7 @@ export default function HomeScreen() {
         <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
         <Text style={styles.itemCount}>({data.length})</Text>
       </View>
-      
+
       {data.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name={emptyIcon as any} size={48} color="#666" />
@@ -102,11 +101,11 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#E50914"
           />
@@ -131,7 +130,7 @@ export default function HomeScreen() {
         {/* Movies Section */}
         <View style={styles.moviesContainer}>
           <ThemedText style={styles.moviesTitle}>My Movies & Shows</ThemedText>
-          
+
           {renderSection(
             'Favorites',
             favorites,
@@ -149,15 +148,15 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => router.push('/discover')}
           >
             <Ionicons name="compass" size={24} color="#E50914" />
             <Text style={styles.actionButtonText}>Discover New</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => router.push('/search')}
           >
@@ -168,7 +167,7 @@ export default function HomeScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-      
+
       <Footer currentRoute="/" />
     </ThemedView>
   );
