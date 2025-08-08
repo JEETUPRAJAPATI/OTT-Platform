@@ -223,11 +223,14 @@ class DownloadService {
         videoFileCount: validationResult.videoFileCount
       });
 
-      return {
+      const result = {
         identifier: bestMatch.identifier,
         title: bestMatch.title || cleanTitle,
         found: true
       };
+
+      console.log('Returning search result:', result);
+      return result;
 
     } catch (error: any) {
       this.logNetwork('Search error', 'searchInternetArchive', error);

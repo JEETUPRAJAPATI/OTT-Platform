@@ -62,12 +62,18 @@ export function MovieDownloader({
     setIsSearching(true);
     setMovieFound(false);
     setMovieFiles([]);
+    setArchiveIdentifier('');
 
     try {
+      console.log('Starting search for:', title.trim());
+      
       // Search for movie on Internet Archive
       const searchResult = await downloadService.searchInternetArchive(title.trim());
 
+      console.log('Search result:', searchResult);
+
       if (!searchResult.found) {
+        console.log('No movie found, search result:', searchResult);
         setIsSearching(false);
         // Show additional helpful message
         if (searchResult.error?.includes('No movie archives found')) {
@@ -77,17 +83,23 @@ export function MovieDownloader({
       }
 
       if (!searchResult.identifier) {
+        console.log('No identifier found in search result');
         setIsSearching(false);
         Alert.alert('Search Error', 'Invalid search result received. Please try again.');
         return;
       }
 
+      console.log('Found identifier:', searchResult.identifier);
       setArchiveIdentifier(searchResult.identifier);
 
       // Get movie files and metadata
+      console.log('Fetching files for identifier:', searchResult.identifier);
       const filesResult = await downloadService.getInternetArchiveFiles(searchResult.identifier);
 
+      console.log('Files result:', filesResult);
+
       if (!filesResult.success) {
+        console.log('Files fetch failed:', filesResult.error);
         setIsSearching(false);
         if (filesResult.error?.includes('No video files found')) {
           showToast('Archive Issue', 'This archive exists but contains no video files. Try searching for a different version or title.');
@@ -96,17 +108,20 @@ export function MovieDownloader({
       }
 
       if (filesResult.files.length === 0) {
+        console.log('No files in successful result');
         setIsSearching(false);
         Alert.alert('No Video Files', 'This archive contains files but no video content. Try searching for a different movie or check your spelling.');
         return;
       }
 
+      console.log('Setting movie files:', filesResult.files);
       setMovieFiles(filesResult.files);
       setMovieFound(true);
       
       // Show more detailed success message
       const totalSize = filesResult.files.reduce((sum, file) => sum + file.size, 0);
       const sizeText = totalSize > 1024 ? `${(totalSize / 1024).toFixed(1)}GB` : `${totalSize}MB`;
+      console.log('Movie found successfully, files count:', filesResult.files.length);
       showToast('Movie Found!', `Found ${filesResult.files.length} video file(s) for "${searchResult.title}"\nTotal size: ${sizeText}`);
     } catch (error) {
       console.error('Search error:', error);
@@ -283,7 +298,7 @@ export function MovieDownloader({
             </View>
           </View>
 
-          {movieFound && !isDownloading && (
+          {movieFound && movieFiles.length > 0 && !isDownloading && (
             <View style={styles.downloadSection}>
               <Text style={styles.sectionTitle}>
                 Found {movieFiles.length} file(s) - Ready to Download
@@ -308,6 +323,17 @@ export function MovieDownloader({
                   </Text>
                 )}
               </View>
+            </View>
+          )}
+
+          {/* Debug info - remove this after testing */}
+          {__DEV__ && (
+            <View style={styles.debugSection}>
+              <Text style={styles.debugText}>Debug Info:</Text>
+              <Text style={styles.debugText}>movieFound: {movieFound.toString()}</Text>
+              <Text style={styles.debugText}>movieFiles.length: {movieFiles.length}</Text>
+              <Text style={styles.debugText}>isDownloading: {isDownloading.toString()}</Text>
+              <Text style={styles.debugText}>archiveIdentifier: {archiveIdentifier}</Text>
             </View>
           )}
 
@@ -457,6 +483,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     marginTop: 4,
+  },
+  debugSection: {
+    backgroundColor: 'rgba(255,0,0,0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,0,0,0.3)',
+  },
+  debugText: {
+    color: '#ff6b6b',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    marginBottom: 4,
   },
   progressSection: {
     marginBottom: 30,
