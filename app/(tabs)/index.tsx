@@ -392,7 +392,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <FlatList
@@ -461,7 +461,7 @@ export default function HomeScreen() {
           }
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
