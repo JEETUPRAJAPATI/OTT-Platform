@@ -1,4 +1,6 @@
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export interface DownloadItem {
   id: string;
   contentId: number;
@@ -293,22 +295,22 @@ class DownloadService {
     this.saveToStorage();
   }
 
-  // Storage methods
-  private saveToStorage(): void {
+  // Storage methods using AsyncStorage for React Native compatibility
+  private async saveToStorage(): Promise<void> {
     try {
       const downloadData = {
         downloads: this.downloads,
         downloadQueue: this.downloadQueue
       };
-      localStorage.setItem('rkswot-downloads', JSON.stringify(downloadData));
+      await AsyncStorage.setItem('rkswot-downloads', JSON.stringify(downloadData));
     } catch (error) {
       console.error('Failed to save download data:', error);
     }
   }
 
-  private loadFromStorage(): void {
+  private async loadFromStorage(): Promise<void> {
     try {
-      const stored = localStorage.getItem('rkswot-downloads');
+      const stored = await AsyncStorage.getItem('rkswot-downloads');
       if (stored) {
         const downloadData = JSON.parse(stored);
         this.downloads = downloadData.downloads || [];

@@ -328,8 +328,9 @@ class UserService {
   }
 
   // Storage methods
-  private saveToStorage(): void {
+  private async saveToStorage(): Promise<void> {
     try {
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
       const userData = {
         user: this.currentUser,
         watchlist: this.watchlist,
@@ -338,15 +339,16 @@ class UserService {
         viewingHistory: this.viewingHistory,
         continueWatching: this.continueWatching
       };
-      localStorage.setItem('rkswot-user-data', JSON.stringify(userData));
+      await AsyncStorage.default.setItem('rkswot-user-data', JSON.stringify(userData));
     } catch (error) {
       console.error('Failed to save user data:', error);
     }
   }
 
-  loadFromStorage(): void {
+  async loadFromStorage(): Promise<void> {
     try {
-      const stored = localStorage.getItem('rkswot-user-data');
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      const stored = await AsyncStorage.default.getItem('rkswot-user-data');
       if (stored) {
         const userData = JSON.parse(stored);
         this.currentUser = userData.user || this.currentUser;
