@@ -251,6 +251,308 @@ class TMDbService {
   getYouTubeUrl(key: string) {
     return `https://www.youtube.com/watch?v=${key}`;
   }
+
+  // ENHANCED OTT PLATFORM FEATURES
+
+  // Get airing today TV shows
+  async getAiringTodayTVShows(page: number = 1) {
+    const response = await tmdbApi.get('/tv/airing_today', { params: { page } });
+    return response.data.results;
+  }
+
+  // Get on air TV shows
+  async getOnAirTVShows(page: number = 1) {
+    const response = await tmdbApi.get('/tv/on_the_air', { params: { page } });
+    return response.data.results;
+  }
+
+  // Get top rated TV shows
+  async getTopRatedTVShows(page: number = 1) {
+    const response = await tmdbApi.get('/tv/top_rated', { params: { page } });
+    return response.data.results;
+  }
+
+  // Get now playing movies
+  async getNowPlayingMovies(page: number = 1) {
+    const response = await tmdbApi.get('/movie/now_playing', { params: { page } });
+    return response.data.results;
+  }
+
+  // Get similar movies
+  async getSimilarMovies(movieId: number, page: number = 1) {
+    const response = await tmdbApi.get(`/movie/${movieId}/similar`, { params: { page } });
+    return response.data.results;
+  }
+
+  // Get similar TV shows
+  async getSimilarTVShows(tvId: number, page: number = 1) {
+    const response = await tmdbApi.get(`/tv/${tvId}/similar`, { params: { page } });
+    return response.data.results;
+  }
+
+  // Get movie recommendations
+  async getMovieRecommendations(movieId: number, page: number = 1) {
+    const response = await tmdbApi.get(`/movie/${movieId}/recommendations`, { params: { page } });
+    return response.data.results;
+  }
+
+  // Get TV show recommendations
+  async getTVRecommendations(tvId: number, page: number = 1) {
+    const response = await tmdbApi.get(`/tv/${tvId}/recommendations`, { params: { page } });
+    return response.data.results;
+  }
+
+  // Get movie reviews
+  async getMovieReviews(movieId: number, page: number = 1) {
+    const response = await tmdbApi.get(`/movie/${movieId}/reviews`, { params: { page } });
+    return response.data.results;
+  }
+
+  // Get TV show reviews
+  async getTVReviews(tvId: number, page: number = 1) {
+    const response = await tmdbApi.get(`/tv/${tvId}/reviews`, { params: { page } });
+    return response.data.results;
+  }
+
+  // Get movie watch providers
+  async getMovieWatchProviders(movieId: number) {
+    const response = await tmdbApi.get(`/movie/${movieId}/watch/providers`);
+    return response.data;
+  }
+
+  // Get TV watch providers
+  async getTVWatchProviders(tvId: number) {
+    const response = await tmdbApi.get(`/tv/${tvId}/watch/providers`);
+    return response.data;
+  }
+
+  // Get person details
+  async getPersonDetails(personId: number) {
+    const response = await tmdbApi.get(`/person/${personId}`, {
+      params: { append_to_response: 'movie_credits,tv_credits,combined_credits,images' }
+    });
+    return response.data;
+  }
+
+  // Get popular people
+  async getPopularPeople(page: number = 1) {
+    const response = await tmdbApi.get('/person/popular', { params: { page } });
+    return response.data.results;
+  }
+
+  // Get TV season details
+  async getTVSeasonDetails(tvId: number, seasonNumber: number) {
+    const response = await tmdbApi.get(`/tv/${tvId}/season/${seasonNumber}`, {
+      params: { append_to_response: 'credits,videos,images' }
+    });
+    return response.data;
+  }
+
+  // Get TV episode details
+  async getTVEpisodeDetails(tvId: number, seasonNumber: number, episodeNumber: number) {
+    const response = await tmdbApi.get(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`, {
+      params: { append_to_response: 'credits,videos,images' }
+    });
+    return response.data;
+  }
+
+  // Get collection details
+  async getCollectionDetails(collectionId: number) {
+    const response = await tmdbApi.get(`/collection/${collectionId}`, {
+      params: { append_to_response: 'images' }
+    });
+    return response.data;
+  }
+
+  // Get movie keywords
+  async getMovieKeywords(movieId: number) {
+    const response = await tmdbApi.get(`/movie/${movieId}/keywords`);
+    return response.data.keywords;
+  }
+
+  // Get TV keywords
+  async getTVKeywords(tvId: number) {
+    const response = await tmdbApi.get(`/tv/${tvId}/keywords`);
+    return response.data.results;
+  }
+
+  // Get available watch provider regions
+  async getWatchProviderRegions() {
+    const response = await tmdbApi.get('/watch/providers/regions');
+    return response.data.results;
+  }
+
+  // Get movie watch providers list
+  async getMovieWatchProvidersList() {
+    const response = await tmdbApi.get('/watch/providers/movie');
+    return response.data.results;
+  }
+
+  // Get TV watch providers list
+  async getTVWatchProvidersList() {
+    const response = await tmdbApi.get('/watch/providers/tv');
+    return response.data.results;
+  }
+
+  // Get configuration
+  async getConfiguration() {
+    const response = await tmdbApi.get('/configuration');
+    return response.data;
+  }
+
+  // Get countries
+  async getCountries() {
+    const response = await tmdbApi.get('/configuration/countries');
+    return response.data;
+  }
+
+  // Get languages
+  async getLanguages() {
+    const response = await tmdbApi.get('/configuration/languages');
+    return response.data;
+  }
+
+  // Advanced search with filters
+  async advancedMovieSearch(filters: {
+    query?: string;
+    with_genres?: string;
+    with_original_language?: string;
+    primary_release_year?: number;
+    'vote_average.gte'?: number;
+    'vote_count.gte'?: number;
+    sort_by?: string;
+    page?: number;
+  }) {
+    const response = await tmdbApi.get('/discover/movie', { params: filters });
+    return response.data.results;
+  }
+
+  // Advanced TV search with filters
+  async advancedTVSearch(filters: {
+    query?: string;
+    with_genres?: string;
+    with_original_language?: string;
+    first_air_date_year?: number;
+    'vote_average.gte'?: number;
+    'vote_count.gte'?: number;
+    sort_by?: string;
+    page?: number;
+  }) {
+    const response = await tmdbApi.get('/discover/tv', { params: filters });
+    return response.data.results;
+  }
+
+  // Get content by multiple genres
+  async getContentByGenres(genreIds: number[], mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        with_genres: genreIds.join(','),
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
+  }
+
+  // Get regional content (by country)
+  async getRegionalContent(country: string, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        with_origin_country: country,
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
+  }
+
+  // Get content by release year
+  async getContentByYear(year: number, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const yearParam = mediaType === 'movie' ? 'primary_release_year' : 'first_air_date_year';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        [yearParam]: year,
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
+  }
+
+  // Get content by rating range
+  async getContentByRating(minRating: number, maxRating: number, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        'vote_average.gte': minRating,
+        'vote_average.lte': maxRating,
+        'vote_count.gte': 100, // Ensure enough votes for reliability
+        sort_by: 'vote_average.desc',
+        page 
+      }
+    });
+    return response.data.results;
+  }
+
+  // Get trending content by time window
+  async getTrendingByTimeWindow(mediaType: 'movie' | 'tv' | 'person' = 'movie', timeWindow: 'day' | 'week' = 'week', page: number = 1) {
+    const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`, { params: { page } });
+    return response.data.results;
+  }
+
+  // Get latest content
+  async getLatestMovie() {
+    const response = await tmdbApi.get('/movie/latest');
+    return response.data;
+  }
+
+  async getLatestTV() {
+    const response = await tmdbApi.get('/tv/latest');
+    return response.data;
+  }
+
+  // Multi-search (movies, TV, people)
+  async multiSearch(query: string, page: number = 1) {
+    const response = await tmdbApi.get('/search/multi', {
+      params: { query, page }
+    });
+    return response.data.results;
+  }
+
+  // Search by person
+  async searchPerson(query: string, page: number = 1) {
+    const response = await tmdbApi.get('/search/person', {
+      params: { query, page }
+    });
+    return response.data.results;
+  }
+
+  // Search by company
+  async searchCompany(query: string, page: number = 1) {
+    const response = await tmdbApi.get('/search/company', {
+      params: { query, page }
+    });
+    return response.data.results;
+  }
+
+  // Search by keyword
+  async searchKeyword(query: string, page: number = 1) {
+    const response = await tmdbApi.get('/search/keyword', {
+      params: { query, page }
+    });
+    return response.data.results;
+  }
+
+  // Search by collection
+  async searchCollection(query: string, page: number = 1) {
+    const response = await tmdbApi.get('/search/collection', {
+      params: { query, page }
+    });
+    return response.data.results;
+  }
 }
 
 export const tmdbService = new TMDbService();

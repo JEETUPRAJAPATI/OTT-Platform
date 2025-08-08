@@ -21,6 +21,7 @@ import { SplashScreen } from '@/components/SplashScreen';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { MovieSlider } from '@/components/MovieSlider';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
+import { userService } from '@/services/userService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -56,30 +57,49 @@ export default function HomeScreen() {
 
   const loadContent = async () => {
     try {
+      // Load user data
+      userService.loadFromStorage();
+      const continueWatching = userService.getContinueWatching();
+      const userFavoriteGenres = userService.getRecommendedGenres();
+
       const [
         trending,
         popular,
         topRated,
         upcoming,
+        nowPlaying,
         hindi,
         south,
         marvel,
         thriller2025,
         family,
         romantic,
-        awards
+        awards,
+        airingToday,
+        onAir,
+        topRatedTV,
+        popularTV,
+        personalizedMovies,
+        personalizedTV
       ] = await Promise.all([
         tmdbService.getTrending(),
         tmdbService.getPopularMovies(),
         tmdbService.getTopRatedMovies(),
         tmdbService.getUpcomingMovies(),
+        tmdbService.getNowPlayingMovies(),
         tmdbService.getHindiMovies(),
         tmdbService.getSouthIndianMovies(),
         tmdbService.getMarvelMovies(),
         tmdbService.getThrillerMovies2025(),
         tmdbService.getFamilyMovies(),
         tmdbService.getRomanticMovies(),
-        tmdbService.getAwardWinners()
+        tmdbService.getAwardWinners(),
+        tmdbService.getAiringTodayTVShows(),
+        tmdbService.getOnAirTVShows(),
+        tmdbService.getTopRatedTVShows(),
+        tmdbService.getPopularTVShows(),
+        userFavoriteGenres.length > 0 ? tmdbService.getContentByGenres(userFavoriteGenres, 'movie') : [],
+        userFavoriteGenres.length > 0 ? tmdbService.getContentByGenres(userFavoriteGenres, 'tv') : []
       ]);
 
       setFeaturedContent(trending.slice(0, 5));
@@ -98,7 +118,34 @@ export default function HomeScreen() {
         return selected;
       };
 
-      setContentSections([
+      // Build sections array dynamically
+      const sections: ContentSection[] = [];
+
+      // Continue Watching (if user has viewing history)
+      if (continueWatching.length > 0) {
+        sections.push({
+          id: 'continue-watching',
+          title: 'Continue Watching',
+          icon: '▶️',
+          data: continueWatching.map(item => ({
+            id: item.contentId,
+            title: item.title,
+            poster_path: item.posterPath,
+            vote_average: 0,
+            overview: '',
+            release_date: '',
+            first_air_date: '',
+            genre_ids: [],
+            original_language: '',
+            popularity: 0,
+            backdrop_path: ''
+          })),
+          showRanking: false,
+        });
+      }
+
+      // Core sections
+      sections.push(
         {
           id: 'trending',
           title: 'Trending Now',
@@ -109,36 +156,69 @@ export default function HomeScreen() {
           id: 'hindi-top10',
           title: 'Top 10 in India',
           icon: '🇮🇳',
-          data: getUniqueContent(hindi, 10, true), // Preserve order for rankings - NO randomization
+          data: getUniqueContent(hindi, 10, true), // Preserve order for rankings
           showRanking: true,
+        }
+      );
+
+      // Personalized recommendations
+      if (personalizedMovies.length > 0 || personalizedTV.length > 0) {
+        const personalizedContent = [...personalizedMovies, ...personalizedTV];
+        sections.push({
+          id: 'recommended',
+          title: 'Recommended for You',
+          icon: '🎯',
+          data: getUniqueContent(personalizedContent, 20),
+        });
+      }
+
+      // Continue with other sections
+      sections.push(
+        {
+          id: 'now-playing',
+          title: 'Now Playing in Cinemas',
+          icon: '🎭',
+          data: getUniqueContent(nowPlaying, 20),
+        },
+        {
+          id: 'airing-today',
+          title: 'On TV Today',
+          icon: '📺',
+          data: getUniqueContent(airingToday, 20),
         },
         {
           id: 'popular',
-          title: 'Popular on RK Shot',
+          title: 'Popular on RK SWOT',
           icon: '⭐',
           data: getUniqueContent(popular, 20),
         },
         {
           id: 'latest',
-          title: 'New Release',
+          title: 'New Releases',
           icon: '🎬',
           data: getUniqueContent(upcoming, 20),
         },
         {
+          id: 'on-air',
+          title: 'Currently Airing Series',
+          icon: '📡',
+          data: getUniqueContent(onAir, 20),
+        },
+        {
           id: 'action',
-          title: 'Action Movies',
+          title: 'Action & Adventure',
           icon: '💥',
           data: getUniqueContent(marvel, 20),
         },
         {
           id: 'thriller',
-          title: 'Thrillers',
+          title: 'Thrillers & Suspense',
           icon: '😱',
           data: getUniqueContent(thriller2025, 20),
         },
         {
           id: 'south',
-          title: 'South Indian Movies',
+          title: 'South Indian Cinema',
           icon: '🎭',
           data: getUniqueContent(south, 20),
         },
@@ -149,14 +229,20 @@ export default function HomeScreen() {
           data: getUniqueContent(topRated, 20),
         },
         {
+          id: 'toprated-tv',
+          title: 'Top Rated Series',
+          icon: '🏅',
+          data: getUniqueContent(topRatedTV, 20),
+        },
+        {
           id: 'family',
-          title: 'Family Picks',
+          title: 'Family Entertainment',
           icon: '👨‍👩‍👧‍👦',
           data: getUniqueContent(family, 20),
         },
         {
           id: 'romantic',
-          title: 'Romantic Hits',
+          title: 'Romance & Drama',
           icon: '💕',
           data: getUniqueContent(romantic, 20),
         },
@@ -166,7 +252,15 @@ export default function HomeScreen() {
           icon: '🥇',
           data: getUniqueContent(awards, 20),
         },
-      ]);
+        {
+          id: 'popular-tv',
+          title: 'Popular Series',
+          icon: '📺',
+          data: getUniqueContent(popularTV, 20),
+        }
+      );
+
+      setContentSections(sections);
     } catch (error) {
       console.error('Error loading content:', error);
     }
