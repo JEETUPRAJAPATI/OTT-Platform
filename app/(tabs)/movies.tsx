@@ -1,187 +1,196 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, Text, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  RefreshControl,
+  Alert,
+  Text,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
-import { userService } from '@/services/userService';
+import { apiService, FavoriteItem, WatchlistItem } from '@/services/apiService';
 
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_READ_ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMDQwNWI5ZjEzODNlMTE4ZjljZmE4NmQ3Yjc0ZTJiOSIsIm5iZiI6MTc1NDU1NTAwNy4xNjQsInN1YiI6IjY4OTQ2MjdmMzQ4MDE5NWFhNDY2ZTZmNCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.gH2CFYya3S8QwYBUFhuEKcP4JWoMPnAeaRPDAE03Rik';
-const ACCOUNT_ID = '22206352';
+type TabType = 'favorites' | 'watchlist';
 
 export default function MoviesScreen() {
   const router = useRouter();
-  const [favorites, setFavorites] = useState([]);
-  const [watchlist, setWatchlist] = useState([]);
+  const [selectedTab, setSelectedTab] = useState<TabType>('favorites');
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'favorites' | 'watchlist'>('favorites');
 
   useEffect(() => {
-    loadUserContent();
+    loadData();
   }, []);
 
-  const loadUserContent = async () => {
+  const loadData = async () => {
     try {
-      await Promise.all([
-        loadFavorites(),
-        loadWatchlist()
+      const [favoritesData, watchlistData] = await Promise.all([
+        apiService.getFavorites(),
+        apiService.getWatchlist(),
       ]);
-    } catch (error) {
-      console.error('Error loading user content:', error);
-    }
-  };
-
-  const loadFavorites = async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/account/${ACCOUNT_ID}/favorite/movies?language=en-US&sort_by=created_at.desc&page=1`,
-        {
-          headers: {
-            'Authorization': `Bearer ${API_READ_ACCESS_TOKEN}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
       
-      if (response.ok) {
-        const data = await response.json();
-        setFavorites(data.results || []);
-      }
+      setFavorites(favoritesData);
+      setWatchlist(watchlistData);
     } catch (error) {
-      console.error('Error loading favorites:', error);
-    }
-  };
-
-  const loadWatchlist = async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/account/${ACCOUNT_ID}/watchlist/movies?language=en-US&sort_by=created_at.desc&page=1`,
-        {
-          headers: {
-            'Authorization': `Bearer ${API_READ_ACCESS_TOKEN}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        setWatchlist(data.results || []);
-      }
-    } catch (error) {
-      console.error('Error loading watchlist:', error);
+      console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load data');
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadUserContent();
+    await loadData();
     setRefreshing(false);
   };
 
-  const handleContentPress = (content: any) => {
-    router.push(`/tmdb-content/${content.id}?type=movie`);
+  const handleContentPress = (item: FavoriteItem | WatchlistItem) => {
+    router.push(`/tmdb-content/${item.contentId}?type=${item.contentType}`);
   };
 
-  const removeFromFavorites = async (movieId: number) => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/account/${ACCOUNT_ID}/favorite`,
+  const removeFromFavorites = async (contentId: string) => {
+    Alert.alert(
+      'Remove from Favorites',
+      'Are you sure you want to remove this item from your favorites?',
+      [
+        { text: 'Cancel', style: 'cancel' },
         {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${API_READ_ACCESS_TOKEN}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.removeFromFavorites(contentId);
+              setFavorites(prev => prev.filter(item => item.contentId !== contentId));
+              Alert.alert('Success', 'Removed from favorites');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to remove from favorites');
+            }
           },
-          body: JSON.stringify({
-            media_type: 'movie',
-            media_id: movieId,
-            favorite: false
-          })
-        }
-      );
-      
-      if (response.ok) {
-        await loadFavorites();
-      }
-    } catch (error) {
-      console.error('Error removing from favorites:', error);
-    }
+        },
+      ]
+    );
   };
 
-  const removeFromWatchlist = async (movieId: number) => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/account/${ACCOUNT_ID}/watchlist`,
+  const removeFromWatchlist = async (contentId: string) => {
+    Alert.alert(
+      'Remove from Watchlist',
+      'Are you sure you want to remove this item from your watchlist?',
+      [
+        { text: 'Cancel', style: 'cancel' },
         {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${API_READ_ACCESS_TOKEN}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.removeFromWatchlist(contentId);
+              setWatchlist(prev => prev.filter(item => item.contentId !== contentId));
+              Alert.alert('Success', 'Removed from watchlist');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to remove from watchlist');
+            }
           },
-          body: JSON.stringify({
-            media_type: 'movie',
-            media_id: movieId,
-            watchlist: false
-          })
-        }
-      );
-      
-      if (response.ok) {
-        await loadWatchlist();
-      }
-    } catch (error) {
-      console.error('Error removing from watchlist:', error);
-    }
+        },
+      ]
+    );
   };
 
-  const renderMovieItem = ({ item }: { item: any }) => (
-    <View style={styles.movieItem}>
+  const renderFavoriteItem = ({ item }: { item: FavoriteItem }) => (
+    <View style={styles.favoriteItem}>
       <TMDbContentCard
-        content={item}
-        type="movie"
+        content={{
+          id: parseInt(item.contentId),
+          title: item.title,
+          poster_path: item.posterPath,
+          vote_average: 0,
+          overview: '',
+          release_date: '',
+          first_air_date: '',
+          genre_ids: [],
+          original_language: '',
+          popularity: 0,
+          backdrop_path: ''
+        }}
         onPress={() => handleContentPress(item)}
-        style={styles.movieCard}
+        style={styles.card}
       />
       <TouchableOpacity
         style={styles.removeButton}
-        onPress={() => selectedTab === 'favorites' ? removeFromFavorites(item.id) : removeFromWatchlist(item.id)}
+        onPress={() => removeFromFavorites(item.contentId)}
       >
-        <Ionicons name="close-circle" size={24} color="#ff4444" />
+        <Ionicons name="heart" size={20} color="#E50914" />
       </TouchableOpacity>
     </View>
   );
 
-  const renderEmptyState = (type: 'favorites' | 'watchlist') => (
-    <View style={styles.emptyState}>
+  const renderWatchlistItem = ({ item }: { item: WatchlistItem }) => (
+    <View style={styles.favoriteItem}>
+      <TMDbContentCard
+        content={{
+          id: parseInt(item.contentId),
+          title: item.title,
+          poster_path: item.posterPath,
+          vote_average: 0,
+          overview: '',
+          release_date: '',
+          first_air_date: '',
+          genre_ids: [],
+          original_language: '',
+          popularity: 0,
+          backdrop_path: ''
+        }}
+        onPress={() => handleContentPress(item)}
+        style={styles.card}
+      />
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => removeFromWatchlist(item.contentId)}
+      >
+        <Ionicons name="bookmark" size={20} color="#E50914" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderEmptyState = (type: TabType) => (
+    <View style={styles.emptyContainer}>
       <Ionicons 
         name={type === 'favorites' ? 'heart-outline' : 'bookmark-outline'} 
         size={80} 
         color="#333" 
       />
-      <Text style={styles.emptyTitle}>
-        No {type === 'favorites' ? 'Favorites' : 'Watchlist Items'} Yet
-      </Text>
-      <Text style={styles.emptyDescription}>
+      <ThemedText style={styles.emptyText}>
+        {type === 'favorites' ? 'No Favorites Yet' : 'No Items in Watchlist'}
+      </ThemedText>
+      <ThemedText style={styles.emptySubText}>
         {type === 'favorites' 
-          ? 'Add movies to your favorites to see them here' 
-          : 'Add movies to your watchlist to see them here'}
-      </Text>
+          ? 'Add movies and shows to your favorites by tapping the heart icon'
+          : 'Add movies and shows to your watchlist by tapping the bookmark icon'
+        }
+      </ThemedText>
+      <TouchableOpacity 
+        style={styles.exploreButton}
+        onPress={() => router.push('/discover')}
+      >
+        <Text style={styles.exploreButtonText}>Explore Content</Text>
+      </TouchableOpacity>
     </View>
   );
 
   const currentData = selectedTab === 'favorites' ? favorites : watchlist;
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Movies</Text>
+        <ThemedText style={styles.title}>My Movies & Shows</ThemedText>
         <TouchableOpacity onPress={onRefresh}>
-          <Ionicons name="refresh" size={24} color="#fff" />
+          <Ionicons name="refresh-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -228,17 +237,21 @@ export default function MoviesScreen() {
       ) : (
         <FlatList
           data={currentData}
-          renderItem={renderMovieItem}
-          keyExtractor={(item) => `${selectedTab}-${item.id}`}
+          renderItem={selectedTab === 'favorites' ? renderFavoriteItem : renderWatchlistItem}
+          keyExtractor={(item) => item.id}
           numColumns={2}
-          contentContainerStyle={styles.moviesList}
+          contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh}
+              tintColor="#E50914"
+            />
           }
         />
       )}
-    </View>
+    </ThemedView>
   );
 }
 
@@ -249,33 +262,34 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    padding: 20,
     paddingTop: 60,
-    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
-  headerTitle: {
-    fontSize: 28,
+  title: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
   },
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingVertical: 16,
     gap: 12,
   },
   tabButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    paddingHorizontal: 16,
     borderRadius: 25,
     backgroundColor: '#222',
     gap: 8,
+    flex: 1,
+    justifyContent: 'center',
   },
   activeTab: {
     backgroundColor: '#E50914',
@@ -288,34 +302,48 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#fff',
   },
-  emptyState: {
+  emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  emptyTitle: {
-    fontSize: 24,
+  emptyText: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: 20,
-    marginBottom: 12,
+    textAlign: 'center',
+    color: '#fff',
   },
-  emptyDescription: {
+  emptySubText: {
     fontSize: 16,
+    opacity: 0.7,
+    marginTop: 10,
     textAlign: 'center',
     color: '#999',
-    lineHeight: 24,
+    lineHeight: 22,
   },
-  moviesList: {
+  exploreButton: {
+    backgroundColor: '#E50914',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  exploreButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  listContainer: {
     padding: 20,
   },
-  movieItem: {
+  favoriteItem: {
     flex: 1,
     margin: 8,
     position: 'relative',
   },
-  movieCard: {
+  card: {
     width: '100%',
   },
   removeButton: {
@@ -324,7 +352,7 @@ const styles = StyleSheet.create({
     right: 8,
     backgroundColor: 'rgba(0,0,0,0.8)',
     borderRadius: 20,
-    padding: 4,
+    padding: 8,
     zIndex: 10,
   },
 });

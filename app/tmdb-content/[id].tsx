@@ -12,12 +12,18 @@ import {
   ImageBackground,
   Share,
   Alert,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 import { downloadService } from '@/services/downloadService';
+import { userService } from '@/services/userService';
+import { apiService } from '@/services/apiService';
+import { TMDbContentCard } from '@/components/TMDbContentCard';
+import { VideoPlayer } from '@/components/VideoPlayer';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -39,62 +45,80 @@ interface Video {
 }
 
 export default function TMDbContentDetails() {
-  const { id } = useLocalSearchParams();
+  const { id, type } = useLocalSearchParams(); // Assuming type is passed or inferred
   const router = useRouter();
   const [content, setContent] = useState<TMDbContent | null>(null);
   const [cast, setCast] = useState<Cast[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false); // Added state for favorite
+  const [showPlayer, setShowPlayer] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [recommendations, setRecommendations] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
 
   useEffect(() => {
-    loadContent();
-  }, [id]);
+    if (id && type) {
+      loadContent();
+      checkFavoriteStatus();
+      checkWatchlistStatus();
+      checkDownloadStatus();
+    }
+  }, [id, type]);
 
   const loadContent = async () => {
     try {
       setLoading(true);
-
-      // Determine if it's a movie or TV show and fetch accordingly
-      const isMovie = !id.toString().includes('tv-');
       let contentData;
       let creditsData;
       let videosData;
 
-      if (isMovie) {
+      if (type === 'movie') {
         contentData = await tmdbService.getMovieDetails(Number(id));
         creditsData = await tmdbService.getMovieCredits(Number(id));
         videosData = await tmdbService.getMovieVideos(Number(id));
+      } else if (type === 'tv') {
+        contentData = await tmdbService.getTVShowDetails(Number(id));
+        creditsData = await tmdbService.getTVCredits(Number(id));
+        videosData = await tmdbService.getTVVideos(Number(id));
       } else {
-        const tvId = id.toString().replace('tv-', '');
-        contentData = await tmdbService.getTVShowDetails(Number(tvId));
-        creditsData = await tmdbService.getTVCredits(Number(tvId));
-        videosData = await tmdbService.getTVVideos(Number(tvId));
+        throw new Error('Invalid content type');
       }
 
       console.log('Content loaded:', contentData);
       setContent(contentData);
       setCast(creditsData.cast.slice(0, 10));
-      setVideos(videosData.results.filter((video: Video) => 
+      setVideos(videosData.results.filter((video: Video) =>
         video.site === 'YouTube' && (video.type === 'Trailer' || video.type === 'Teaser')
       ).slice(0, 3));
-
-      // Check if downloaded
-      const downloaded = await downloadService.isDownloaded(Number(id));
-      setIsDownloaded(downloaded);
-
-      // Check if favorited and watchlisted (Placeholder - actual API calls would go here)
-      // For now, we'll just set them to false or default values
-      setIsFavorite(false); // Replace with actual check
-      setIsWatchlisted(false); // Replace with actual check
 
     } catch (error) {
       console.error('Error loading content:', error);
       Alert.alert('Error', 'Failed to load content details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkDownloadStatus = async () => {
+    if (id) {
+      const downloaded = await downloadService.isDownloaded(Number(id));
+      setIsDownloaded(downloaded);
+    }
+  };
+
+  const checkFavoriteStatus = async () => {
+    if (id) {
+      const favorited = await apiService.isFavorite(id as string);
+      setIsFavorited(favorited);
+    }
+  };
+
+  const checkWatchlistStatus = async () => {
+    if (id) {
+      const watchlisted = await apiService.isInWatchlist(id as string);
+      setIsWatchlisted(watchlisted);
     }
   };
 
@@ -109,11 +133,11 @@ export default function TMDbContentDetails() {
       } else {
         await downloadService.addDownload({
           id: content.id,
-          title: 'title' in content ? content.title : content.name,
+          title: (content as any).title || (content as any).name,
           poster_path: content.poster_path,
           overview: content.overview,
           vote_average: content.vote_average,
-          release_date: 'release_date' in content ? content.release_date : content.first_air_date,
+          release_date: (content as any).release_date || (content as any).first_air_date,
           downloadedAt: new Date().toISOString(),
         });
         setIsDownloaded(true);
@@ -128,10 +152,11 @@ export default function TMDbContentDetails() {
     if (!content) return;
 
     try {
-      const title = 'title' in content ? content.title : content.name;
+      const title = (content as any).title || (content as any).name;
+      const url = `https://www.themoviedb.org/${type}/${content.id}`;
       await Share.share({
         message: `Check out "${title}" on TMDb!`,
-        url: `https://www.themoviedb.org/${'title' in content ? 'movie' : 'tv'}/${content.id}`,
+        url: url,
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -139,23 +164,23 @@ export default function TMDbContentDetails() {
   };
 
   const toggleFavorite = async () => {
-    if (!content) return;
-    
-    const accountId = 22206352; // Replace with actual account ID if available
-    const sessionId = 'YOUR_SESSION_ID'; // Replace with actual session ID if available
-    const isMovie = !id.toString().includes('tv-');
+    if (!content || !id || !type) return;
 
     try {
-      if (isFavorite) {
-        // Remove from favorites
-        await tmdbService.removeFromFavorites(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
-        setIsFavorite(false);
-        Alert.alert('Success', 'Removed from favorites');
+      const title = (content as any).title || (content as any).name;
+      if (isFavorited) {
+        await apiService.removeFromFavorites(id as string);
+        setIsFavorited(false);
+        Alert.alert('Removed', 'Removed from your favorites');
       } else {
-        // Add to favorites
-        await tmdbService.addToFavorites(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
-        setIsFavorite(true);
-        Alert.alert('Success', 'Added to favorites');
+        await apiService.addToFavorites(
+          id as string,
+          title,
+          content.poster_path,
+          type as 'movie' | 'tv'
+        );
+        setIsFavorited(true);
+        Alert.alert('Added', 'Added to your favorites');
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -164,23 +189,23 @@ export default function TMDbContentDetails() {
   };
 
   const toggleWatchlist = async () => {
-    if (!content) return;
-
-    const accountId = 22206352; // Replace with actual account ID if available
-    const sessionId = 'YOUR_SESSION_ID'; // Replace with actual session ID if available
-    const isMovie = !id.toString().includes('tv-');
+    if (!content || !id || !type) return;
 
     try {
+      const title = (content as any).title || (content as any).name;
       if (isWatchlisted) {
-        // Remove from watchlist
-        await tmdbService.removeFromWatchlist(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
+        await apiService.removeFromWatchlist(id as string);
         setIsWatchlisted(false);
-        Alert.alert('Success', 'Removed from watchlist');
+        Alert.alert('Removed', 'Removed from your watchlist');
       } else {
-        // Add to watchlist
-        await tmdbService.addToWatchlist(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
+        await apiService.addToWatchlist(
+          id as string,
+          title,
+          content.poster_path,
+          type as 'movie' | 'tv'
+        );
         setIsWatchlisted(true);
-        Alert.alert('Success', 'Added to watchlist');
+        Alert.alert('Added', 'Added to your watchlist');
       }
     } catch (error) {
       console.error('Error toggling watchlist:', error);
@@ -189,7 +214,9 @@ export default function TMDbContentDetails() {
   };
 
   const playTrailer = (videoKey: string) => {
-    Alert.alert('Play Trailer', `Playing trailer: ${videoKey}`);
+    setShowPlayer(true); // Trigger the modal to show the player
+    // You might want to pass the videoKey to the VideoPlayer component
+    // For now, we'll just open the modal
   };
 
   if (loading) {
@@ -212,9 +239,9 @@ export default function TMDbContentDetails() {
     );
   }
 
-  const title = 'title' in content ? content.title : content.name;
-  const releaseDate = 'release_date' in content ? content.release_date : content.first_air_date;
-  const posterUrl = content.poster_path 
+  const title = (content as any).title || (content as any).name;
+  const releaseDate = (content as any).release_date || (content as any).first_air_date;
+  const posterUrl = content.poster_path
     ? `https://image.tmdb.org/t/p/w500${content.poster_path}`
     : 'https://via.placeholder.com/300x450?text=No+Image';
   const backdropUrl = content.backdrop_path
@@ -239,14 +266,14 @@ export default function TMDbContentDetails() {
             >
               {/* Header */}
               <View style={styles.header}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.headerButton}
                   onPress={() => router.back()}
                 >
                   <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Movie/TV Details</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.headerButton}
                   onPress={handleShare}
                 >
@@ -286,9 +313,9 @@ export default function TMDbContentDetails() {
                         {Math.floor(content.runtime / 60)}h {content.runtime % 60}m
                       </Text>
                     )}
-                    {content.number_of_seasons && (
+                    {(content as any).number_of_seasons && (
                       <Text style={styles.seasons}>
-                        {content.number_of_seasons} Season{content.number_of_seasons > 1 ? 's' : ''}
+                        {(content as any).number_of_seasons} Season{((content as any).number_of_seasons) > 1 ? 's' : ''}
                       </Text>
                     )}
                     {content.status && (
@@ -298,8 +325,8 @@ export default function TMDbContentDetails() {
 
                   {/* Genres */}
                   {content.genres && content.genres.length > 0 && (
-                    <ScrollView 
-                      horizontal 
+                    <ScrollView
+                      horizontal
                       showsHorizontalScrollIndicator={false}
                       style={styles.genresContainer}
                     >
@@ -323,14 +350,14 @@ export default function TMDbContentDetails() {
             <Text style={styles.primaryButtonText}>Play</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
             onPress={handleDownload}
           >
-            <Ionicons 
-              name={isDownloaded ? "checkmark-circle" : "download"} 
-              size={24} 
-              color={isDownloaded ? "#4CAF50" : "#fff"} 
+            <Ionicons
+              name={isDownloaded ? "checkmark-circle" : "download"}
+              size={24}
+              color={isDownloaded ? "#4CAF50" : "#fff"}
             />
             <Text style={[
               styles.secondaryButtonText,
@@ -340,14 +367,28 @@ export default function TMDbContentDetails() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.secondaryButton, isWatchlisted && styles.watchlistButtonActive]} // Changed style to be conditional
+          <TouchableOpacity
+            style={[styles.secondaryButton, isFavorited && styles.favoriteButtonActive]}
+            onPress={toggleFavorite}
+          >
+            <Ionicons
+              name={isFavorited ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorited ? "#E50914" : "#fff"}
+            />
+            <Text style={[styles.secondaryButtonText, isFavorited && styles.favoriteButtonTextActive]}>
+              {isFavorited ? 'Favorited' : 'Favorite'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryButton, isWatchlisted && styles.watchlistButtonActive]}
             onPress={toggleWatchlist}
           >
-            <Ionicons 
-              name={isWatchlisted ? "bookmark" : "bookmark-outline"} 
-              size={24} 
-              color="#fff" 
+            <Ionicons
+              name={isWatchlisted ? "bookmark" : "bookmark-outline"}
+              size={24}
+              color="#fff"
             />
             <Text style={[styles.secondaryButtonText, isWatchlisted && styles.watchlistButtonTextActive]}>
               {isWatchlisted ? 'Watchlisted' : 'Watchlist'}
@@ -410,11 +451,11 @@ export default function TMDbContentDetails() {
               </View>
             )}
 
-            {content.networks && content.networks.length > 0 && (
+            {(content as any).networks && (content as any).networks.length > 0 && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Network</Text>
                 <Text style={styles.detailValue}>
-                  {content.networks.map(network => network.name).join(', ')}
+                  {(content as any).networks.map(network => network.name).join(', ')}
                 </Text>
               </View>
             )}
@@ -425,8 +466,8 @@ export default function TMDbContentDetails() {
         {cast.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Cast</Text>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.castContainer}
             >
@@ -452,8 +493,8 @@ export default function TMDbContentDetails() {
         {videos.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Trailers & Videos</Text>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.videosContainer}
             >
@@ -481,6 +522,23 @@ export default function TMDbContentDetails() {
             </ScrollView>
           </View>
         )}
+
+        <Modal
+          visible={showPlayer}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowPlayer(false)}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setShowPlayer(false)}>
+                <Ionicons name="close-circle" size={36} color="#fff" />
+              </TouchableOpacity>
+              {/* Placeholder for VideoPlayer component */}
+              <VideoPlayer videoKey={videos.length > 0 ? videos[0].key : ''} />
+            </View>
+          </SafeAreaView>
+        </Modal>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -687,9 +745,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     gap: 12,
+    flexWrap: 'wrap', // Allow wrapping for smaller screens
+    justifyContent: 'center',
   },
   primaryButton: {
-    flex: 1,
+    flex: 1, // Occupy available space
+    minWidth: 150, // Ensure a minimum width
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -704,7 +765,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   secondaryButton: {
-    flex: 1,
+    flex: 1, // Occupy available space
+    minWidth: 120, // Ensure a minimum width
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -727,23 +789,17 @@ const styles = StyleSheet.create({
   downloadedButtonText: {
     color: '#4CAF50',
   },
-  favoriteButton: { // Added style for favorite button
-    backgroundColor: '#333', // Default background
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(229, 9, 20, 0.2)',
   },
-  favoriteButtonActive: { // Style when favorited
-    backgroundColor: '#E50914',
+  favoriteButtonTextActive: {
+    color: '#E50914',
   },
-  favoriteButtonTextActive: { // Style for text when favorited
-    color: '#fff',
+  watchlistButtonActive: {
+    backgroundColor: 'rgba(76, 175, 80, 0.2)', // Changed to green for consistency with download
   },
-  watchlistButton: { // Added style for watchlist button
-    backgroundColor: '#333', // Default background
-  },
-  watchlistButtonActive: { // Style when watchlisted
-    backgroundColor: '#4ECDC4',
-  },
-  watchlistButtonTextActive: { // Style for text when watchlisted
-    color: '#fff',
+  watchlistButtonTextActive: {
+    color: '#4CAF50', // Changed to green
   },
   section: {
     paddingHorizontal: 20,
@@ -850,5 +906,24 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    height: '80%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    zIndex: 1,
   },
 });

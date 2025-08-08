@@ -1,377 +1,686 @@
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Modal, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  ScrollView,
+  FlatList,
+  TextInput,
+  Alert,
+  Animated,
+  Dimensions,
+  SafeAreaView,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { apiService, FavoriteItem, WatchlistItem, Review } from '@/services/apiService';
+import { TMDbContentCard } from './TMDbContentCard';
 
-export function Footer() {
+const { height: screenHeight } = Dimensions.get('window');
+
+interface FooterProps {
+  currentRoute?: string;
+}
+
+export function Footer({ currentRoute }: FooterProps) {
   const router = useRouter();
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [selectedSettingsTab, setSelectedSettingsTab] = useState<'favorites' | 'watchlist' | 'about' | 'privacy' | 'rating' | 'reviews'>('favorites');
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [slideAnim] = useState(new Animated.Value(screenHeight));
+  
+  // Review form state
+  const [reviewForm, setReviewForm] = useState({
+    contentId: '',
+    title: '',
+    review: '',
+    rating: 0,
+  });
 
-  const handleSocialPress = (url: string) => {
-    Linking.openURL(url);
+  const loadData = async () => {
+    try {
+      const [favoritesData, watchlistData, reviewsData] = await Promise.all([
+        apiService.getFavorites(),
+        apiService.getWatchlist(),
+        apiService.getReviews(),
+      ]);
+      
+      setFavorites(favoritesData);
+      setWatchlist(watchlistData);
+      setReviews(reviewsData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
   };
 
-  const handleFavorites = () => {
-    setShowSettingsModal(false);
-    router.push('/favorites');
+  const openSettings = () => {
+    setShowSettings(true);
+    loadData();
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const handleWatchlist = () => {
-    setShowSettingsModal(false);
-    router.push('/watchlist');
+  const closeSettings = () => {
+    Animated.timing(slideAnim, {
+      toValue: screenHeight,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowSettings(false);
+    });
   };
 
-  const handleDownloads = () => {
-    setShowSettingsModal(false);
-    Alert.alert('Downloads', 'Downloads feature is available in the main navigation.');
+  const removeFromFavorites = async (contentId: string) => {
+    try {
+      await apiService.removeFromFavorites(contentId);
+      setFavorites(prev => prev.filter(item => item.contentId !== contentId));
+      Alert.alert('Success', 'Removed from favorites');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove from favorites');
+    }
   };
 
-  const handleRatings = () => {
-    setShowSettingsModal(false);
-    router.push('/ratings');
+  const removeFromWatchlist = async (contentId: string) => {
+    try {
+      await apiService.removeFromWatchlist(contentId);
+      setWatchlist(prev => prev.filter(item => item.contentId !== contentId));
+      Alert.alert('Success', 'Removed from watchlist');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove from watchlist');
+    }
   };
 
-  const handleReviews = () => {
-    setShowSettingsModal(false);
-    router.push('/reviews');
+  const submitReview = async () => {
+    if (!reviewForm.title || !reviewForm.review || reviewForm.rating === 0) {
+      Alert.alert('Error', 'Please fill all fields and provide a rating');
+      return;
+    }
+
+    try {
+      await apiService.addReview(
+        reviewForm.contentId || 'sample-content',
+        reviewForm.title,
+        reviewForm.review,
+        reviewForm.rating,
+        'movie'
+      );
+      
+      setReviewForm({ contentId: '', title: '', review: '', rating: 0 });
+      loadData();
+      Alert.alert('Success', 'Review submitted successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to submit review');
+    }
   };
 
-  const handleAbout = () => {
-    setShowSettingsModal(false);
-    Alert.alert(
-      'About RKSWOT',
-      'RKSWOT is your ultimate OTT platform for movies and TV shows. Discover, watch, and enjoy content from around the world.\n\nVersion: 2.0.0\nDeveloped by RKSWOT Team\n\nFeatures:\n• TMDb API Integration\n• Favorites & Watchlist\n• Advanced Search\n• High-Quality Streaming',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handlePrivacyPolicy = () => {
-    setShowSettingsModal(false);
-    Alert.alert(
-      'Privacy Policy',
-      'We respect your privacy and are committed to protecting your personal data.\n\nData Collection:\n• We only collect data necessary for app functionality\n• User preferences are stored securely\n• No personal data is shared with third parties\n\nTMDb Integration:\n• Movie/TV data provided by The Movie Database (TMDb)\n• User ratings and lists are managed through TMDb API\n\nContact: support@rkswot.com',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const SettingsModal = () => (
-    <Modal
-      visible={showSettingsModal}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={() => setShowSettingsModal(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Settings & More</Text>
-          <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
-            <Ionicons name="close" size={28} color="#fff" />
+  const renderStars = (rating: number, onPress?: (rating: number) => void) => {
+    return (
+      <View style={styles.starsContainer}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <TouchableOpacity
+            key={star}
+            onPress={() => onPress && onPress(star)}
+            disabled={!onPress}
+          >
+            <Ionicons
+              name={star <= rating ? 'star' : 'star-outline'}
+              size={24}
+              color={star <= rating ? '#FFD700' : '#666'}
+              style={styles.star}
+            />
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.modalContent}>
-          <Text style={styles.sectionHeader}>My Library</Text>
-          
-          <TouchableOpacity style={styles.settingItem} onPress={handleFavorites}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="heart" size={22} color="#E50914" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingText}>Favorites</Text>
-              <Text style={styles.settingSubText}>Movies you love</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handleWatchlist}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="bookmark" size={22} color="#4ECDC4" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingText}>Watchlist</Text>
-              <Text style={styles.settingSubText}>Movies to watch later</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handleRatings}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="star" size={22} color="#FFD700" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingText}>Ratings</Text>
-              <Text style={styles.settingSubText}>Your movie ratings</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handleReviews}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="chatbubble-ellipses" size={22} color="#FF6B35" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingText}>Reviews</Text>
-              <Text style={styles.settingSubText}>Your movie reviews</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-          
-          <Text style={styles.sectionHeader}>App Info</Text>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handleAbout}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="information-circle" size={22} color="#007AFF" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingText}>About RKSWOT</Text>
-              <Text style={styles.settingSubText}>App version & info</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handlePrivacyPolicy}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="shield-checkmark" size={22} color="#34C759" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingText}>Privacy Policy</Text>
-              <Text style={styles.settingSubText}>How we protect your data</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
-          </TouchableOpacity>
-        </View>
+        ))}
       </View>
-    </Modal>
+    );
+  };
+
+  const renderFavorites = () => (
+    <View style={styles.tabContent}>
+      <Text style={styles.tabTitle}>My Favorites ({favorites.length})</Text>
+      {favorites.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="heart-outline" size={60} color="#666" />
+          <Text style={styles.emptyText}>No favorites yet</Text>
+          <Text style={styles.emptySubText}>Add movies and shows to your favorites</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={favorites}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          renderItem={({ item }) => (
+            <View style={styles.gridItem}>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removeFromFavorites(item.contentId)}
+              >
+                <Ionicons name="close-circle" size={24} color="#E50914" />
+              </TouchableOpacity>
+              <TMDbContentCard
+                content={{
+                  id: parseInt(item.contentId),
+                  title: item.title,
+                  poster_path: item.posterPath,
+                  vote_average: 0,
+                  overview: '',
+                  release_date: '',
+                  first_air_date: '',
+                  genre_ids: [],
+                  original_language: '',
+                  popularity: 0,
+                  backdrop_path: ''
+                }}
+                onPress={() => router.push(`/tmdb-content/${item.contentId}?type=${item.contentType}`)}
+                style={styles.card}
+              />
+            </View>
+          )}
+        />
+      )}
+    </View>
   );
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Access</Text>
-          <View style={styles.quickAccessContainer}>
-            <TouchableOpacity style={styles.quickAccessButton} onPress={handleFavorites}>
-              <Ionicons name="heart" size={20} color="#E50914" />
-              <Text style={styles.quickAccessText}>Favorites</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAccessButton} onPress={handleWatchlist}>
-              <Ionicons name="bookmark" size={20} color="#4ECDC4" />
-              <Text style={styles.quickAccessText}>Watchlist</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAccessButton} onPress={() => setShowSettingsModal(true)}>
-              <Ionicons name="settings" size={20} color="#666" />
-              <Text style={styles.quickAccessText}>Settings</Text>
-            </TouchableOpacity>
-          </View>
+  const renderWatchlist = () => (
+    <View style={styles.tabContent}>
+      <Text style={styles.tabTitle}>My Watchlist ({watchlist.length})</Text>
+      {watchlist.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="bookmark-outline" size={60} color="#666" />
+          <Text style={styles.emptyText}>No items in watchlist</Text>
+          <Text style={styles.emptySubText}>Add movies and shows to watch later</Text>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Connect</Text>
-          <View style={styles.socialContainer}>
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => handleSocialPress('https://twitter.com/rkswot')}
-            >
-              <Ionicons name="logo-twitter" size={24} color="#1DA1F2" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => handleSocialPress('https://github.com/rkswot')}
-            >
-              <Ionicons name="logo-github" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => handleSocialPress('https://instagram.com/rkswot')}
-            >
-              <Ionicons name="logo-instagram" size={24} color="#E4405F" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>RKSWOT</Text>
-          <Text style={styles.description}>
-            Your ultimate movie companion{'\n'}
-            Powered by TMDb
-          </Text>
-          <View style={styles.linkContainer}>
-            <TouchableOpacity style={styles.linkButton} onPress={handleAbout}>
-              <Ionicons name="information-circle-outline" size={16} color="#4ECDC4" />
-              <Text style={styles.linkText}>About</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.linkButton} onPress={handlePrivacyPolicy}>
-              <Ionicons name="shield-outline" size={16} color="#4ECDC4" />
-              <Text style={styles.linkText}>Privacy</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          © 2024 RKSWOT. All rights reserved.
-        </Text>
-        <Text style={styles.footerSubText}>
-          Movie data provided by TMDb
-        </Text>
-      </View>
-
-      <SettingsModal />
+      ) : (
+        <FlatList
+          data={watchlist}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          renderItem={({ item }) => (
+            <View style={styles.gridItem}>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removeFromWatchlist(item.contentId)}
+              >
+                <Ionicons name="close-circle" size={24} color="#E50914" />
+              </TouchableOpacity>
+              <TMDbContentCard
+                content={{
+                  id: parseInt(item.contentId),
+                  title: item.title,
+                  poster_path: item.posterPath,
+                  vote_average: 0,
+                  overview: '',
+                  release_date: '',
+                  first_air_date: '',
+                  genre_ids: [],
+                  original_language: '',
+                  popularity: 0,
+                  backdrop_path: ''
+                }}
+                onPress={() => router.push(`/tmdb-content/${item.contentId}?type=${item.contentType}`)}
+                style={styles.card}
+              />
+            </View>
+          )}
+        />
+      )}
     </View>
+  );
+
+  const renderReviews = () => (
+    <View style={styles.tabContent}>
+      <Text style={styles.tabTitle}>Reviews & Ratings</Text>
+      
+      {/* Add Review Form */}
+      <View style={styles.reviewForm}>
+        <Text style={styles.formTitle}>Write a Review</Text>
+        
+        <TextInput
+          style={styles.input}
+          placeholder="Movie/Show Title"
+          placeholderTextColor="#666"
+          value={reviewForm.title}
+          onChangeText={(text) => setReviewForm(prev => ({ ...prev, title: text }))}
+        />
+        
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Write your review..."
+          placeholderTextColor="#666"
+          multiline
+          numberOfLines={4}
+          value={reviewForm.review}
+          onChangeText={(text) => setReviewForm(prev => ({ ...prev, review: text }))}
+        />
+        
+        <Text style={styles.ratingLabel}>Your Rating:</Text>
+        {renderStars(reviewForm.rating, (rating) => setReviewForm(prev => ({ ...prev, rating })))}
+        
+        <TouchableOpacity style={styles.submitButton} onPress={submitReview}>
+          <Text style={styles.submitButtonText}>Submit Review</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Reviews List */}
+      <FlatList
+        data={reviews}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.reviewItem}>
+            <View style={styles.reviewHeader}>
+              <Text style={styles.reviewTitle}>{item.title}</Text>
+              {renderStars(item.rating)}
+            </View>
+            <Text style={styles.reviewText}>{item.review}</Text>
+            <Text style={styles.reviewDate}>
+              {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+
+  const renderAbout = () => (
+    <View style={styles.tabContent}>
+      <Text style={styles.tabTitle}>About RK SWOT</Text>
+      <View style={styles.aboutContent}>
+        <Text style={styles.aboutText}>
+          RK SWOT is your ultimate movie and TV show streaming companion. Discover, watch, and organize your favorite content all in one place.
+        </Text>
+        <Text style={styles.aboutText}>
+          Features:
+          • Extensive movie and TV show database
+          • Personal favorites and watchlist
+          • Ratings and reviews
+          • Discover trending content
+          • Search across all platforms
+        </Text>
+        <Text style={styles.aboutText}>
+          Version: 1.0.0
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderPrivacy = () => (
+    <View style={styles.tabContent}>
+      <Text style={styles.tabTitle}>Privacy Policy</Text>
+      <ScrollView style={styles.privacyContent}>
+        <Text style={styles.privacyText}>
+          <Text style={styles.privacyHeader}>Data Collection</Text>
+          {'\n\n'}
+          We collect minimal data necessary to provide our services. This includes your viewing preferences, ratings, and reviews.
+          {'\n\n'}
+          <Text style={styles.privacyHeader}>Data Usage</Text>
+          {'\n\n'}
+          Your data is used solely to enhance your experience and provide personalized recommendations.
+          {'\n\n'}
+          <Text style={styles.privacyHeader}>Data Security</Text>
+          {'\n\n'}
+          We implement industry-standard security measures to protect your personal information.
+          {'\n\n'}
+          <Text style={styles.privacyHeader}>Contact</Text>
+          {'\n\n'}
+          For privacy concerns, contact us at privacy@rkswot.com
+        </Text>
+      </ScrollView>
+    </View>
+  );
+
+  const renderSettingsContent = () => {
+    switch (selectedSettingsTab) {
+      case 'favorites':
+        return renderFavorites();
+      case 'watchlist':
+        return renderWatchlist();
+      case 'reviews':
+        return renderReviews();
+      case 'about':
+        return renderAbout();
+      case 'privacy':
+        return renderPrivacy();
+      default:
+        return renderFavorites();
+    }
+  };
+
+  return (
+    <>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.footerButton, currentRoute === '/home' && styles.activeButton]}
+          onPress={() => router.push('/')}
+        >
+          <Ionicons name="home" size={24} color={currentRoute === '/home' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/home' && styles.activeText]}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.footerButton, currentRoute === '/movies' && styles.activeButton]}
+          onPress={() => router.push('/movies')}
+        >
+          <Ionicons name="film" size={24} color={currentRoute === '/movies' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/movies' && styles.activeText]}>Movies</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.footerButton, currentRoute === '/discover' && styles.activeButton]}
+          onPress={() => router.push('/discover')}
+        >
+          <Ionicons name="compass" size={24} color={currentRoute === '/discover' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/discover' && styles.activeText]}>Discover</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.footerButton, currentRoute === '/search' && styles.activeButton]}
+          onPress={() => router.push('/search')}
+        >
+          <Ionicons name="search" size={24} color={currentRoute === '/search' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/search' && styles.activeText]}>Search</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.footerButton} onPress={openSettings}>
+          <Ionicons name="settings" size={24} color="#666" />
+          <Text style={styles.footerText}>Settings</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettings}
+        transparent
+        animationType="none"
+        onRequestClose={closeSettings}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View 
+            style={[
+              styles.settingsModal,
+              {
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <SafeAreaView style={styles.modalContent}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Settings</Text>
+                <TouchableOpacity onPress={closeSettings}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Settings Tabs */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer}>
+                {[
+                  { key: 'favorites', label: 'Favorites', icon: 'heart' },
+                  { key: 'watchlist', label: 'Watchlist', icon: 'bookmark' },
+                  { key: 'reviews', label: 'Reviews', icon: 'star' },
+                  { key: 'about', label: 'About', icon: 'information-circle' },
+                  { key: 'privacy', label: 'Privacy', icon: 'shield-checkmark' },
+                ].map((tab) => (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[
+                      styles.tab,
+                      selectedSettingsTab === tab.key && styles.activeTab
+                    ]}
+                    onPress={() => setSelectedSettingsTab(tab.key as any)}
+                  >
+                    <Ionicons 
+                      name={tab.icon as any} 
+                      size={20} 
+                      color={selectedSettingsTab === tab.key ? '#E50914' : '#666'} 
+                    />
+                    <Text style={[
+                      styles.tabText,
+                      selectedSettingsTab === tab.key && styles.activeTabText
+                    ]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Settings Content */}
+              {renderSettingsContent()}
+            </SafeAreaView>
+          </Animated.View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#1a1a1a',
-    paddingTop: 40,
-    paddingBottom: 20,
-    marginTop: 40,
-  },
-  content: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  section: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  quickAccessContainer: {
-    flexDirection: 'column',
-    gap: 10,
-    width: '100%',
-  },
-  quickAccessButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 8,
-    gap: 10,
-  },
-  quickAccessText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-  socialButton: {
-    padding: 12,
-    borderRadius: 25,
-    backgroundColor: '#2a2a2a',
-  },
-  description: {
-    color: '#ccc',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 15,
-  },
-  linkContainer: {
-    flexDirection: 'column',
-    gap: 8,
-    alignItems: 'center',
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-  },
-  linkText: {
-    color: '#4ECDC4',
-    fontSize: 14,
-    textDecorationLine: 'underline',
-  },
   footer: {
+    flexDirection: 'row',
+    backgroundColor: '#111',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderTopWidth: 1,
     borderTopColor: '#333',
-    paddingTop: 20,
+  },
+  footerButton: {
+    flex: 1,
     alignItems: 'center',
-    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  activeButton: {
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+    borderRadius: 8,
   },
   footerText: {
-    color: '#888',
     fontSize: 12,
-  },
-  footerSubText: {
     color: '#666',
-    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '500',
   },
-  modalContainer: {
+  activeText: {
+    color: '#E50914',
+    fontWeight: '600',
+  },
+  modalOverlay: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  settingsModal: {
+    backgroundColor: '#000',
+    height: screenHeight * 0.9,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalContent: {
+    flex: 1,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
   modalTitle: {
-    color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#fff',
   },
-  modalContent: {
+  tabsContainer: {
+    maxHeight: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    minWidth: 100,
+  },
+  activeTab: {
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: '#E50914',
+    fontWeight: '600',
+  },
+  tabContent: {
     flex: 1,
     padding: 20,
   },
-  sectionHeader: {
-    color: '#999',
-    fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 15,
-    marginTop: 10,
+  tabTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 20,
   },
-  settingItem: {
-    flexDirection: 'row',
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#2a2a2a',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 16,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  gridItem: {
+    flex: 1,
+    margin: 8,
+    position: 'relative',
+  },
+  removeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 12,
+  },
+  card: {
+    width: '100%',
+  },
+  reviewForm: {
+    backgroundColor: '#111',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 12,
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  ratingLabel: {
+    fontSize: 16,
+    color: '#fff',
+    marginBottom: 8,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  star: {
+    marginRight: 8,
+  },
+  submitButton: {
+    backgroundColor: '#E50914',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  reviewItem: {
+    backgroundColor: '#111',
+    padding: 16,
     borderRadius: 12,
     marginBottom: 12,
   },
-  settingIcon: {
-    width: 40,
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
-  settingContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  settingText: {
-    color: '#fff',
+  reviewTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
   },
-  settingSubText: {
-    color: '#999',
+  reviewText: {
+    fontSize: 14,
+    color: '#ccc',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  reviewDate: {
     fontSize: 12,
-    marginTop: 2,
+    color: '#666',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#333',
-    marginVertical: 20,
+  aboutContent: {
+    flex: 1,
+  },
+  aboutText: {
+    fontSize: 16,
+    color: '#ccc',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  privacyContent: {
+    flex: 1,
+  },
+  privacyText: {
+    fontSize: 14,
+    color: '#ccc',
+    lineHeight: 22,
+  },
+  privacyHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });
