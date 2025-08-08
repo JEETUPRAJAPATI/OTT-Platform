@@ -26,6 +26,16 @@ interface MovieSliderProps {
   autoSlide?: boolean;
 }
 
+// Function to get badge color based on ranking
+const getRankingBadgeColor = (rank: number) => {
+  switch (rank) {
+    case 1: return '#FFD700'; // Gold for #1
+    case 2: return '#C0C0C0'; // Silver for #2
+    case 3: return '#CD7F32'; // Bronze for #3
+    default: return '#E50914'; // Netflix red for 4-10
+  }
+};
+
 export function MovieSlider({ 
   title, 
   icon, 
@@ -159,7 +169,10 @@ export function MovieSlider({
             return (
               <View style={styles.itemWrapper}>
                 {showRanking && (
-                  <View style={styles.rankingBadge}>
+                  <View style={[
+                    styles.rankingBadge,
+                    { backgroundColor: getRankingBadgeColor(index + 1) }
+                  ]}>
                     <Text style={styles.rankingNumber}>{index + 1}</Text>
                   </View>
                 )}
@@ -257,7 +270,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
     width: 32,
     height: 32,
-    backgroundColor: '#E50914',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -270,9 +282,12 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   rankingNumber: {
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     fontWeight: 'bold',
+    textShadowColor: '#fff',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 2,
   },
   arrow: {
     position: 'absolute',

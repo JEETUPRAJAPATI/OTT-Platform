@@ -109,7 +109,7 @@ export default function HomeScreen() {
           id: 'hindi-top10',
           title: 'Top 10 in India',
           icon: '🇮🇳',
-          data: getUniqueContent(hindi, 10, true), // Preserve order for rankings
+          data: getUniqueContent(hindi, 10, true), // Preserve order for rankings - NO randomization
           showRanking: true,
         },
         {
