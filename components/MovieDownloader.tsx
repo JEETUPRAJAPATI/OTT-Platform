@@ -59,34 +59,14 @@ export function MovieDownloader({
 
   const handleDirectDownload = async (downloadUrl: string) => {
     try {
-      // Extract filename from URL
-      const urlParts = downloadUrl.split('/');
-      const fileName = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]) || 'movie.mp4';
+      console.log('Opening download URL in browser:', downloadUrl);
       
-      // Determine quality from filename
-      let quality: 'low' | 'medium' | 'high' = 'medium';
-      const lowerFileName = fileName.toLowerCase();
-      if (lowerFileName.includes('1080p') || lowerFileName.includes('1080')) quality = 'high';
-      else if (lowerFileName.includes('720p') || lowerFileName.includes('720')) quality = 'medium';
-      else quality = 'low';
-
-      console.log('Opening direct download URL:', downloadUrl);
-
-      // Simply open the download URL in browser
-      const id = downloadService.addToDownloadQueue(
-        contentId || Date.now(),
-        contentType,
-        fileName.replace(/\.[^/.]+$/, ""), // Remove extension for title
-        posterPath,
-        quality,
-        downloadUrl
-      );
-
-      // Close the modal after initiating download
-      setTimeout(() => {
-        onClose();
-      }, 1000);
-
+      // Simply open the URL in browser
+      await downloadService.downloadFile(downloadUrl, 'Movie Download');
+      
+      // Close the modal after opening URL
+      onClose();
+      
     } catch (error) {
       console.error('Direct download error:', error);
       showToast('Download Failed', 'Failed to open download URL. Please check the URL and try again.');
@@ -208,29 +188,14 @@ export function MovieDownloader({
     try {
       setShowQualityModal(false);
 
-      // Determine quality for download service
-      let quality: 'low' | 'medium' | 'high' = 'medium';
-      if (file.quality.includes('1080') || file.quality === 'HD') quality = 'high';
-      else if (file.quality.includes('720')) quality = 'medium';
-      else quality = 'low';
-
       console.log('Opening download for file:', file);
       console.log('Download URL:', file.downloadUrl);
 
       // Simply open the download URL in browser
-      const id = downloadService.addToDownloadQueue(
-        contentId || Date.now(),
-        contentType,
-        searchTitle || file.name,
-        posterPath,
-        quality,
-        file.downloadUrl
-      );
-
-      // Close the modal after initiating download
-      setTimeout(() => {
-        onClose();
-      }, 1000);
+      await downloadService.downloadFile(file.downloadUrl, file.name);
+      
+      // Close the modal after opening URL
+      onClose();
 
     } catch (error) {
       console.error('Download error:', error);

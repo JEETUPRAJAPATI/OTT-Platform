@@ -511,34 +511,13 @@ class DownloadService {
     try {
       console.log('Opening download URL in browser:', downloadUrl);
 
-      // Show confirmation
-      Alert.alert(
-        'Open Download',
-        `This will open the download link in your browser:\n\n${filename}`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          },
-          {
-            text: 'Open',
-            onPress: async () => {
-              try {
-                const supported = await Linking.canOpenURL(downloadUrl);
-                if (supported) {
-                  await Linking.openURL(downloadUrl);
-                  this.showToast('Download Started', 'The download should start automatically in your browser.');
-                } else {
-                  this.showToast('Cannot Open URL', 'Unable to open the download URL. Please copy the link and paste it in your browser.');
-                }
-              } catch (error) {
-                console.error('Error opening URL:', error);
-                this.showToast('Error', 'Failed to open the download URL. Please try again.');
-              }
-            }
-          }
-        ]
-      );
+      const supported = await Linking.canOpenURL(downloadUrl);
+      if (supported) {
+        await Linking.openURL(downloadUrl);
+        this.showToast('Download Opened', 'Download link opened in browser.');
+      } else {
+        this.showToast('Cannot Open URL', 'Unable to open the download URL. Please copy the link and paste it in your browser.');
+      }
     } catch (error) {
       console.error('Download error:', error);
       this.showToast('Download Failed', 'Failed to open download URL. Please try again.');
@@ -560,12 +539,8 @@ class DownloadService {
     const downloadId = `download-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     if (downloadUrl) {
-      // Extract filename from URL
-      const urlParts = downloadUrl.split('/');
-      const fileName = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]) || `${title}.mp4`;
-
       // Simply open the URL in browser
-      this.downloadFile(downloadUrl, fileName);
+      this.downloadFile(downloadUrl, title);
     }
 
     return downloadId;
