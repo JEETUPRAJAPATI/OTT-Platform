@@ -60,9 +60,8 @@ class DownloadService {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000, // 10 second timeout
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:40.0) Gecko/40.0 Firefox/40.0'
+        }
       });
       
       if (!response.ok) {
@@ -83,6 +82,9 @@ class DownloadService {
       }
     } catch (error) {
       console.error('Internet Archive search error:', error);
+      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
+        this.showToast('Network Error', 'Please check your internet connection and try again.');
+      }
       return { found: false };
     }
   }
@@ -104,9 +106,8 @@ class DownloadService {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000, // 10 second timeout
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:40.0) Gecko/40.0 Firefox/40.0'
+        }
       });
       
       if (!response.ok) {
@@ -156,6 +157,9 @@ class DownloadService {
       };
     } catch (error) {
       console.error('Internet Archive metadata error:', error);
+      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
+        this.showToast('Network Error', 'Please check your internet connection and try again.');
+      }
       return { files: [], success: false };
     }
   }

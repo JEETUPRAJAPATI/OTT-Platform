@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   View,
@@ -67,10 +66,10 @@ export function MovieDownloader({
     try {
       // Search for movie on Internet Archive
       const searchResult = await downloadService.searchInternetArchive(title.trim());
-      
+
       if (!searchResult.found || !searchResult.identifier) {
-        showToast('Not Found', 'Movie not found on Internet Archive');
         setIsSearching(false);
+        Alert.alert('Movie Not Found', 'The movie could not be found on Internet Archive. This could be due to network issues or the movie not being available. Please check your connection and try a different title.');
         return;
       }
 
@@ -78,7 +77,7 @@ export function MovieDownloader({
 
       // Get movie files and metadata
       const filesResult = await downloadService.getInternetArchiveFiles(searchResult.identifier);
-      
+
       if (!filesResult.success || filesResult.files.length === 0) {
         showToast('Error', 'No video files found for this movie');
         setIsSearching(false);
