@@ -512,6 +512,24 @@ export function MovieDownloader({
                 {statusMessage || 'Downloading...'}
               </Text>
               
+              {statusMessage && statusMessage.includes('File not found') && (
+                <View style={styles.errorHelpSection}>
+                  <Text style={styles.errorHelpTitle}>Troubleshooting Tips:</Text>
+                  <Text style={styles.errorHelpText}>
+                    • Try searching for the movie again
+                  </Text>
+                  <Text style={styles.errorHelpText}>
+                    • Check if the movie title is spelled correctly
+                  </Text>
+                  <Text style={styles.errorHelpText}>
+                    • Some files may have been removed from Internet Archive
+                  </Text>
+                  <Text style={styles.errorHelpText}>
+                    • Try a different quality/version if available
+                  </Text>
+                </View>
+              )}
+              
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { width: `${downloadProgress}%` }]} />
@@ -850,6 +868,25 @@ const styles = StyleSheet.create({
   },
   infoText: {
     color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  errorHelpSection: {
+    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 67, 54, 0.3)',
+  },
+  errorHelpTitle: {
+    color: '#F44336',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  errorHelpText: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     marginBottom: 4,
   },
