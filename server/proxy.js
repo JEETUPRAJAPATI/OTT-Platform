@@ -265,8 +265,9 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Proxy server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`Proxy endpoint: http://localhost:${PORT}/proxy/archive/`);
+  console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`Download API: http://0.0.0.0:${PORT}/api/download`);
+  console.log(`Proxy endpoint: http://0.0.0.0:${PORT}/proxy/archive/`);
 });
 
 module.exports = app;

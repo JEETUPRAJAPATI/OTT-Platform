@@ -727,8 +727,10 @@ class DownloadService {
       console.log('Original URL:', item.downloadUrl);
       console.log('Normalized URL:', normalizedUrl);
 
-      // Use backend API to download from archive.org directly
-      const backendUrl = `${window.location.origin}/api/download`;
+      // Use backend API to download from archive.org directly  
+      const backendUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:5000/api/download'
+        : `${window.location.protocol}//${window.location.hostname}:5000/api/download`;
       
       this.updateDownloadProgress(item.id, {
         progress: 0,
