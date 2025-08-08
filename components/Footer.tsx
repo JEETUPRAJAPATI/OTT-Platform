@@ -356,19 +356,11 @@ export function Footer({ currentRoute }: FooterProps) {
     <>
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.footerButton, currentRoute === '/home' && styles.activeButton]}
+          style={[styles.footerButton, currentRoute === '/' && styles.activeButton]}
           onPress={() => router.push('/')}
         >
-          <Ionicons name="home" size={24} color={currentRoute === '/home' ? '#E50914' : '#666'} />
-          <Text style={[styles.footerText, currentRoute === '/home' && styles.activeText]}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.footerButton, currentRoute === '/movies' && styles.activeButton]}
-          onPress={() => router.push('/movies')}
-        >
-          <Ionicons name="film" size={24} color={currentRoute === '/movies' ? '#E50914' : '#666'} />
-          <Text style={[styles.footerText, currentRoute === '/movies' && styles.activeText]}>Movies</Text>
+          <Ionicons name="home" size={24} color={currentRoute === '/' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/' && styles.activeText]}>Home</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -387,7 +379,7 @@ export function Footer({ currentRoute }: FooterProps) {
           <Text style={[styles.footerText, currentRoute === '/search' && styles.activeText]}>Search</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.footerButton} onPress={openSettings}>
+        <TouchableOpacity style={[styles.footerButton, styles.settingsButton]} onPress={openSettings}>
           <Ionicons name="settings" size={24} color="#666" />
           <Text style={styles.footerText}>Settings</Text>
         </TouchableOpacity>
@@ -474,6 +466,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 4,
+  },
+  settingsButton: {
+    backgroundColor: 'rgba(102, 102, 102, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(102, 102, 102, 0.3)',
   },
   activeButton: {
     backgroundColor: 'rgba(229, 9, 20, 0.1)',

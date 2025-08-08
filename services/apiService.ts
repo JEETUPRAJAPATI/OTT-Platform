@@ -37,8 +37,15 @@ export interface Review {
   userName?: string;
 }
 
+import { Alert } from 'react-native';
+
 class ApiService {
   private baseUrl = 'https://api.example.com'; // Replace with your actual API URL
+  
+  // Helper method to show toast notifications
+  private showToast(title: string, message: string, type: 'success' | 'error' = 'success') {
+    Alert.alert(title, message);
+  }
   
   // Favorites API
   async getFavorites(): Promise<FavoriteItem[]> {
@@ -55,6 +62,13 @@ class ApiService {
   async addToFavorites(contentId: string, title: string, posterPath: string, contentType: 'movie' | 'tv'): Promise<boolean> {
     try {
       const favorites = await this.getFavorites();
+      const existingItem = favorites.find(item => item.contentId === contentId);
+      
+      if (existingItem) {
+        this.showToast('Already Added', `${title} is already in your favorites!`, 'error');
+        return false;
+      }
+      
       const newFavorite: FavoriteItem = {
         id: Date.now().toString(),
         contentId,
@@ -66,9 +80,11 @@ class ApiService {
       
       const updatedFavorites = [...favorites, newFavorite];
       localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+      this.showToast('Added to Favorites', `${title} has been added to your favorites!`);
       return true;
     } catch (error) {
       console.error('Error adding to favorites:', error);
+      this.showToast('Error', 'Failed to add to favorites', 'error');
       return false;
     }
   }
@@ -76,11 +92,17 @@ class ApiService {
   async removeFromFavorites(contentId: string): Promise<boolean> {
     try {
       const favorites = await this.getFavorites();
+      const itemToRemove = favorites.find(item => item.contentId === contentId);
       const updatedFavorites = favorites.filter(item => item.contentId !== contentId);
       localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+      
+      if (itemToRemove) {
+        this.showToast('Removed from Favorites', `${itemToRemove.title} has been removed from favorites!`);
+      }
       return true;
     } catch (error) {
       console.error('Error removing from favorites:', error);
+      this.showToast('Error', 'Failed to remove from favorites', 'error');
       return false;
     }
   }
@@ -104,6 +126,13 @@ class ApiService {
   async addToWatchlist(contentId: string, title: string, posterPath: string, contentType: 'movie' | 'tv'): Promise<boolean> {
     try {
       const watchlist = await this.getWatchlist();
+      const existingItem = watchlist.find(item => item.contentId === contentId);
+      
+      if (existingItem) {
+        this.showToast('Already Added', `${title} is already in your watchlist!`, 'error');
+        return false;
+      }
+      
       const newWatchlistItem: WatchlistItem = {
         id: Date.now().toString(),
         contentId,
@@ -115,9 +144,11 @@ class ApiService {
       
       const updatedWatchlist = [...watchlist, newWatchlistItem];
       localStorage.setItem('watchlist', JSON.stringify(updatedWatchlist));
+      this.showToast('Added to Watchlist', `${title} has been added to your watchlist!`);
       return true;
     } catch (error) {
       console.error('Error adding to watchlist:', error);
+      this.showToast('Error', 'Failed to add to watchlist', 'error');
       return false;
     }
   }
@@ -125,11 +156,17 @@ class ApiService {
   async removeFromWatchlist(contentId: string): Promise<boolean> {
     try {
       const watchlist = await this.getWatchlist();
+      const itemToRemove = watchlist.find(item => item.contentId === contentId);
       const updatedWatchlist = watchlist.filter(item => item.contentId !== contentId);
       localStorage.setItem('watchlist', JSON.stringify(updatedWatchlist));
+      
+      if (itemToRemove) {
+        this.showToast('Removed from Watchlist', `${itemToRemove.title} has been removed from watchlist!`);
+      }
       return true;
     } catch (error) {
       console.error('Error removing from watchlist:', error);
+      this.showToast('Error', 'Failed to remove from watchlist', 'error');
       return false;
     }
   }

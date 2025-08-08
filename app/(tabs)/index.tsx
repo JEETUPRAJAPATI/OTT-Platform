@@ -1,432 +1,176 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ScrollView, 
-  StyleSheet, 
-  FlatList, 
-  RefreshControl, 
-  View, 
-  TouchableOpacity, 
-  Dimensions,
-  StatusBar,
-  ImageBackground,
+import React, { useState, useEffect } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
   Text,
-  SafeAreaView
+  TouchableOpacity,
+  FlatList,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { SplashScreen } from '@/components/SplashScreen';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
-import { MovieSlider } from '@/components/MovieSlider';
-import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
-import { userService } from '@/services/userService';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
-interface ContentSection {
-  id: string;
-  title: string;
-  icon: string;
-  data: (TMDbMovie | TMDbTVShow)[];
-  showRanking?: boolean;
-}
+import { apiService, FavoriteItem, WatchlistItem } from '@/services/apiService';
+import { Footer } from '@/components/Footer';
 
 export default function HomeScreen() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [featuredContent, setFeaturedContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
-  const [currentHero, setCurrentHero] = useState(0);
-  const [contentSections, setContentSections] = useState<ContentSection[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
-    const type = (content as any).title ? 'movie' : 'tv';
-    router.push(`/tmdb-content/${content.id}?type=${type}`);
-  };
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const shuffleArray = (array: any[]) => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
-
-  const loadContent = async () => {
+  const loadData = async () => {
     try {
-      // Load user data
-      userService.loadFromStorage();
-      const continueWatching = userService.getContinueWatching();
-      const userFavoriteGenres = userService.getRecommendedGenres();
-
-      const [
-        trending,
-        popular,
-        topRated,
-        upcoming,
-        nowPlaying,
-        hindi,
-        south,
-        marvel,
-        thriller2025,
-        family,
-        romantic,
-        awards,
-        airingToday,
-        onAir,
-        topRatedTV,
-        popularTV,
-        personalizedMovies,
-        personalizedTV
-      ] = await Promise.all([
-        tmdbService.getTrending(),
-        tmdbService.getPopularMovies(),
-        tmdbService.getTopRatedMovies(),
-        tmdbService.getUpcomingMovies(),
-        tmdbService.getNowPlayingMovies(),
-        tmdbService.getHindiMovies(),
-        tmdbService.getSouthIndianMovies(),
-        tmdbService.getMarvelMovies(),
-        tmdbService.getThrillerMovies2025(),
-        tmdbService.getFamilyMovies(),
-        tmdbService.getRomanticMovies(),
-        tmdbService.getAwardWinners(),
-        tmdbService.getAiringTodayTVShows(),
-        tmdbService.getOnAirTVShows(),
-        tmdbService.getTopRatedTVShows(),
-        tmdbService.getPopularTVShows(),
-        userFavoriteGenres.length > 0 ? tmdbService.getContentByGenres(userFavoriteGenres, 'movie') : [],
-        userFavoriteGenres.length > 0 ? tmdbService.getContentByGenres(userFavoriteGenres, 'tv') : []
+      const [favoritesData, watchlistData] = await Promise.all([
+        apiService.getFavorites(),
+        apiService.getWatchlist(),
       ]);
-
-      setFeaturedContent(trending.slice(0, 5));
-
-      // Create a pool of used content to avoid duplicates
-      const usedIds = new Set();
       
-      const getUniqueContent = (data: any[], count: number, preserveOrder = false) => {
-        let filtered = data.filter(item => !usedIds.has(item.id));
-        if (!preserveOrder) {
-          // Always randomize content for dynamic experience
-          filtered = shuffleArray(filtered);
-        }
-        const selected = filtered.slice(0, count);
-        selected.forEach(item => usedIds.add(item.id));
-        return selected;
-      };
-
-      // Build sections array dynamically
-      const sections: ContentSection[] = [];
-
-      // Continue Watching (if user has viewing history)
-      if (continueWatching.length > 0) {
-        sections.push({
-          id: 'continue-watching',
-          title: 'Continue Watching',
-          icon: '▶️',
-          data: continueWatching.map(item => ({
-            id: item.contentId,
-            title: item.title,
-            poster_path: item.posterPath,
-            vote_average: 0,
-            overview: '',
-            release_date: '',
-            first_air_date: '',
-            genre_ids: [],
-            original_language: '',
-            popularity: 0,
-            backdrop_path: ''
-          })),
-          showRanking: false,
-        });
-      }
-
-      // Core sections
-      sections.push(
-        {
-          id: 'trending',
-          title: 'Trending Now',
-          icon: '🔥',
-          data: getUniqueContent(trending, 20),
-        },
-        {
-          id: 'hindi-top10',
-          title: 'Top 10 in India',
-          icon: '🇮🇳',
-          data: getUniqueContent(hindi, 10, true), // Preserve order for rankings
-          showRanking: true,
-        }
-      );
-
-      // Personalized recommendations
-      if (personalizedMovies.length > 0 || personalizedTV.length > 0) {
-        const personalizedContent = [...personalizedMovies, ...personalizedTV];
-        sections.push({
-          id: 'recommended',
-          title: 'Recommended for You',
-          icon: '🎯',
-          data: getUniqueContent(personalizedContent, 20),
-        });
-      }
-
-      // Continue with other sections
-      sections.push(
-        {
-          id: 'now-playing',
-          title: 'Now Playing in Cinemas',
-          icon: '🎭',
-          data: getUniqueContent(nowPlaying, 20),
-        },
-        {
-          id: 'airing-today',
-          title: 'On TV Today',
-          icon: '📺',
-          data: getUniqueContent(airingToday, 20),
-        },
-        {
-          id: 'popular',
-          title: 'Popular on RK SWOT',
-          icon: '⭐',
-          data: getUniqueContent(popular, 20),
-        },
-        {
-          id: 'latest',
-          title: 'New Releases',
-          icon: '🎬',
-          data: getUniqueContent(upcoming, 20),
-        },
-        {
-          id: 'on-air',
-          title: 'Currently Airing Series',
-          icon: '📡',
-          data: getUniqueContent(onAir, 20),
-        },
-        {
-          id: 'action',
-          title: 'Action & Adventure',
-          icon: '💥',
-          data: getUniqueContent(marvel, 20),
-        },
-        {
-          id: 'thriller',
-          title: 'Thrillers & Suspense',
-          icon: '😱',
-          data: getUniqueContent(thriller2025, 20),
-        },
-        {
-          id: 'south',
-          title: 'South Indian Cinema',
-          icon: '🎭',
-          data: getUniqueContent(south, 20),
-        },
-        {
-          id: 'toprated',
-          title: 'Critics Choice',
-          icon: '🏆',
-          data: getUniqueContent(topRated, 20),
-        },
-        {
-          id: 'toprated-tv',
-          title: 'Top Rated Series',
-          icon: '🏅',
-          data: getUniqueContent(topRatedTV, 20),
-        },
-        {
-          id: 'family',
-          title: 'Family Entertainment',
-          icon: '👨‍👩‍👧‍👦',
-          data: getUniqueContent(family, 20),
-        },
-        {
-          id: 'romantic',
-          title: 'Romance & Drama',
-          icon: '💕',
-          data: getUniqueContent(romantic, 20),
-        },
-        {
-          id: 'awards',
-          title: 'Award Winners',
-          icon: '🥇',
-          data: getUniqueContent(awards, 20),
-        },
-        {
-          id: 'popular-tv',
-          title: 'Popular Series',
-          icon: '📺',
-          data: getUniqueContent(popularTV, 20),
-        }
-      );
-
-      setContentSections(sections);
+      setFavorites(favoritesData);
+      setWatchlist(watchlistData);
     } catch (error) {
-      console.error('Error loading content:', error);
+      console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load data');
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadContent();
+    await loadData();
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    if (!showSplash) {
-      loadContent();
-    }
-  }, [showSplash]);
+  const handleContentPress = (item: FavoriteItem | WatchlistItem) => {
+    router.push(`/tmdb-content/${item.contentId}?type=${item.contentType}`);
+  };
 
-  // Auto-change hero content
-  useEffect(() => {
-    if (featuredContent.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentHero(prev => (prev + 1) % featuredContent.length);
-      }, 6000);
-      return () => clearInterval(interval);
-    }
-  }, [featuredContent.length]);
+  const renderContentItem = ({ item }: { item: FavoriteItem | WatchlistItem }) => (
+    <View style={styles.contentItem}>
+      <TMDbContentCard
+        content={{
+          id: parseInt(item.contentId),
+          title: item.title,
+          poster_path: item.posterPath,
+          vote_average: 0,
+          overview: '',
+          release_date: '',
+          first_air_date: '',
+          genre_ids: [],
+          original_language: '',
+          popularity: 0,
+          backdrop_path: ''
+        }}
+        onPress={() => handleContentPress(item)}
+        style={styles.card}
+      />
+    </View>
+  );
 
-  const renderHeroSection = () => {
-    if (!featuredContent.length) return null;
-    
-    const heroItem = featuredContent[currentHero];
-    const title = (heroItem as any).title || (heroItem as any).name;
-    const backdropUrl = `https://image.tmdb.org/t/p/w1280${heroItem.backdrop_path}`;
-    
-    return (
-      <View style={styles.heroContainer}>
-        <ImageBackground
-          source={{ uri: backdropUrl }}
-          style={styles.heroBackground}
-          imageStyle={styles.heroBackgroundImage}
-        >
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)', '#000']}
-            locations={[0, 0.6, 0.8, 1]}
-            style={styles.heroGradient}
-          >
-            <SafeAreaView style={styles.heroContent}>
-              <View style={styles.heroTopSection}>
-                <Text style={styles.logoText}>RK SWOT</Text>
-                <TouchableOpacity style={styles.profileButton}>
-                  <Text style={styles.profileIcon}>👤</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.heroBottomSection}>
-                <View style={styles.newReleaseBadge}>
-                  <Text style={styles.badgeText}>NEW RELEASE</Text>
-                </View>
-                
-                <Text style={styles.heroTitle} numberOfLines={2}>
-                  {title}
-                </Text>
-                
-                <View style={styles.heroMeta}>
-                  <Text style={styles.heroYear}>
-                    {new Date((heroItem as any).release_date || (heroItem as any).first_air_date).getFullYear()}
-                  </Text>
-                  <View style={styles.heroDot} />
-                  <Text style={styles.heroRating}>
-                    ⭐ {heroItem.vote_average.toFixed(1)}
-                  </Text>
-                  <View style={styles.heroDot} />
-                  <Text style={styles.heroType}>
-                    {(heroItem as any).title ? 'Movie' : 'Series'}
-                  </Text>
-                </View>
-                
-                <Text style={styles.heroDescription} numberOfLines={3}>
-                  {heroItem.overview}
-                </Text>
-                
-                <View style={styles.heroButtons}>
-                  <TouchableOpacity 
-                    style={styles.playButton}
-                    onPress={() => handleTMDbContentPress(heroItem)}
-                  >
-                    <Text style={styles.playIcon}>▶</Text>
-                    <Text style={styles.playText}>Play</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.infoButton}
-                    onPress={() => handleTMDbContentPress(heroItem)}
-                  >
-                    <Text style={styles.infoIcon}>ℹ</Text>
-                    <Text style={styles.infoText}>More Info</Text>
-                  </TouchableOpacity>
-                </View>
-                
-                {/* Hero Indicators */}
-                <View style={styles.heroIndicators}>
-                  {featuredContent.map((_, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.heroIndicator,
-                        index === currentHero && styles.heroIndicatorActive
-                      ]}
-                    />
-                  ))}
-                </View>
-              </View>
-            </SafeAreaView>
-          </LinearGradient>
-        </ImageBackground>
+  const renderSection = (title: string, data: any[], emptyMessage: string, emptyIcon: string) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
+        <Text style={styles.itemCount}>({data.length})</Text>
       </View>
-    );
-  };
-
-  const handleViewAll = (sectionId: string) => {
-    // Navigate to discover with the specific category
-    router.push(`/discover?category=${sectionId}`);
-  };
-
-  if (showSplash) {
-    return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;
-  }
+      
+      {data.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name={emptyIcon as any} size={48} color="#666" />
+          <Text style={styles.emptyText}>{emptyMessage}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={data.slice(0, 6)} // Show only first 6 items
+          renderItem={renderContentItem}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalList}
+        />
+      )}
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
-      <FlatList
-        data={[{ type: 'hero' }, ...contentSections.map(section => ({ type: 'section', section }))]}
-        renderItem={({ item }) => {
-          if (item.type === 'hero') {
-            return renderHeroSection();
-          }
-          return (
-            <MovieSlider
-              title={item.section.title}
-              icon={item.section.icon}
-              data={item.section.data}
-              onContentPress={handleTMDbContentPress}
-              onViewAll={() => handleViewAll(item.section.id)}
-              showRanking={item.section.showRanking}
-              autoSlide={true}
-            />
-          );
-        }}
-        keyExtractor={(item, index) => 
-          item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`
-        }
+    <ThemedView style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh}
             tintColor="#E50914"
-            progressBackgroundColor="#000"
           />
         }
-        showsVerticalScrollIndicator={false}
-        style={styles.mainContainer}
-        bounces={true}
-      />
-    </View>
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <ThemedText style={styles.headerTitle}>RK SWOT</ThemedText>
+          <TouchableOpacity onPress={onRefresh}>
+            <Ionicons name="refresh-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <ThemedText style={styles.welcomeTitle}>Welcome back!</ThemedText>
+          <ThemedText style={styles.welcomeSubtitle}>
+            Your personal movie and TV show collection
+          </ThemedText>
+        </View>
+
+        {/* Movies Section */}
+        <View style={styles.moviesContainer}>
+          <ThemedText style={styles.moviesTitle}>My Movies & Shows</ThemedText>
+          
+          {renderSection(
+            'Favorites',
+            favorites,
+            'No favorites yet. Start adding movies and shows you love!',
+            'heart-outline'
+          )}
+
+          {renderSection(
+            'Watchlist',
+            watchlist,
+            'No items in watchlist. Add movies and shows to watch later!',
+            'bookmark-outline'
+          )}
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => router.push('/discover')}
+          >
+            <Ionicons name="compass" size={24} color="#E50914" />
+            <Text style={styles.actionButtonText}>Discover New</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => router.push('/search')}
+          >
+            <Ionicons name="search" size={24} color="#E50914" />
+            <Text style={styles.actionButtonText}>Search Content</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+      
+      <Footer currentRoute="/" />
+    </ThemedView>
   );
 }
 
@@ -435,166 +179,110 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  mainContainer: {
+  scrollView: {
     flex: 1,
   },
-  
-  // Hero Section
-  heroContainer: {
-    height: screenHeight * 0.75,
-  },
-  heroBackground: {
-    flex: 1,
-  },
-  heroBackgroundImage: {
-    resizeMode: 'cover',
-  },
-  heroGradient: {
-    flex: 1,
-  },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  heroTopSection: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    padding: 20,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
-  logoText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#E50914',
-    letterSpacing: 2,
-  },
-  profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileIcon: {
-    fontSize: 18,
-    color: '#fff',
-  },
-  heroBottomSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  newReleaseBadge: {
-    backgroundColor: '#E50914',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
-    letterSpacing: 1,
+    color: '#E50914',
   },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: '900',
+  welcomeSection: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#fff',
     marginBottom: 8,
-    lineHeight: 38,
   },
-  heroMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: '#999',
   },
-  heroYear: {
+  moviesContainer: {
+    paddingHorizontal: 20,
+  },
+  moviesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  heroDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#fff',
-    marginHorizontal: 8,
-  },
-  heroRating: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  heroType: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  heroDescription: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    lineHeight: 20,
     marginBottom: 20,
   },
-  heroButtons: {
-    flexDirection: 'row',
+  section: {
     marginBottom: 30,
   },
-  playButton: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 6,
-    marginRight: 12,
+    marginBottom: 16,
   },
-  playIcon: {
-    color: '#000',
-    fontSize: 16,
-    marginRight: 8,
-  },
-  playText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  infoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 6,
-  },
-  infoIcon: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: '#fff',
-    fontSize: 16,
-    marginRight: 8,
   },
-  infoText: {
+  itemCount: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 8,
+  },
+  horizontalList: {
+    paddingVertical: 8,
+  },
+  contentItem: {
+    marginRight: 12,
+    width: 120,
+  },
+  card: {
+    width: '100%',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 20,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    gap: 16,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 9, 20, 0.3)',
+    gap: 8,
+  },
+  actionButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  heroIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  bottomSpacer: {
+    height: 100,
   },
-  heroIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    marginHorizontal: 3,
-  },
-  heroIndicatorActive: {
-    backgroundColor: '#E50914',
-    width: 20,
-  },
-  
-  
 });
