@@ -1,4 +1,8 @@
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import * as Notifications from 'expo-notifications';
+
 export interface DownloadItem {
   id: string;
   contentId: number;
@@ -15,6 +19,8 @@ export interface DownloadItem {
   seasonNumber?: number;
   episodeNumber?: number;
   filePath?: string;
+  downloadUrl?: string; // Internet Archive URL
+  fileSize?: number; // Actual file size in bytes
 }
 
 export interface DownloadQuality {
@@ -29,9 +35,22 @@ class DownloadService {
   private downloadQueue: DownloadItem[] = [];
   private maxConcurrentDownloads = 3;
   private activeDownloads = 0;
+  private downloadCallbacks: Map<string, (progress: number) => void> = new Map();
 
   constructor() {
     this.loadFromStorage();
+    this.setupNotifications();
+  }
+
+  private async setupNotifications() {
+    await Notifications.requestPermissionsAsync();
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
+    });
   }
 
   // Get available quality options
@@ -58,13 +77,14 @@ class DownloadService {
     ];
   }
 
-  // Add item to download queue
+  // Add item to download queue (Internet Archive support)
   addToDownloadQueue(
     contentId: number,
     contentType: 'movie' | 'tv',
     title: string,
     posterPath: string,
     quality: 'low' | 'medium' | 'high',
+    downloadUrl?: string,
     episodeId?: number,
     seasonNumber?: number,
     episodeNumber?: number
@@ -95,7 +115,8 @@ class DownloadService {
       status: 'pending',
       episodeId,
       seasonNumber,
-      episodeNumber
+      episodeNumber,
+      downloadUrl,
     };
 
     this.downloads.push(downloadItem);
@@ -124,16 +145,37 @@ class DownloadService {
     this.saveToStorage();
 
     try {
-      await this.simulateDownload(nextDownload);
+      if (nextDownload.downloadUrl) {
+        await this.downloadFromInternetArchive(nextDownload);
+      } else {
+        await this.simulateDownload(nextDownload);
+      }
       nextDownload.status = 'completed';
       nextDownload.progress = 100;
-      nextDownload.filePath = `downloads/${nextDownload.id}.mp4`;
       
       // Set expiration (30 days from now)
       nextDownload.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      // Show completion notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Download Complete',
+          body: `${nextDownload.title} has been downloaded successfully.`,
+        },
+        trigger: null,
+      });
     } catch (error) {
       nextDownload.status = 'failed';
       console.error('Download failed:', error);
+      
+      // Show error notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Download Failed',
+          body: `Failed to download ${nextDownload.title}. Tap to retry.`,
+        },
+        trigger: null,
+      });
     }
 
     this.activeDownloads--;
@@ -143,7 +185,51 @@ class DownloadService {
     this.processDownloadQueue();
   }
 
-  // Simulate download progress
+  // Download from Internet Archive
+  private async downloadFromInternetArchive(item: DownloadItem): Promise<void> {
+    if (!item.downloadUrl) {
+      throw new Error('No download URL provided');
+    }
+
+    const fileName = `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}_${item.id}.mp4`;
+    const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
+    
+    // Ensure downloads directory exists
+    const downloadDir = `${FileSystem.documentDirectory}downloads/`;
+    const dirInfo = await FileSystem.getInfoAsync(downloadDir);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+    }
+
+    const downloadResumable = FileSystem.createDownloadResumable(
+      item.downloadUrl,
+      downloadPath,
+      {},
+      (downloadProgress) => {
+        const progress = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
+        item.progress = Math.round(progress);
+        item.fileSize = downloadProgress.totalBytesExpectedToWrite;
+        
+        // Calculate actual size in MB
+        item.size = Math.round(downloadProgress.totalBytesExpectedToWrite / (1024 * 1024));
+        
+        this.saveToStorage();
+        
+        // Notify progress callback if exists
+        const callback = this.downloadCallbacks.get(item.id);
+        if (callback) {
+          callback(item.progress);
+        }
+      }
+    );
+
+    const result = await downloadResumable.downloadAsync();
+    if (result) {
+      item.filePath = result.uri;
+    }
+  }
+
+  // Simulate download progress (for non-Internet Archive downloads)
   private simulateDownload(item: DownloadItem): Promise<void> {
     return new Promise((resolve, reject) => {
       const interval = setInterval(() => {
@@ -179,6 +265,16 @@ class DownloadService {
     });
   }
 
+  // Set progress callback for real-time updates
+  setProgressCallback(downloadId: string, callback: (progress: number) => void): void {
+    this.downloadCallbacks.set(downloadId, callback);
+  }
+
+  // Remove progress callback
+  removeProgressCallback(downloadId: string): void {
+    this.downloadCallbacks.delete(downloadId);
+  }
+
   // Get all downloads
   getDownloads(): DownloadItem[] {
     return this.downloads;
@@ -197,6 +293,11 @@ class DownloadService {
   // Get downloading items
   getActiveDownloads(): DownloadItem[] {
     return this.downloads.filter(item => item.status === 'downloading');
+  }
+
+  // Get pending downloads
+  getPendingDownloads(): DownloadItem[] {
+    return this.downloads.filter(item => item.status === 'pending');
   }
 
   // Pause download
@@ -219,6 +320,17 @@ class DownloadService {
     }
   }
 
+  // Retry failed download
+  retryDownload(downloadId: string): void {
+    const download = this.downloads.find(item => item.id === downloadId);
+    if (download && download.status === 'failed') {
+      download.status = 'pending';
+      download.progress = 0;
+      this.saveToStorage();
+      this.processDownloadQueue();
+    }
+  }
+
   // Cancel download
   cancelDownload(downloadId: string): void {
     const downloadIndex = this.downloads.findIndex(item => item.id === downloadId);
@@ -227,8 +339,15 @@ class DownloadService {
       if (download.status === 'downloading') {
         this.activeDownloads--;
       }
+      
+      // Remove file if it exists
+      if (download.filePath) {
+        FileSystem.deleteAsync(download.filePath, { idempotent: true });
+      }
+      
       this.downloads.splice(downloadIndex, 1);
       this.downloadQueue = this.downloadQueue.filter(item => item.id !== downloadId);
+      this.removeProgressCallback(downloadId);
       this.saveToStorage();
     }
   }
@@ -239,7 +358,7 @@ class DownloadService {
   }
 
   // Check if content is downloaded
-  isDownloaded(contentId: number, contentType: 'movie' | 'tv', episodeId?: number): boolean {
+  isDownloaded(contentId: number, contentType: 'movie' | 'tv' = 'movie', episodeId?: number): boolean {
     return this.downloads.some(item => 
       item.contentId === contentId && 
       item.contentType === contentType && 
@@ -249,7 +368,7 @@ class DownloadService {
   }
 
   // Get download info for content
-  getDownloadInfo(contentId: number, contentType: 'movie' | 'tv', episodeId?: number): DownloadItem | undefined {
+  getDownloadInfo(contentId: number, contentType: 'movie' | 'tv' = 'movie', episodeId?: number): DownloadItem | undefined {
     return this.downloads.find(item => 
       item.contentId === contentId && 
       item.contentType === contentType &&
@@ -257,20 +376,29 @@ class DownloadService {
     );
   }
 
-  // Get total downloaded size
+  // Get total downloaded size in MB
   getTotalDownloadedSize(): number {
     return this.downloads
       .filter(item => item.status === 'completed')
       .reduce((total, item) => total + item.size, 0);
   }
 
-  // Get available storage info
-  getStorageInfo(): { used: number; total: number; available: number } {
-    const used = this.getTotalDownloadedSize();
-    const total = 50 * 1024; // Assume 50GB total storage
-    const available = total - used;
-    
-    return { used, total, available };
+  // Get storage info
+  async getStorageInfo(): Promise<{ used: number; total: number; available: number }> {
+    try {
+      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
+      const totalDiskCapacity = await FileSystem.getTotalDiskCapacityAsync();
+      
+      const used = this.getTotalDownloadedSize();
+      const total = Math.round(totalDiskCapacity / (1024 * 1024)); // Convert to MB
+      const available = Math.round(freeDiskStorage / (1024 * 1024)); // Convert to MB
+      
+      return { used, total, available };
+    } catch (error) {
+      console.error('Error getting storage info:', error);
+      const used = this.getTotalDownloadedSize();
+      return { used, total: 50 * 1024, available: 45 * 1024 }; // Fallback values
+    }
   }
 
   // Clean up expired downloads
@@ -287,28 +415,36 @@ class DownloadService {
 
   // Clear all downloads
   clearAllDownloads(): void {
+    // Delete all files
+    this.downloads.forEach(item => {
+      if (item.filePath) {
+        FileSystem.deleteAsync(item.filePath, { idempotent: true });
+      }
+    });
+    
     this.downloads = [];
     this.downloadQueue = [];
     this.activeDownloads = 0;
+    this.downloadCallbacks.clear();
     this.saveToStorage();
   }
 
   // Storage methods
-  private saveToStorage(): void {
+  private async saveToStorage(): Promise<void> {
     try {
       const downloadData = {
         downloads: this.downloads,
         downloadQueue: this.downloadQueue
       };
-      localStorage.setItem('rkswot-downloads', JSON.stringify(downloadData));
+      await AsyncStorage.setItem('rkswot-downloads', JSON.stringify(downloadData));
     } catch (error) {
       console.error('Failed to save download data:', error);
     }
   }
 
-  private loadFromStorage(): void {
+  private async loadFromStorage(): Promise<void> {
     try {
-      const stored = localStorage.getItem('rkswot-downloads');
+      const stored = await AsyncStorage.getItem('rkswot-downloads');
       if (stored) {
         const downloadData = JSON.parse(stored);
         this.downloads = downloadData.downloads || [];

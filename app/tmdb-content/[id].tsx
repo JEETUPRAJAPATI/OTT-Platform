@@ -57,6 +57,10 @@ export default function TMDbContentDetails() {
   const [showPlayer, setShowPlayer] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [recommendations, setRecommendations] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
+  const [internetArchiveUrl, setInternetArchiveUrl] = useState<string | null>(null);
+  const [isCheckingArchive, setIsCheckingArchive] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [activeDownloadId, setActiveDownloadId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id && type) {
@@ -64,6 +68,7 @@ export default function TMDbContentDetails() {
       checkFavoriteStatus();
       checkWatchlistStatus();
       checkDownloadStatus();
+      checkInternetArchiveAvailability();
     }
   }, [id, type]);
 
@@ -103,8 +108,68 @@ export default function TMDbContentDetails() {
 
   const checkDownloadStatus = async () => {
     if (id) {
-      const downloaded = await downloadService.isDownloaded(Number(id));
+      const downloaded = downloadService.isDownloaded(Number(id), type as 'movie' | 'tv');
       setIsDownloaded(downloaded);
+      
+      // Check if there's an active download for this content
+      const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
+      if (downloadInfo && (downloadInfo.status === 'downloading' || downloadInfo.status === 'pending')) {
+        setActiveDownloadId(downloadInfo.id);
+        setDownloadProgress(downloadInfo.progress);
+        
+        // Set up progress callback
+        downloadService.setProgressCallback(downloadInfo.id, (progress) => {
+          setDownloadProgress(progress);
+          if (progress >= 100) {
+            setIsDownloaded(true);
+            setActiveDownloadId(null);
+          }
+        });
+      }
+    }
+  };
+
+  const checkInternetArchiveAvailability = async () => {
+    if (!content || !id) return;
+    
+    setIsCheckingArchive(true);
+    try {
+      const title = (content as any).title || (content as any).name;
+      const year = content.release_date ? new Date(content.release_date).getFullYear() : 
+                  (content as any).first_air_date ? new Date((content as any).first_air_date).getFullYear() : '';
+      
+      // Common Internet Archive URL patterns
+      const searchQueries = [
+        `${title} ${year}`,
+        title.replace(/[^a-zA-Z0-9 ]/g, ''),
+        `${title} ${year} movie`,
+        title.toLowerCase().replace(/\s+/g, '-')
+      ];
+      
+      // Try different archive.org patterns
+      const archivePatterns = [
+        `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '-')}-${year}/${title.toLowerCase().replace(/\s+/g, '-')}-${year}.mp4`,
+        `https://archive.org/download/${title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}-${year}/${title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}.mp4`,
+        `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '.')}.${year}/${title.toLowerCase().replace(/\s+/g, '.')}.${year}.mp4`,
+        `https://archive.org/download/movies-${year}/${title.toLowerCase().replace(/\s+/g, '-')}.mp4`
+      ];
+      
+      // Check if any of these URLs exist
+      for (const url of archivePatterns) {
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          if (response.ok && response.headers.get('content-type')?.includes('video')) {
+            setInternetArchiveUrl(url);
+            break;
+          }
+        } catch (error) {
+          // Continue to next URL
+        }
+      }
+    } catch (error) {
+      console.error('Error checking Internet Archive:', error);
+    } finally {
+      setIsCheckingArchive(false);
     }
   };
 
@@ -123,28 +188,95 @@ export default function TMDbContentDetails() {
   };
 
   const handleDownload = async () => {
-    if (!content) return;
+    if (!content || !id) return;
 
     try {
       if (isDownloaded) {
-        await downloadService.removeDownload(content.id);
-        setIsDownloaded(false);
-        Alert.alert('Success', 'Removed from downloads');
+        const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
+        if (downloadInfo) {
+          downloadService.deleteDownload(downloadInfo.id);
+          setIsDownloaded(false);
+          Alert.alert('Success', 'Removed from downloads');
+        }
+      } else if (activeDownloadId) {
+        // Handle pause/resume/cancel for active download
+        const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
+        if (downloadInfo) {
+          Alert.alert(
+            'Download in Progress',
+            'What would you like to do with this download?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Pause', 
+                onPress: () => {
+                  downloadService.pauseDownload(downloadInfo.id);
+                  setActiveDownloadId(null);
+                }
+              },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: () => {
+                  downloadService.cancelDownload(downloadInfo.id);
+                  setActiveDownloadId(null);
+                  setDownloadProgress(0);
+                }
+              }
+            ]
+          );
+        }
       } else {
-        await downloadService.addDownload({
-          id: content.id,
-          title: (content as any).title || (content as any).name,
-          poster_path: content.poster_path,
-          overview: content.overview,
-          vote_average: content.vote_average,
-          release_date: (content as any).release_date || (content as any).first_air_date,
-          downloadedAt: new Date().toISOString(),
-        });
-        setIsDownloaded(true);
-        Alert.alert('Success', 'Added to downloads');
+        // Start new download
+        if (internetArchiveUrl) {
+          // Download from Internet Archive
+          const downloadId = downloadService.addToDownloadQueue(
+            Number(id),
+            type as 'movie' | 'tv',
+            (content as any).title || (content as any).name,
+            content.poster_path || '',
+            'high', // Default to high quality for Internet Archive
+            internetArchiveUrl
+          );
+          
+          setActiveDownloadId(downloadId);
+          setDownloadProgress(0);
+          
+          // Set up progress callback
+          downloadService.setProgressCallback(downloadId, (progress) => {
+            setDownloadProgress(progress);
+            if (progress >= 100) {
+              setIsDownloaded(true);
+              setActiveDownloadId(null);
+              Alert.alert('Download Complete', `${(content as any).title || (content as any).name} has been downloaded successfully!`);
+            }
+          });
+          
+          Alert.alert('Download Started', 'Your movie is being downloaded from Internet Archive');
+        } else {
+          // Fallback to regular download (simulated)
+          const downloadId = downloadService.addToDownloadQueue(
+            Number(id),
+            type as 'movie' | 'tv',
+            (content as any).title || (content as any).name,
+            content.poster_path || '',
+            'high'
+          );
+          
+          setActiveDownloadId(downloadId);
+          Alert.alert('Download Started', 'Download added to queue');
+        }
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to update downloads');
+      console.error('Download error:', error);
+      Alert.alert('Error', 'Failed to start download');
+    }
+  };
+
+  const handleRetryDownload = () => {
+    if (activeDownloadId) {
+      downloadService.retryDownload(activeDownloadId);
+      Alert.alert('Retry Started', 'Download has been restarted');
     }
   };
 
@@ -351,21 +483,51 @@ export default function TMDbContentDetails() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
+            style={[
+              styles.secondaryButton, 
+              isDownloaded && styles.downloadedButton,
+              activeDownloadId && styles.downloadingButton
+            ]}
             onPress={handleDownload}
           >
-            <Ionicons
-              name={isDownloaded ? "checkmark-circle" : "download"}
-              size={24}
-              color={isDownloaded ? "#4CAF50" : "#fff"}
-            />
-            <Text style={[
-              styles.secondaryButtonText,
-              isDownloaded && styles.downloadedButtonText
-            ]}>
-              {isDownloaded ? 'Downloaded' : 'Download'}
-            </Text>
+            {activeDownloadId ? (
+              <>
+                <View style={styles.progressContainer}>
+                  <View style={[styles.progressBar, { width: `${downloadProgress}%` }]} />
+                </View>
+                <Text style={styles.downloadProgressText}>
+                  {downloadProgress}%
+                </Text>
+              </>
+            ) : (
+              <>
+                <Ionicons
+                  name={isDownloaded ? "checkmark-circle" : internetArchiveUrl ? "cloud-download" : "download"}
+                  size={24}
+                  color={isDownloaded ? "#4CAF50" : "#fff"}
+                />
+                <Text style={[
+                  styles.secondaryButtonText,
+                  isDownloaded && styles.downloadedButtonText
+                ]}>
+                  {isDownloaded ? 'Downloaded' : internetArchiveUrl ? 'Download HD' : 'Download'}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
+
+          {internetArchiveUrl && !isDownloaded && !activeDownloadId && (
+            <View style={styles.archiveNotice}>
+              <Ionicons name="information-circle" size={16} color="#4CAF50" />
+              <Text style={styles.archiveNoticeText}>HD version available from Internet Archive</Text>
+            </View>
+          )}
+
+          {isCheckingArchive && (
+            <View style={styles.checkingArchive}>
+              <Text style={styles.checkingArchiveText}>Checking for HD version...</Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.secondaryButton, isFavorited && styles.favoriteButtonActive]}
@@ -539,6 +701,16 @@ export default function TMDbContentDetails() {
             </View>
           </SafeAreaView>
         </Modal>
+
+        {/* Retry Download Button */}
+        {activeDownloadId && downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv')?.status === 'failed' && (
+          <View style={styles.retryContainer}>
+            <TouchableOpacity style={styles.retryButton} onPress={handleRetryDownload}>
+              <Ionicons name="refresh" size={24} color="#fff" />
+              <Text style={styles.retryButtonText}>Retry Download</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -903,6 +1075,70 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     marginTop: 2,
+  },
+  downloadingButton: {
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderColor: '#4CAF50',
+  },
+  progressContainer: {
+    width: 60,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    marginRight: 8,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 2,
+  },
+  downloadProgressText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  archiveNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 6,
+    alignSelf: 'center',
+  },
+  archiveNoticeText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  checkingArchive: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  checkingArchiveText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  retryContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF6B35',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   bottomSpacer: {
     height: 40,
