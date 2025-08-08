@@ -19,6 +19,8 @@ export interface DownloadItem {
   filePath?: string;
   downloadUrl?: string; // Internet Archive URL
   fileSize?: number; // Actual file size in bytes
+  identifier?: string; // Internet Archive identifier
+  filename?: string; // Filename from archive
 }
 
 export interface DownloadQuality {
@@ -53,6 +55,9 @@ class DownloadService {
   private downloads: DownloadItem[] = [];
   private downloadCallbacks: Map<string, (progress: number, progressInfo?: any) => void> = new Map();
   private readonly STORAGE_KEY = 'rkswot-downloads';
+
+  // Singleton instance
+  private static instance: DownloadService | null = null;
 
   constructor() {
     this.loadFromStorage();
@@ -665,6 +670,103 @@ class DownloadService {
       }
     } catch (error) {
       console.error('Failed to load download data:', error);
+    }
+  }
+
+  // Download movie from Internet Archive directly
+  async downloadMovie(identifier: string, title: string): Promise<void> {
+    try {
+      console.log('=== DOWNLOAD MOVIE START ===');
+      console.log('Identifier:', identifier);
+      console.log('Title:', title);
+
+      this.showToast('Starting Download', 'Preparing to download movie...');
+
+      // Get metadata to find video files
+      const metadataUrl = `https://archive.org/metadata/${encodeURIComponent(identifier)}`;
+      console.log('Fetching metadata from:', metadataUrl);
+
+      const metadataResponse = await fetch(metadataUrl);
+      if (!metadataResponse.ok) {
+        throw new Error(`Failed to fetch metadata: ${metadataResponse.status}`);
+      }
+
+      const metadata = await metadataResponse.json();
+      console.log('Metadata received, files count:', metadata.files?.length || 0);
+
+      if (!metadata.files || metadata.files.length === 0) {
+        throw new Error('No files found in archive');
+      }
+
+      // Filter for video files
+      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
+      const videoFiles = metadata.files.filter((file: any) => {
+        if (!file.name) return false;
+        const fileName = file.name.toLowerCase();
+        return videoExtensions.some(ext => fileName.endsWith(ext)) &&
+               parseInt(file.size || '0', 10) > 1024 * 1024; // At least 1MB
+      });
+
+      console.log('Video files found:', videoFiles.length);
+
+      if (videoFiles.length === 0) {
+        throw new Error('No video files found in archive');
+      }
+
+      // Use the largest video file
+      const selectedFile = videoFiles.reduce((largest, current) => {
+        const largestSize = parseInt(largest.size || '0', 10);
+        const currentSize = parseInt(current.size || '0', 10);
+        return currentSize > largestSize ? current : largest;
+      });
+
+      console.log('Selected file:', selectedFile.name, 'Size:', selectedFile.size);
+
+      // Construct direct download URL
+      const directDownloadUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(selectedFile.name)}?download=1`;
+      console.log('Direct download URL:', directDownloadUrl);
+
+      // For React Native, we'll use Linking to open the download URL
+      const { Linking } = require('react-native');
+      await Linking.openURL(directDownloadUrl);
+
+      // Save download record
+      const downloadRecord: DownloadItem = {
+        id: Date.now().toString(),
+        title: title,
+        identifier: identifier,
+        filename: selectedFile.name,
+        size: parseInt(selectedFile.size || '0', 10),
+        downloadedAt: new Date().toISOString(),
+        status: 'completed',
+        progress: 100
+      };
+
+      this.downloads.push(downloadRecord);
+      await this.saveToStorage();
+
+      console.log('=== DOWNLOAD MOVIE SUCCESS ===');
+      this.showToast('Download Started', `${title} download has been initiated in your browser!`);
+
+    } catch (error: any) {
+      console.error('=== DOWNLOAD MOVIE ERROR ===');
+      console.error('Error details:', error);
+
+      let errorMessage = 'Download failed';
+      if (error.message.includes('Network request failed')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.message.includes('timeout') || error.message.includes('AbortError')) {
+        errorMessage = 'Download timed out. Please try again.';
+      } else if (error.message.includes('No video files found')) {
+        errorMessage = 'This archive contains no downloadable video files.';
+      } else if (error.message.includes('Failed to fetch metadata')) {
+        errorMessage = 'Could not access movie information. Please try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      this.showToast('Download Failed', errorMessage);
+      throw error;
     }
   }
 }
