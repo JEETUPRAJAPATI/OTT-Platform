@@ -63,6 +63,69 @@ class DownloadService {
     this.loadFromStorage();
   }
 
+  // Helper function that follows the exact 3-step pattern from the example
+  async searchAndGetDownloadLinks(movieTitle: string): Promise<{
+    success: boolean;
+    identifier?: string;
+    files?: { name: string; size: string; format: string; downloadUrl: string }[];
+    error?: string;
+  }> {
+    try {
+      // Step 1: Search for the movie
+      const encodedTitle = encodeURIComponent(movieTitle.trim());
+      const searchUrl = `https://archive.org/advancedsearch.php?q=title:(${encodedTitle})+AND+mediatype:(movies)&fl=identifier,title&output=json`;
+      
+      const searchResponse = await fetch(searchUrl);
+      if (!searchResponse.ok) {
+        return { success: false, error: 'Search request failed' };
+      }
+      
+      const searchData = await searchResponse.json();
+      
+      if (!searchData.response?.docs?.length) {
+        return { success: false, error: 'No movies found' };
+      }
+      
+      const identifier = searchData.response.docs[0].identifier;
+      
+      // Step 2: Get metadata for that identifier
+      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      const metadataResponse = await fetch(metadataUrl);
+      
+      if (!metadataResponse.ok) {
+        return { success: false, error: 'Failed to get movie metadata' };
+      }
+      
+      const metadataData = await metadataResponse.json();
+      
+      if (!metadataData.files) {
+        return { success: false, error: 'No files found in archive' };
+      }
+      
+      // Step 3: Filter video files and build download URLs
+      const videoFiles = metadataData.files
+        .filter((file: any) => {
+          const format = file.format?.toLowerCase() || '';
+          return format.includes('mpeg4') || format.includes('matroska') || format.includes('ogg video');
+        })
+        .map((file: any) => ({
+          name: file.name,
+          size: file.size,
+          format: file.format,
+          downloadUrl: `https://archive.org/download/${identifier}/${encodeURIComponent(file.name)}`
+        }));
+      
+      return {
+        success: true,
+        identifier,
+        files: videoFiles
+      };
+      
+    } catch (error) {
+      return { success: false, error: `Error: ${error.message}` };
+    }
+  }
+
   // Toast notification helper
   private showToast(title: string, message: string) {
     Alert.alert(title, message);
@@ -110,17 +173,17 @@ class DownloadService {
     }
 
     try {
-      // Properly encode the search query with multiple search strategies
+      // Use the exact pattern from the example - properly encode and search
       const encodedTitle = encodeURIComponent(cleanTitle);
       
-      // Try different search queries for better results
+      // Primary search strategies based on the working example
       const searchQueries = [
-        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+format:(mp4+OR+mkv+OR+avi+OR+webm)`,
+        `title:(${encodedTitle})+AND+mediatype:(movies)`, // Most direct approach like the example
+        `${encodedTitle}+AND+mediatype:(movies)+AND+format:(MPEG4+OR+Matroska+OR+Ogg Video)`, // Filter by video formats
+        `title:"${cleanTitle}"+AND+mediatype:(movies)`, // Exact title match
+        `${encodedTitle}+hindi+AND+mediatype:(movies)`, // For Indian movies
+        `${encodedTitle}+movie+AND+mediatype:(movies)`, // Generic movie search
         `${encodedTitle}+AND+mediatype:(movies)+AND+collection:(feature_films)`,
-        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+format:(mp4)`,
-        `${encodedTitle}+AND+mediatype:(movies)+AND+format:(mkv)`,
-        `title:"${cleanTitle}"+AND+mediatype:(movies)`,
-        `${encodedTitle}+movie+AND+mediatype:(movies)`,
         `${encodedTitle}+AND+mediatype:(movies)+AND+subject:(feature+films)`
       ];
       
@@ -128,7 +191,8 @@ class DownloadService {
       
       // Try each search query until we find good results
       for (const searchQuery of searchQueries) {
-        const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title,description,creator,year&rows=10&page=1&output=json&sort[]=downloads+desc`;
+        // Use the exact URL pattern from the example
+        const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title&rows=10&page=1&output=json&sort[]=downloads+desc`;
         
         this.logNetwork('Trying search query', searchUrl);
 
@@ -359,11 +423,19 @@ class DownloadService {
 
       this.logNetwork('Processing files', metadataUrl, { fileCount: data.files.length });
 
-      // Filter and process video files
-      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
+      // Filter video files using format field (like the example shows)
       const videoFiles = data.files.filter((file: any) => {
         if (!file.name) return false;
+        
+        // Primary filtering by format field (exact approach from example)
+        const format = file.format?.toLowerCase() || '';
+        if (format.includes('mpeg4') || format.includes('matroska') || format.includes('ogg video')) {
+          return true;
+        }
+        
+        // Fallback to filename extension for files without proper format metadata
         const fileName = file.name.toLowerCase();
+        const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
         return videoExtensions.some(ext => fileName.endsWith(ext));
       });
 
@@ -412,8 +484,8 @@ class DownloadService {
         // Extract format from file extension
         const format = fileName.split('.').pop()?.toUpperCase() || 'MP4';
         
-        // Construct proper download URL - handle encoding properly
-        const downloadUrl = `https://archive.org/download/${encodeURIComponent(cleanIdentifier)}/${encodeURIComponent(fileName)}`;
+        // Use exact URL construction pattern from example
+        const downloadUrl = `https://archive.org/download/${cleanIdentifier}/${encodeURIComponent(fileName)}`;
         
         return {
           name: fileName,
