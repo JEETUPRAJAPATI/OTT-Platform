@@ -25,7 +25,16 @@ app.get('/proxy/archive/*', async (req, res) => {
   try {
     // Extract the original URL from the request path
     const originalUrl = req.params[0];
-    const fullUrl = `https://archive.org/${originalUrl}?download=1`;
+    
+    // Ensure the URL has the download parameter
+    let fullUrl;
+    if (originalUrl.includes('?download=1')) {
+      fullUrl = `https://archive.org/${originalUrl}`;
+    } else if (originalUrl.includes('?')) {
+      fullUrl = `https://archive.org/${originalUrl}&download=1`;
+    } else {
+      fullUrl = `https://archive.org/${originalUrl}?download=1`;
+    }
     
     console.log('Proxying request to:', fullUrl);
     
@@ -62,9 +71,10 @@ app.get('/proxy/archive/*', async (req, res) => {
     
     // Set CORS headers
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Range, Accept, Content-Type');
-    res.header('Access-Control-Expose-Headers', 'Content-Length, Accept-Ranges, Content-Range, Content-Type, Content-Disposition');
+    res.header('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Range');
+    res.header('Access-Control-Expose-Headers', 'Content-Length, Accept-Ranges, Content-Range, Content-Type, Content-Disposition, ETag, Last-Modified');
+    res.header('Access-Control-Allow-Credentials', 'false');
     
     // Set content headers
     res.header('Content-Type', contentType);

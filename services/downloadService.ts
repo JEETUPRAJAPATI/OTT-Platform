@@ -75,7 +75,14 @@ class DownloadService {
         throw new Error('Invalid Internet Archive URL');
       }
       
-      const archivePath = match[1];
+      let archivePath = match[1];
+      
+      // Ensure the URL has the download parameter
+      if (!archivePath.includes('?download=1')) {
+        archivePath = archivePath.includes('?') 
+          ? archivePath + '&download=1' 
+          : archivePath + '?download=1';
+      }
       
       // Use current domain for proxy (works in both dev and production)
       const proxyBaseUrl = `https://${window.location.hostname}`;
@@ -505,7 +512,7 @@ class DownloadService {
         const format = fileName.split('.').pop()?.toUpperCase() || 'MP4';
         
         // Use exact URL construction pattern from example with download parameter
-        const downloadUrl = `https://archive.org/download/${cleanIdentifier}/${encodeURIComponent(fileName)}`;
+        const downloadUrl = `https://archive.org/download/${cleanIdentifier}/${encodeURIComponent(fileName)}?download=1`;
         
         return {
           name: fileName,
