@@ -31,11 +31,11 @@ interface MovieDownloaderProps {
   posterPath?: string;
 }
 
-export function MovieDownloader({ 
-  visible, 
-  onClose, 
-  movieTitle = '', 
-  contentId = 0, 
+export function MovieDownloader({
+  visible,
+  onClose,
+  movieTitle = '',
+  contentId = 0,
   contentType = 'movie',
   posterPath = ''
 }: MovieDownloaderProps) {
@@ -60,13 +60,13 @@ export function MovieDownloader({
   const handleDirectDownload = async (downloadUrl: string) => {
     try {
       console.log('Opening download URL in browser:', downloadUrl);
-      
+
       // Simply open the URL in browser
       await downloadService.downloadFile(downloadUrl, 'Movie Download');
-      
+
       // Close the modal after opening URL
       onClose();
-      
+
     } catch (error) {
       console.error('Direct download error:', error);
       showToast('Download Failed', 'Failed to open download URL. Please check the URL and try again.');
@@ -86,7 +86,7 @@ export function MovieDownloader({
 
     try {
       console.log('🔍 Starting search for:', title.trim());
-      
+
       // Search for movie on Internet Archive
       const searchResult = await downloadService.searchInternetArchive(title.trim());
 
@@ -153,7 +153,7 @@ export function MovieDownloader({
       console.log('Setting movie files:', filesResult.files);
       setMovieFiles(filesResult.files);
       setMovieFound(true);
-      
+
       // Show more detailed success message
       const totalSize = filesResult.files.reduce((sum, file) => sum + file.size, 0);
       const sizeText = totalSize > 1024 ? `${(totalSize / 1024).toFixed(1)}GB` : `${totalSize}MB`;
@@ -193,13 +193,30 @@ export function MovieDownloader({
 
       // Simply open the download URL in browser
       await downloadService.downloadFile(file.downloadUrl, file.name);
-      
+
       // Close the modal after opening URL
       onClose();
 
     } catch (error) {
       console.error('Download error:', error);
       showToast('Download Failed', 'Failed to open download URL. Please try again.');
+    }
+  };
+
+  const startPlay = async (file: MovieFile) => {
+    try {
+      setShowQualityModal(false);
+      console.log('Opening file for playback:', file);
+      // Assuming a service or mechanism to play video directly in the app or external player
+      // For now, we'll just log the URL. Replace with actual playback logic.
+      console.log('Playback URL:', file.downloadUrl);
+      // Example: await downloadService.playFile(file.downloadUrl);
+      showToast('Playback Initiated', `Attempting to play: ${file.name}`);
+      // Close the modal after initiating playback
+      onClose();
+    } catch (error) {
+      console.error('Playback error:', error);
+      showToast('Playback Failed', 'Failed to initiate playback. Please try again.');
     }
   };
 
@@ -229,26 +246,26 @@ export function MovieDownloader({
 
   const formatSpeed = (bytesPerSecond: number): string => {
     if (bytesPerSecond === 0) return '0 B/s';
-    
+
     const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
     let size = bytesPerSecond;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
   const formatTime = (seconds: number): string => {
     if (seconds === 0 || !isFinite(seconds)) return 'Calculating...';
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m ${secs}s`;
     } else if (minutes > 0) {
@@ -282,7 +299,21 @@ export function MovieDownloader({
               <TouchableOpacity
                 key={index}
                 style={styles.qualityOption}
-                onPress={() => downloadMovie(file)}
+                onPress={() => {
+                  // Decide whether to download or play based on context or user preference
+                  // For now, let's assume if there's only one option, we can offer both
+                  // Otherwise, the main download button handles selection
+                  if (movieFiles.length === 1) {
+                    // If only one file, offer both play and download directly
+                    // Here, we'll call startPlay or downloadMovie based on a hypothetical choice
+                    // For simplicity, let's prioritize download if not specified otherwise
+                    downloadMovie(file); // Or startPlay(file);
+                  } else {
+                    // For multiple files, the main button handles selection logic
+                    // Here, we are in the quality modal, so we directly select the file
+                    downloadMovie(file); // Or startPlay(file);
+                  }
+                }}
               >
                 <View style={styles.qualityInfo}>
                   <Text style={styles.qualityText}>
@@ -348,7 +379,7 @@ export function MovieDownloader({
                 )}
               </TouchableOpacity>
             </View>
-            
+
             {searchTitle.includes('archive.org/download/') && (
               <Text style={styles.directUrlHint}>
                 💡 Direct download URL detected - Click to download
@@ -359,22 +390,38 @@ export function MovieDownloader({
           {movieFound && movieFiles && movieFiles.length > 0 && (
             <View style={styles.downloadSection}>
               <Text style={styles.sectionTitle}>
-                Found {movieFiles.length} file(s) - Ready to Download
+                Found {movieFiles.length} file(s) - Ready to Play or Download
               </Text>
-              
-              <TouchableOpacity
-                style={styles.downloadButton}
-                onPress={startDownload}
-              >
-                <Ionicons name="download" size={24} color="#fff" />
-                <Text style={styles.downloadButtonText}>Start Download</Text>
-              </TouchableOpacity>
+
+              <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={() => {
+                    if (movieFiles.length === 1) {
+                      startPlay(movieFiles[0]);
+                    } else {
+                      setShowQualityModal(true);
+                    }
+                  }}
+                >
+                  <Ionicons name="play" size={24} color="#fff" />
+                  <Text style={styles.actionButtonText}>Play</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.downloadButton}
+                  onPress={startDownload}
+                >
+                  <Ionicons name="download" size={24} color="#fff" />
+                  <Text style={styles.actionButtonText}>Download</Text>
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.filesPreview}>
                 <Text style={styles.archiveInfoTitle}>Available Files:</Text>
                 {movieFiles.slice(0, 4).map((file, index) => (
-                  <TouchableOpacity 
-                    key={index} 
+                  <TouchableOpacity
+                    key={index}
                     style={styles.fileInfoContainer}
                     onPress={() => downloadMovie(file)}
                   >
@@ -390,7 +437,7 @@ export function MovieDownloader({
                   </TouchableOpacity>
                 ))}
                 {movieFiles.length > 4 && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.showAllButton}
                     onPress={() => setShowQualityModal(true)}
                   >
@@ -417,7 +464,7 @@ export function MovieDownloader({
             </View>
           )}
 
-          
+
 
           <View style={styles.infoSection}>
             <Text style={styles.infoTitle}>How it works:</Text>
@@ -503,6 +550,21 @@ const styles = StyleSheet.create({
   downloadSection: {
     marginBottom: 30,
   },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  playButton: {
+    backgroundColor: '#FF9800',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    flex: 1,
+    marginRight: 10,
+  },
   downloadButton: {
     backgroundColor: '#4CAF50',
     borderRadius: 12,
@@ -510,9 +572,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    marginBottom: 16,
+    flex: 1,
+    marginLeft: 10,
   },
-  downloadButtonText: {
+  actionButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
