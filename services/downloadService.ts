@@ -708,10 +708,15 @@ class DownloadService {
       throw new Error('No download URL provided');
     }
 
+    // Validate Internet Archive URL format
+    if (!item.downloadUrl.includes('archive.org/download/')) {
+      throw new Error('Invalid Internet Archive download URL format');
+    }
+
     // Extract filename from URL or create one
     const urlParts = item.downloadUrl.split('/');
     const originalFilename = urlParts[urlParts.length - 1] || `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
-    const fileName = decodeURIComponent(originalFilename);
+    const fileName = decodeURIComponent(originalFilename.split('?')[0]); // Remove query parameters for filename
 
     let startTime = Date.now();
     let lastUpdateTime = startTime;
@@ -726,14 +731,54 @@ class DownloadService {
         progress: 0,
         speed: 0,
         estimatedTimeRemaining: 0,
-        status: 'Connecting to server...',
+        status: 'Validating download URL...',
         receivedBytes: 0,
         totalBytes: 0
       });
 
       // Always use proxy for Internet Archive downloads to avoid CORS issues
       const proxyUrl = this.getProxyUrl(item.downloadUrl);
+      console.log('Original URL:', item.downloadUrl);
       console.log('Using proxy URL:', proxyUrl);
+
+      // First, do a HEAD request to validate the file exists
+      this.updateDownloadProgress(item.id, {
+        progress: 0,
+        speed: 0,
+        estimatedTimeRemaining: 0,
+        status: 'Checking if file exists...',
+        receivedBytes: 0,
+        totalBytes: 0
+      });
+
+      const headResponse = await fetch(proxyUrl, {
+        method: 'HEAD',
+        headers: {
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9'
+        }
+      });
+
+      if (!headResponse.ok) {
+        if (headResponse.status === 404) {
+          throw new Error('File not found on Internet Archive. The file may have been removed or the URL is incorrect.');
+        } else if (headResponse.status === 403) {
+          throw new Error('Access to file is forbidden. The file may have restricted access.');
+        } else if (headResponse.status === 502) {
+          throw new Error('Proxy server error. Internet Archive may be temporarily unavailable.');
+        } else {
+          throw new Error(`File validation failed: HTTP ${headResponse.status}`);
+        }
+      }
+
+      this.updateDownloadProgress(item.id, {
+        progress: 0,
+        speed: 0,
+        estimatedTimeRemaining: 0,
+        status: 'File validated, starting download...',
+        receivedBytes: 0,
+        totalBytes: 0
+      });
 
       const response = await fetch(proxyUrl, {
         method: 'GET',
@@ -744,17 +789,17 @@ class DownloadService {
       });
 
       if (!response.ok) {
-        // Handle proxy-specific errors
+        // Handle proxy-specific errors with more detailed messages
         if (response.status === 404) {
-          throw new Error('File not found on Internet Archive. The download link may be invalid.');
+          throw new Error('File not found on Internet Archive. Please check:\n• The file URL is correct\n• The file hasn\'t been removed\n• Try searching for the movie again');
         } else if (response.status === 403) {
-          throw new Error('Access forbidden. The file may have restricted access.');
+          throw new Error('Access forbidden. The file may have restricted access or require authentication.');
         } else if (response.status === 502) {
-          throw new Error('Proxy server error. Internet Archive may be temporarily unavailable.');
+          throw new Error('Proxy server error. Internet Archive may be temporarily unavailable. Please try again later.');
         } else if (response.status >= 500) {
-          throw new Error('Server error. Please try again later.');
+          throw new Error(`Server error (${response.status}). Please try again later.`);
         } else {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`Download failed with HTTP ${response.status}: ${response.statusText}`);
         }
       }
 

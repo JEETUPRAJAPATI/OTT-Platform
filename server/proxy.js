@@ -26,6 +26,10 @@ app.get('/proxy/archive/*', async (req, res) => {
     // Extract the original URL from the request path
     const originalUrl = req.params[0];
     
+    console.log('=== PROXY REQUEST ===');
+    console.log('Original request path:', req.path);
+    console.log('Extracted URL path:', originalUrl);
+    
     // Ensure the URL has the download parameter
     let fullUrl;
     if (originalUrl.includes('?download=1')) {
@@ -36,7 +40,9 @@ app.get('/proxy/archive/*', async (req, res) => {
       fullUrl = `https://archive.org/${originalUrl}?download=1`;
     }
     
-    console.log('Proxying request to:', fullUrl);
+    console.log('Final archive.org URL:', fullUrl);
+    console.log('Request method:', req.method);
+    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
     
     // Forward range headers for streaming support
     const headers = {
@@ -57,9 +63,39 @@ app.get('/proxy/archive/*', async (req, res) => {
     });
     
     if (!response.ok) {
-      console.error('Archive.org returned error:', response.status, response.statusText);
+      console.error('=== ARCHIVE.ORG ERROR ===');
+      console.error('Status:', response.status);
+      console.error('Status Text:', response.statusText);
+      console.error('Response Headers:', JSON.stringify([...response.headers.entries()], null, 2));
+      
+      // Try to read the response body for more details
+      let errorBody = '';
+      try {
+        errorBody = await response.text();
+        console.error('Response Body:', errorBody.substring(0, 500));
+      } catch (bodyError) {
+        console.error('Could not read error response body:', bodyError.message);
+      }
+      
+      // Provide specific error messages based on status
+      let errorMessage = '';
+      if (response.status === 404) {
+        errorMessage = 'File not found on Internet Archive. The file may have been removed or the URL is incorrect.';
+      } else if (response.status === 403) {
+        errorMessage = 'Access forbidden. The file may have restricted access.';
+      } else if (response.status === 503) {
+        errorMessage = 'Internet Archive service temporarily unavailable. Please try again later.';
+      } else {
+        errorMessage = `Archive.org returned ${response.status}: ${response.statusText}`;
+      }
+      
       return res.status(response.status).json({
-        error: `Archive.org returned ${response.status}: ${response.statusText}`
+        error: errorMessage,
+        details: {
+          status: response.status,
+          statusText: response.statusText,
+          url: fullUrl
+        }
       });
     }
     
