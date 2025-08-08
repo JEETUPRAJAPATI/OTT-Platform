@@ -19,6 +19,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { SplashScreen } from '@/components/SplashScreen';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
+import { MovieSlider } from '@/components/MovieSlider';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -44,6 +45,15 @@ export default function HomeScreen() {
     router.push(`/tmdb-content/${content.id}?type=${type}`);
   };
 
+  const shuffleArray = (array: any[]) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   const loadContent = async () => {
     try {
       const [
@@ -54,7 +64,10 @@ export default function HomeScreen() {
         hindi,
         south,
         marvel,
-        thriller2025
+        thriller2025,
+        family,
+        romantic,
+        awards
       ] = await Promise.all([
         tmdbService.getTrending(),
         tmdbService.getPopularMovies(),
@@ -63,60 +76,94 @@ export default function HomeScreen() {
         tmdbService.getHindiMovies(),
         tmdbService.getSouthIndianMovies(),
         tmdbService.getMarvelMovies(),
-        tmdbService.getThrillerMovies2025()
+        tmdbService.getThrillerMovies2025(),
+        tmdbService.getFamilyMovies(),
+        tmdbService.getRomanticMovies(),
+        tmdbService.getAwardWinners()
       ]);
 
       setFeaturedContent(trending.slice(0, 5));
+
+      // Create a pool of used content to avoid duplicates
+      const usedIds = new Set();
+      
+      const getUniqueContent = (data: any[], count: number, preserveOrder = false) => {
+        let filtered = data.filter(item => !usedIds.has(item.id));
+        if (!preserveOrder) {
+          filtered = shuffleArray(filtered);
+        }
+        const selected = filtered.slice(0, count);
+        selected.forEach(item => usedIds.add(item.id));
+        return selected;
+      };
 
       setContentSections([
         {
           id: 'trending',
           title: 'Trending Now',
           icon: '🔥',
-          data: trending.slice(0, 15),
+          data: getUniqueContent(trending, 20),
         },
         {
           id: 'hindi-top10',
-          title: 'Top 10 in India Today',
+          title: 'Top 10 in India',
           icon: '🇮🇳',
-          data: hindi.slice(0, 10),
+          data: getUniqueContent(hindi, 10, true), // Preserve order for rankings
           showRanking: true,
         },
         {
           id: 'popular',
-          title: 'Popular on RK SWOT',
+          title: 'Popular on RK Shot',
           icon: '⭐',
-          data: popular.slice(0, 15),
+          data: getUniqueContent(popular, 20),
         },
         {
           id: 'latest',
-          title: 'New Releases',
+          title: 'New Release',
           icon: '🎬',
-          data: upcoming.slice(0, 15),
+          data: getUniqueContent(upcoming, 20),
         },
         {
           id: 'action',
           title: 'Action Movies',
           icon: '💥',
-          data: marvel.slice(0, 15),
+          data: getUniqueContent(marvel, 20),
         },
         {
           id: 'thriller',
           title: 'Thrillers',
           icon: '😱',
-          data: thriller2025.slice(0, 15),
+          data: getUniqueContent(thriller2025, 20),
         },
         {
           id: 'south',
-          title: 'South Indian Cinema',
+          title: 'South Indian Movies',
           icon: '🎭',
-          data: south.slice(0, 15),
+          data: getUniqueContent(south, 20),
         },
         {
           id: 'toprated',
           title: 'Critics Choice',
           icon: '🏆',
-          data: topRated.slice(0, 15),
+          data: getUniqueContent(topRated, 20),
+        },
+        {
+          id: 'family',
+          title: 'Family Picks',
+          icon: '👨‍👩‍👧‍👦',
+          data: getUniqueContent(family, 20),
+        },
+        {
+          id: 'romantic',
+          title: 'Romantic Hits',
+          icon: '💕',
+          data: getUniqueContent(romantic, 20),
+        },
+        {
+          id: 'awards',
+          title: 'Award Winners',
+          icon: '🥇',
+          data: getUniqueContent(awards, 20),
         },
       ]);
     } catch (error) {
@@ -238,79 +285,9 @@ export default function HomeScreen() {
     );
   };
 
-  const ContentRow = ({ section }: { section: ContentSection }) => {
-    const flatListRef = useRef<FlatList>(null);
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-    useEffect(() => {
-      if (section.data.length > 3) {
-        const interval = setInterval(() => {
-          setCurrentIndex(prevIndex => {
-            const nextIndex = (prevIndex + 1) % Math.max(1, section.data.length - 2);
-            flatListRef.current?.scrollToIndex({ 
-              index: nextIndex, 
-              animated: true 
-            });
-            return nextIndex;
-          });
-        }, 4000);
-
-        return () => clearInterval(interval);
-      }
-    }, [section.data.length]);
-
-    if (!section.data || section.data.length === 0) return null;
-
-    return (
-      <View style={styles.contentSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {section.icon} {section.title}
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/discover')}>
-            <Text style={styles.viewAllButton}>View All →</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <FlatList
-          ref={flatListRef}
-          data={section.data}
-          renderItem={({ item, index }) => {
-            const mediaType = (item as any).title ? 'movie' : 'tv';
-            return (
-              <View style={styles.contentItemWrapper}>
-                {section.showRanking && (
-                  <View style={styles.rankingBadge}>
-                    <Text style={styles.rankingNumber}>{index + 1}</Text>
-                  </View>
-                )}
-                <TMDbContentCard
-                  content={item}
-                  type={mediaType}
-                  onPress={() => handleTMDbContentPress(item)}
-                  style={[
-                    styles.contentCard,
-                    section.showRanking && styles.contentCardWithRank
-                  ]}
-                />
-              </View>
-            );
-          }}
-          keyExtractor={(item, index) => `${section.id}-${item.id}-${index}`}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.contentRow}
-          snapToInterval={screenWidth * 0.35}
-          decelerationRate="fast"
-          onScrollToIndexFailed={(info) => {
-            const wait = new Promise(resolve => setTimeout(resolve, 500));
-            wait.then(() => {
-              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
-            });
-          }}
-        />
-      </View>
-    );
+  const handleViewAll = (sectionId: string) => {
+    // Navigate to discover with the specific category
+    router.push(`/discover?category=${sectionId}`);
   };
 
   if (showSplash) {
@@ -327,7 +304,16 @@ export default function HomeScreen() {
           if (item.type === 'hero') {
             return renderHeroSection();
           }
-          return <ContentRow section={item.section} />;
+          return (
+            <MovieSlider
+              title={item.section.title}
+              icon={item.section.icon}
+              data={item.section.data}
+              onContentPress={handleTMDbContentPress}
+              onViewAll={() => handleViewAll(item.section.id)}
+              showRanking={item.section.showRanking}
+            />
+          );
         }}
         keyExtractor={(item, index) => 
           item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`
@@ -514,58 +500,5 @@ const styles = StyleSheet.create({
     width: 20,
   },
   
-  // Content Sections
-  contentSection: {
-    marginBottom: 30,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  viewAllButton: {
-    color: '#E50914',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  contentRow: {
-    paddingLeft: 20,
-  },
-  contentItemWrapper: {
-    marginRight: 12,
-    position: 'relative',
-  },
-  contentCard: {
-    width: screenWidth * 0.32,
-    height: screenWidth * 0.48,
-  },
-  contentCardWithRank: {
-    marginTop: 20,
-  },
-  rankingBadge: {
-    position: 'absolute',
-    top: -15,
-    left: -8,
-    zIndex: 10,
-    width: 28,
-    height: 28,
-    backgroundColor: '#E50914',
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  rankingNumber: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  
 });

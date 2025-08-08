@@ -146,6 +146,43 @@ class TMDbService {
     return response.data.results;
   }
 
+  // Get family movies
+  async getFamilyMovies(page: number = 1) {
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_genres: '10751',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
+  }
+
+  // Get romantic movies
+  async getRomanticMovies(page: number = 1) {
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_genres: '10749',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
+  }
+
+  // Get award winners (high rated movies)
+  async getAwardWinners(page: number = 1) {
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        'vote_average.gte': 8.0,
+        'vote_count.gte': 1000,
+        sort_by: 'vote_average.desc',
+        page 
+      }
+    });
+    return response.data.results;
+  }
+
   // Search movies and TV shows
   async searchMulti(query: string, page: number = 1) {
     const response = await tmdbApi.get('/search/multi', {

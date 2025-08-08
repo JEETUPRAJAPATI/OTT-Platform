@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, FlatList, TouchableOpacity, View, Dimensions, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -56,12 +55,12 @@ export default function DiscoverScreen() {
         setCarouselIndex(prevIndex => {
           const maxItems = Math.max(1, content.slice(0, 10).length - 2);
           const nextIndex = (prevIndex + 1) % maxItems;
-          
-          carouselRef.current?.scrollToIndex({ 
-            index: nextIndex, 
-            animated: true 
+
+          carouselRef.current?.scrollToIndex({
+            index: nextIndex,
+            animated: true
           });
-          
+
           return nextIndex;
         });
       }, 3000);
@@ -113,6 +112,23 @@ export default function DiscoverScreen() {
     }
   };
 
+  const getCategoryTitle = (categoryId: string): string => {
+    const titles: { [key: string]: string } = {
+      'trending': 'Trending Now',
+      'hindi-top10': 'Top 10 in India',
+      'popular': 'Popular on RK Shot',
+      'latest': 'New Release',
+      'action': 'Action Movies',
+      'thriller': 'Thrillers',
+      'south': 'South Indian Movies',
+      'toprated': 'Critics Choice',
+      'family': 'Family Picks',
+      'romantic': 'Romantic Hits',
+      'awards': 'Award Winners',
+    };
+    return titles[categoryId] || 'Discover';
+  };
+
   const handleContentPress = (contentItem: TMDbMovie | TMDbTVShow) => {
     const type = (contentItem as any).title ? 'movie' : 'tv';
     router.push(`/tmdb-content/${contentItem.id}?type=${type}`);
@@ -161,7 +177,7 @@ export default function DiscoverScreen() {
               placeholderTextColor="#8E8E93"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   setSearchQuery('');
                   setSelectedGenre(null);
@@ -230,7 +246,7 @@ export default function DiscoverScreen() {
                 const mediaType = determineMediaType(item);
                 const nextItem = content.slice(0, 10)[index + 1];
                 const nextMediaType = nextItem ? determineMediaType(nextItem) : null;
-                
+
                 return (
                   <View style={styles.carouselItem}>
                     <TMDbContentCard
