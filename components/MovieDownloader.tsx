@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadService } from '@/services/downloadService';
+import { VideoPlayerModal } from './VideoPlayerModal';
 
 interface MovieFile {
   name: string;
@@ -52,6 +53,7 @@ export function MovieDownloader({
   const [statusMessage, setStatusMessage] = useState('');
   const [movieFound, setMovieFound] = useState(false);
   const [archiveIdentifier, setArchiveIdentifier] = useState<string>('');
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
 
   const showToast = (title: string, message: string) => {
     Alert.alert(title, message);
@@ -203,21 +205,13 @@ export function MovieDownloader({
     }
   };
 
-  const startPlay = async (file: MovieFile) => {
-    try {
-      setShowQualityModal(false);
-      console.log('Opening file for playback:', file);
-      // Assuming a service or mechanism to play video directly in the app or external player
-      // For now, we'll just log the URL. Replace with actual playback logic.
-      console.log('Playback URL:', file.downloadUrl);
-      // Example: await downloadService.playFile(file.downloadUrl);
-      showToast('Playback Initiated', `Attempting to play: ${file.name}`);
-      // Close the modal after initiating playback
-      onClose();
-    } catch (error) {
-      console.error('Playback error:', error);
-      showToast('Playback Failed', 'Failed to initiate playback. Please try again.');
+  const startPlay = () => {
+    if (movieFiles.length === 0) {
+      showToast('Error', 'No video files available for playback');
+      return;
     }
+    
+    setShowVideoPlayer(true);
   };
 
   const cancelDownload = () => {
@@ -299,21 +293,7 @@ export function MovieDownloader({
               <TouchableOpacity
                 key={index}
                 style={styles.qualityOption}
-                onPress={() => {
-                  // Decide whether to download or play based on context or user preference
-                  // For now, let's assume if there's only one option, we can offer both
-                  // Otherwise, the main download button handles selection
-                  if (movieFiles.length === 1) {
-                    // If only one file, offer both play and download directly
-                    // Here, we'll call startPlay or downloadMovie based on a hypothetical choice
-                    // For simplicity, let's prioritize download if not specified otherwise
-                    downloadMovie(file); // Or startPlay(file);
-                  } else {
-                    // For multiple files, the main button handles selection logic
-                    // Here, we are in the quality modal, so we directly select the file
-                    downloadMovie(file); // Or startPlay(file);
-                  }
-                }}
+                onPress={() => downloadMovie(file)}
               >
                 <View style={styles.qualityInfo}>
                   <Text style={styles.qualityText}>
@@ -396,13 +376,7 @@ export function MovieDownloader({
               <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
                   style={styles.playButton}
-                  onPress={() => {
-                    if (movieFiles.length === 1) {
-                      startPlay(movieFiles[0]);
-                    } else {
-                      setShowQualityModal(true);
-                    }
-                  }}
+                  onPress={startPlay}
                 >
                   <Ionicons name="play" size={24} color="#fff" />
                   <Text style={styles.actionButtonText}>Play</Text>
@@ -484,6 +458,13 @@ export function MovieDownloader({
         </View>
 
         {renderQualityModal()}
+
+        <VideoPlayerModal
+          visible={showVideoPlayer}
+          onClose={() => setShowVideoPlayer(false)}
+          videoFiles={movieFiles}
+          movieTitle={searchTitle || movieTitle}
+        />
       </SafeAreaView>
     </Modal>
   );
