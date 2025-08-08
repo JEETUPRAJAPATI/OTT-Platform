@@ -387,6 +387,10 @@ export default function HomeScreen() {
     router.push(`/discover?category=${sectionId}`);
   }, [router]);
 
+  const keyExtractor = useCallback((item: any, index: number) => 
+    item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`, []
+  );
+
   if (showSplash) {
     return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;
   }
@@ -413,9 +417,7 @@ export default function HomeScreen() {
             />
           );
         }}
-        keyExtractor={useCallback((item: any, index: number) => 
-          item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`, []
-        )}
+        keyExtractor={keyExtractor}
         removeClippedSubviews={true}
         maxToRenderPerBatch={5}
         windowSize={10}
