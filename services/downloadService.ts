@@ -63,6 +63,26 @@ class DownloadService {
     this.loadFromStorage();
   }
 
+  // Convert Internet Archive URL to proxy URL
+  private getProxyUrl(archiveUrl: string): string {
+    // Extract the path after archive.org
+    const archivePattern = /https?:\/\/[^\/]*archive\.org\/(.+)/;
+    const match = archiveUrl.match(archivePattern);
+    
+    if (!match) {
+      throw new Error('Invalid Internet Archive URL');
+    }
+    
+    const archivePath = match[1];
+    
+    // Get the proxy server URL - in development, use localhost:5000
+    const proxyBaseUrl = process.env.NODE_ENV === 'production' 
+      ? `https://${window.location.hostname}` 
+      : 'http://localhost:5000';
+    
+    return `${proxyBaseUrl}/proxy/archive/${archivePath}`;
+  }
+
   // Helper function that follows the exact 3-step pattern from the example
   async searchAndGetDownloadLinks(movieTitle: string): Promise<{
     success: boolean;
@@ -700,24 +720,28 @@ class DownloadService {
         totalBytes: 0
       });
 
-      // Create a more robust fetch request with proper headers
-      const response = await fetch(item.downloadUrl, {
+      // Convert Internet Archive URL to use our proxy
+      const proxyUrl = this.getProxyUrl(item.downloadUrl);
+      console.log('Using proxy URL:', proxyUrl);
+
+      // Create a fetch request through our proxy server
+      const response = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
           'Accept': '*/*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Cache-Control': 'no-cache',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://archive.org/'
+          'Accept-Language': 'en-US,en;q=0.9'
         },
         mode: 'cors'
       });
 
       if (!response.ok) {
+        // Handle proxy-specific errors
         if (response.status === 404) {
-          throw new Error('File not found on server. The download link may be invalid.');
+          throw new Error('File not found on Internet Archive. The download link may be invalid.');
         } else if (response.status === 403) {
           throw new Error('Access forbidden. The file may have restricted access.');
+        } else if (response.status === 502) {
+          throw new Error('Proxy server error. Internet Archive may be temporarily unavailable.');
         } else if (response.status >= 500) {
           throw new Error('Server error. Please try again later.');
         } else {
