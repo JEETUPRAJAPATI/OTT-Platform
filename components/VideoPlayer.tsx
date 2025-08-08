@@ -8,10 +8,7 @@ import {
   Dimensions,
   StatusBar,
   Modal,
-  FlatList,
   Alert,
-  PanGestureHandler,
-  State
 } from 'react-native';
 import { Video, ResizeMode, VideoFullscreenUpdate } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
