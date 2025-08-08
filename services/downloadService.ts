@@ -75,19 +75,43 @@ class DownloadService {
   // Search Internet Archive for movie content
   async searchInternetArchive(movieTitle: string, year?: number): Promise<ArchiveSearchResult[]> {
     try {
-      const searchQuery = year ? `${movieTitle} ${year}` : movieTitle;
+      // Clean and normalize the movie title for better search results
+      const cleanTitle = movieTitle.replace(/[^\w\s]/g, '').trim();
+      const searchQuery = year ? `${cleanTitle} ${year}` : cleanTitle;
       const encodedQuery = encodeURIComponent(searchQuery);
       
-      // Search for movies/videos in Internet Archive
-      const searchUrl = `https://archive.org/advancedsearch.php?q=title:(${encodedQuery}) AND collection:(movies OR etree OR opensource_movies)&fl=identifier,title,description,downloads&rows=20&page=1&output=json`;
+      // Search for movies/videos in Internet Archive with broader collections
+      const searchUrl = `https://archive.org/advancedsearch.php?q=title:(${encodedQuery}) AND mediatype:movies&fl=identifier,title,description,downloads&rows=50&page=1&output=json&sort[]=downloads+desc`;
       
-      const response = await fetch(searchUrl);
+      console.log('Searching Internet Archive with URL:', searchUrl);
+      
+      const response = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:40.0) Gecko/40.0 Firefox/40.0'
+        }
+      });
+      
       if (!response.ok) {
         throw new Error(`Search failed: ${response.status}`);
       }
       
       const data = await response.json();
-      return data.response?.docs || [];
+      const results = data.response?.docs || [];
+      
+      console.log(`Found ${results.length} potential matches for "${movieTitle}"`);
+      
+      // Filter results to find the best matches
+      return results.filter(result => {
+        const resultTitle = result.title?.toLowerCase() || '';
+        const searchTitle = cleanTitle.toLowerCase();
+        
+        // Check if the title contains key words from the search
+        const searchWords = searchTitle.split(' ').filter(word => word.length > 2);
+        const matchingWords = searchWords.filter(word => resultTitle.includes(word));
+        
+        // Consider it a match if at least 60% of significant words match
+        return matchingWords.length >= Math.max(1, Math.floor(searchWords.length * 0.6));
+      });
     } catch (error) {
       console.error('Archive.org search error:', error);
       throw new Error('Failed to search Internet Archive. Please check your connection.');
@@ -126,45 +150,101 @@ class DownloadService {
   findBestVideoFile(files: ArchiveFile[]): ArchiveFile | null {
     if (!files || files.length === 0) return null;
     
-    // Prefer MP4 format and larger files
-    const mp4Files = files.filter(f => f.format?.toLowerCase() === 'mp4');
-    const targetFiles = mp4Files.length > 0 ? mp4Files : files;
+    console.log('Available files:', files.map(f => `${f.name} (${f.format}) - ${f.size || 'unknown size'}`));
     
-    // Sort by size (if available) or name
-    return targetFiles.sort((a, b) => {
-      // Try to sort by file size
+    // Filter for video files with common video formats
+    const videoFiles = files.filter(f => {
+      const format = f.format?.toLowerCase();
+      const name = f.name?.toLowerCase();
+      return (
+        format && 
+        ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v'].includes(format)
+      ) || (
+        name && 
+        /\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i.test(name)
+      );
+    });
+    
+    if (videoFiles.length === 0) {
+      console.log('No video files found');
+      return null;
+    }
+    
+    console.log(`Found ${videoFiles.length} video files`);
+    
+    // Prefer MP4 format for better compatibility
+    const mp4Files = videoFiles.filter(f => 
+      f.format?.toLowerCase() === 'mp4' || 
+      f.name?.toLowerCase().endsWith('.mp4')
+    );
+    
+    const targetFiles = mp4Files.length > 0 ? mp4Files : videoFiles;
+    
+    // Sort by quality indicators and size
+    const sortedFiles = targetFiles.sort((a, b) => {
+      // First, prioritize files with quality indicators in filename
+      const aHasQuality = /\b(1080p|720p|hd|high|quality)\b/i.test(a.name || '');
+      const bHasQuality = /\b(1080p|720p|hd|high|quality)\b/i.test(b.name || '');
+      
+      if (aHasQuality && !bHasQuality) return -1;
+      if (!aHasQuality && bHasQuality) return 1;
+      
+      // Then sort by file size if available
       if (a.size && b.size) {
         const sizeA = parseInt(a.size) || 0;
         const sizeB = parseInt(b.size) || 0;
         return sizeB - sizeA; // Larger files first
       }
       
-      // Fallback to name comparison (longer names often indicate higher quality)
+      // Fallback to name length (longer names often indicate higher quality)
       return b.name.length - a.name.length;
-    })[0];
+    });
+    
+    const selectedFile = sortedFiles[0];
+    console.log(`Selected file: ${selectedFile.name} (${selectedFile.format}) - ${selectedFile.size || 'unknown size'}`);
+    
+    return selectedFile;
   }
 
   // Search for movie and return download URL if found
   async findMovieDownloadUrl(movieTitle: string, year?: number): Promise<string | null> {
     try {
+      console.log(`Starting search for: "${movieTitle}" (${year || 'unknown year'})`);
+      
       // Search for the movie
       const searchResults = await this.searchInternetArchive(movieTitle, year);
       
       if (!searchResults || searchResults.length === 0) {
+        console.log('No search results found');
         return null;
       }
       
+      console.log(`Found ${searchResults.length} search results, checking for video files...`);
+      
       // Try each search result until we find a downloadable video
-      for (const result of searchResults) {
-        const metadata = await this.getArchiveMetadata(result.identifier);
-        if (metadata && metadata.files.length > 0) {
-          const bestFile = this.findBestVideoFile(metadata.files);
-          if (bestFile) {
-            return `https://archive.org/download/${metadata.identifier}/${bestFile.name}`;
+      for (let i = 0; i < Math.min(searchResults.length, 10); i++) { // Limit to top 10 results
+        const result = searchResults[i];
+        console.log(`Checking result ${i + 1}: ${result.title} (${result.identifier})`);
+        
+        try {
+          const metadata = await this.getArchiveMetadata(result.identifier);
+          if (metadata && metadata.files.length > 0) {
+            console.log(`Found ${metadata.files.length} files in ${result.identifier}`);
+            const bestFile = this.findBestVideoFile(metadata.files);
+            if (bestFile) {
+              const downloadUrl = `https://archive.org/download/${metadata.identifier}/${encodeURIComponent(bestFile.name)}`;
+              console.log(`Found video file: ${bestFile.name}`);
+              console.log(`Download URL: ${downloadUrl}`);
+              return downloadUrl;
+            }
           }
+        } catch (metadataError) {
+          console.error(`Error fetching metadata for ${result.identifier}:`, metadataError);
+          // Continue to next result
         }
       }
       
+      console.log('No video files found in any search results');
       return null;
     } catch (error) {
       console.error('Error finding movie download URL:', error);

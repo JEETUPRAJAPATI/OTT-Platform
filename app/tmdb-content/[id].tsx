@@ -153,10 +153,13 @@ export default function TMDbContentDetails() {
       } else {
         console.log('Movie not found on Internet Archive');
         setInternetArchiveUrl(null);
+        // Show toast notification for not available
+        Alert.alert('Not Available', 'This movie is not available on Internet Archive for download.');
       }
     } catch (error) {
       console.error('Error checking Internet Archive:', error);
       setInternetArchiveUrl(null);
+      Alert.alert('Search Error', 'Unable to search Internet Archive. Please check your connection and try again.');
     } finally {
       setIsCheckingArchive(false);
     }
@@ -189,10 +192,35 @@ export default function TMDbContentDetails() {
       return;
     }
 
+    if (isCheckingArchive) {
+      Alert.alert('Please Wait', 'Still checking Internet Archive availability. Please try again in a moment.');
+      return;
+    }
+
     // Check if Internet Archive URL is available
     if (!internetArchiveUrl) {
-      Alert.alert('Not Available', 'Movie not found on Internet Archive. Please try another movie.');
-      return;
+      // Try to search again if not found
+      setIsCheckingArchive(true);
+      try {
+        const title = (content as any).title || (content as any).name;
+        const year = content.release_date ? new Date(content.release_date).getFullYear() : 
+                    (content as any).first_air_date ? new Date((content as any).first_air_date).getFullYear() : '';
+        
+        const downloadUrl = await downloadService.findMovieDownloadUrl(title, year);
+        
+        if (downloadUrl) {
+          setInternetArchiveUrl(downloadUrl);
+        } else {
+          Alert.alert('Not Available', 'This movie is not available on Internet Archive for download. Please try another movie.');
+          setIsCheckingArchive(false);
+          return;
+        }
+      } catch (error) {
+        Alert.alert('Search Error', 'Unable to search Internet Archive. Please check your connection and try again.');
+        setIsCheckingArchive(false);
+        return;
+      }
+      setIsCheckingArchive(false);
     }
 
     const title = (content as any).title || (content as any).name;
@@ -475,12 +503,17 @@ export default function TMDbContentDetails() {
               styles.secondaryButton, 
               isDownloaded && styles.downloadedButton,
               activeDownloadId && styles.downloadingButton,
-              !internetArchiveUrl && !isDownloaded && !activeDownloadId && styles.disabledButton
+              (!internetArchiveUrl && !isDownloaded && !activeDownloadId && !isCheckingArchive) && styles.disabledButton
             ]}
             onPress={handleDownload}
-            disabled={!internetArchiveUrl && !isDownloaded && !activeDownloadId}
+            disabled={!internetArchiveUrl && !isDownloaded && !activeDownloadId && !isCheckingArchive}
           >
-            {activeDownloadId ? (
+            {isCheckingArchive ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.secondaryButtonText}>Checking...</Text>
+              </>
+            ) : activeDownloadId ? (
               <>
                 <View style={styles.progressContainer}>
                   <View style={[styles.progressBar, { width: `${downloadProgress}%` }]} />
@@ -499,7 +532,7 @@ export default function TMDbContentDetails() {
                 <Text style={[
                   styles.secondaryButtonText,
                   isDownloaded && styles.downloadedButtonText,
-                  !internetArchiveUrl && !isDownloaded && styles.disabledButtonText
+                  (!internetArchiveUrl && !isDownloaded && !isCheckingArchive) && styles.disabledButtonText
                 ]}>
                   {isDownloaded ? 'Downloaded' : internetArchiveUrl ? 'Download HD' : 'Not Available'}
                 </Text>
