@@ -24,6 +24,7 @@ import { userService } from '@/services/userService';
 import { apiService } from '@/services/apiService';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { MovieDownloader } from '@/components/MovieDownloader';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -63,6 +64,7 @@ export default function TMDbContentDetails() {
   const [activeDownloadId, setActiveDownloadId] = useState<string | null>(null);
   const [downloadSpeed, setDownloadSpeed] = useState<string>('');
   const [downloadError, setDownloadError] = useState<string>('');
+  const [showMovieDownloader, setShowMovieDownloader] = useState(false);
 
   useEffect(() => {
     if (id && type) {
@@ -231,46 +233,8 @@ export default function TMDbContentDetails() {
           );
         }
       } else {
-        // Start new download
-        if (internetArchiveUrl) {
-          // Download from Internet Archive
-          const downloadId = downloadService.addToDownloadQueue(
-            Number(id),
-            type as 'movie' | 'tv',
-            (content as any).title || (content as any).name,
-            content.poster_path || '',
-            'high', // Default to high quality for Internet Archive
-            internetArchiveUrl
-          );
-          
-          setActiveDownloadId(downloadId);
-          setDownloadProgress(0);
-          
-          // Set up progress callback
-          downloadService.setProgressCallback(downloadId, (progress) => {
-            setDownloadProgress(progress);
-            setDownloadError('');
-            if (progress >= 100) {
-              setIsDownloaded(true);
-              setActiveDownloadId(null);
-              Alert.alert('Download Complete', `${(content as any).title || (content as any).name} has been downloaded successfully!`);
-            }
-          });
-          
-          Alert.alert('Download Started', 'Your movie is being downloaded from Internet Archive in high quality.');
-        } else {
-          // Fallback to regular download (simulated)
-          const downloadId = downloadService.addToDownloadQueue(
-            Number(id),
-            type as 'movie' | 'tv',
-            (content as any).title || (content as any).name,
-            content.poster_path || '',
-            'high'
-          );
-          
-          setActiveDownloadId(downloadId);
-          Alert.alert('Download Started', 'Download added to queue');
-        }
+        // Open MovieDownloader component for Internet Archive search and download
+        setShowMovieDownloader(true);
       }
     } catch (error) {
       console.error('Download error:', error);
@@ -706,6 +670,19 @@ export default function TMDbContentDetails() {
             </View>
           </SafeAreaView>
         </Modal>
+
+        <MovieDownloader
+          visible={showMovieDownloader}
+          onClose={() => {
+            setShowMovieDownloader(false);
+            // Refresh download status after closing
+            checkDownloadStatus();
+          }}
+          movieTitle={(content as any).title || (content as any).name}
+          contentId={Number(id)}
+          contentType={type as 'movie' | 'tv'}
+          posterPath={content.poster_path || ''}
+        />
 
         {/* Download Error and Retry */}
         {activeDownloadId && downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv')?.status === 'failed' && (

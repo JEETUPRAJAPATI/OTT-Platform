@@ -46,6 +46,105 @@ class DownloadService {
     Alert.alert(title, message);
   }
 
+  // Search Internet Archive for movies
+  async searchInternetArchive(movieTitle: string): Promise<{
+    identifier?: string;
+    title?: string;
+    found: boolean;
+  }> {
+    try {
+      const searchQuery = encodeURIComponent(`title:(${movieTitle}) AND mediatype:(movies)`);
+      const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title&rows=1&page=1&output=json`;
+      
+      const response = await fetch(searchUrl);
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.response && data.response.docs && data.response.docs.length > 0) {
+        const result = data.response.docs[0];
+        return {
+          identifier: result.identifier,
+          title: result.title,
+          found: true
+        };
+      } else {
+        return { found: false };
+      }
+    } catch (error) {
+      console.error('Internet Archive search error:', error);
+      return { found: false };
+    }
+  }
+
+  // Get movie files and metadata from Internet Archive
+  async getInternetArchiveFiles(identifier: string): Promise<{
+    files: Array<{
+      name: string;
+      size: number;
+      format: string;
+      quality: string;
+      downloadUrl: string;
+    }>;
+    success: boolean;
+  }> {
+    try {
+      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      const response = await fetch(metadataUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Metadata fetch failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.files) {
+        return { files: [], success: false };
+      }
+      
+      // Filter video files and extract quality information
+      const videoFiles = data.files.filter((file: any) => {
+        const name = file.name?.toLowerCase() || '';
+        return name.endsWith('.mp4') || name.endsWith('.mkv') || name.endsWith('.webm') || name.endsWith('.avi');
+      });
+      
+      const processedFiles = videoFiles.map((file: any) => {
+        const fileName = file.name || '';
+        const fileSize = parseInt(file.size || '0');
+        const fileSizeMB = Math.round(fileSize / (1024 * 1024));
+        
+        // Extract quality from filename
+        let quality = 'Unknown';
+        if (fileName.includes('1080p') || fileName.includes('1080')) quality = '1080p';
+        else if (fileName.includes('720p') || fileName.includes('720')) quality = '720p';
+        else if (fileName.includes('480p') || fileName.includes('480')) quality = '480p';
+        else if (fileName.includes('360p') || fileName.includes('360')) quality = '360p';
+        else if (fileName.includes('HD') || fileName.includes('hd')) quality = 'HD';
+        
+        // Extract format
+        const format = fileName.split('.').pop()?.toUpperCase() || 'MP4';
+        
+        return {
+          name: fileName,
+          size: fileSizeMB,
+          format,
+          quality,
+          downloadUrl: `https://archive.org/download/${identifier}/${fileName}`
+        };
+      }).filter(file => file.size > 0); // Filter out files with no size
+      
+      return {
+        files: processedFiles,
+        success: true
+      };
+    } catch (error) {
+      console.error('Internet Archive metadata error:', error);
+      return { files: [], success: false };
+    }
+  }
+
   // Get available quality options
   getQualityOptions(): DownloadQuality[] {
     return [
