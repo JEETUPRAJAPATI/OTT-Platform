@@ -59,12 +59,9 @@ export function MovieDownloader({
 
   const handleDirectDownload = async (downloadUrl: string) => {
     try {
-      setIsDownloading(true);
-      setDownloadProgress(0);
-
       // Extract filename from URL
       const urlParts = downloadUrl.split('/');
-      const fileName = decodeURIComponent(urlParts[urlParts.length - 1]) || 'movie.mp4';
+      const fileName = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]) || 'movie.mp4';
       
       // Determine quality from filename
       let quality: 'low' | 'medium' | 'high' = 'medium';
@@ -73,6 +70,9 @@ export function MovieDownloader({
       else if (lowerFileName.includes('720p') || lowerFileName.includes('720')) quality = 'medium';
       else quality = 'low';
 
+      console.log('Opening direct download URL:', downloadUrl);
+
+      // Simply open the download URL in browser
       const id = downloadService.addToDownloadQueue(
         contentId || Date.now(),
         contentType,
@@ -82,36 +82,14 @@ export function MovieDownloader({
         downloadUrl
       );
 
-      setDownloadId(id);
+      // Close the modal after initiating download
+      setTimeout(() => {
+        onClose();
+      }, 1000);
 
-      // Set up progress callback
-      downloadService.setProgressCallback(id, (progress, progressDetails) => {
-        setDownloadProgress(Math.max(0, Math.min(100, progress)));
-        
-        if (progressDetails) {
-          setProgressInfo(progressDetails);
-          setDownloadSpeed(progressDetails.speed || 0);
-          setEstimatedTime(progressDetails.estimatedTimeRemaining || 0);
-          setStatusMessage(progressDetails.status || 'Downloading...');
-        }
-        
-        if (progress >= 100) {
-          setIsDownloading(false);
-          setDownloadProgress(100);
-          setStatusMessage('Download completed!');
-          showToast('Download Complete', `${fileName} has been downloaded successfully!`);
-          
-          setTimeout(() => {
-            onClose();
-          }, 3000);
-        }
-      });
-
-      showToast('Download Started', `Starting download: ${fileName}`);
     } catch (error) {
       console.error('Direct download error:', error);
-      setIsDownloading(false);
-      showToast('Download Failed', 'Failed to start download. Please check the URL and try again.');
+      showToast('Download Failed', 'Failed to open download URL. Please check the URL and try again.');
     }
   };
 
@@ -228,8 +206,6 @@ export function MovieDownloader({
 
   const downloadMovie = async (file: MovieFile) => {
     try {
-      setIsDownloading(true);
-      setDownloadProgress(0);
       setShowQualityModal(false);
 
       // Determine quality for download service
@@ -238,11 +214,12 @@ export function MovieDownloader({
       else if (file.quality.includes('720')) quality = 'medium';
       else quality = 'low';
 
-      console.log('Starting download for file:', file);
+      console.log('Opening download for file:', file);
       console.log('Download URL:', file.downloadUrl);
 
+      // Simply open the download URL in browser
       const id = downloadService.addToDownloadQueue(
-        contentId || Date.now(), // Use contentId or timestamp as fallback
+        contentId || Date.now(),
         contentType,
         searchTitle || file.name,
         posterPath,
@@ -250,45 +227,14 @@ export function MovieDownloader({
         file.downloadUrl
       );
 
-      setDownloadId(id);
+      // Close the modal after initiating download
+      setTimeout(() => {
+        onClose();
+      }, 1000);
 
-      // Set up real-time progress callback
-      downloadService.setProgressCallback(id, (progress, progressDetails) => {
-        console.log('Progress update:', { progress, progressDetails });
-        
-        setDownloadProgress(Math.max(0, Math.min(100, progress)));
-        
-        if (progressDetails) {
-          setProgressInfo(progressDetails);
-          setDownloadSpeed(progressDetails.speed || 0);
-          setEstimatedTime(progressDetails.estimatedTimeRemaining || 0);
-          setStatusMessage(progressDetails.status || 'Downloading...');
-          
-          // Force re-render for smooth progress updates
-          if (progressDetails.receivedBytes && progressDetails.totalBytes) {
-            const actualProgress = (progressDetails.receivedBytes / progressDetails.totalBytes) * 100;
-            setDownloadProgress(Math.max(0, Math.min(100, Math.round(actualProgress))));
-          }
-        }
-        
-        if (progress >= 100) {
-          setIsDownloading(false);
-          setDownloadProgress(100);
-          setStatusMessage('Download completed!');
-          showToast('Download Complete', `${searchTitle} has been downloaded successfully!`);
-          
-          // Auto-close after showing success message
-          setTimeout(() => {
-            onClose();
-          }, 3000);
-        }
-      });
-
-      showToast('Download Started', `Downloading ${file.quality} ${file.format} version (${file.size}MB)`);
     } catch (error) {
       console.error('Download error:', error);
-      setIsDownloading(false);
-      showToast('Download Failed', 'Failed to start download. Please try again.');
+      showToast('Download Failed', 'Failed to open download URL. Please try again.');
     }
   };
 
@@ -415,10 +361,10 @@ export function MovieDownloader({
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 value={searchTitle}
                 onChangeText={setSearchTitle}
-                editable={!isSearching && !isDownloading}
+                editable={!isSearching}
               />
               <TouchableOpacity
-                style={[styles.searchButton, (isSearching || isDownloading) && styles.disabledButton]}
+                style={[styles.searchButton, isSearching && styles.disabledButton]}
                 onPress={() => {
                   if (searchTitle.includes('archive.org/download/')) {
                     // Direct download URL
@@ -428,7 +374,7 @@ export function MovieDownloader({
                     searchMovie(searchTitle);
                   }
                 }}
-                disabled={isSearching || isDownloading}
+                disabled={isSearching}
               >
                 {isSearching ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -445,7 +391,7 @@ export function MovieDownloader({
             )}
           </View>
 
-          {movieFound && movieFiles && movieFiles.length > 0 && !isDownloading && (
+          {movieFound && movieFiles && movieFiles.length > 0 && (
             <View style={styles.downloadSection}>
               <Text style={styles.sectionTitle}>
                 Found {movieFiles.length} file(s) - Ready to Download
@@ -506,82 +452,7 @@ export function MovieDownloader({
             </View>
           )}
 
-          {isDownloading && (
-            <View style={styles.progressSection}>
-              <Text style={styles.sectionTitle}>
-                {statusMessage || 'Downloading...'}
-              </Text>
-              
-              {statusMessage && statusMessage.includes('File not found') && (
-                <View style={styles.errorHelpSection}>
-                  <Text style={styles.errorHelpTitle}>Troubleshooting Tips:</Text>
-                  <Text style={styles.errorHelpText}>
-                    • Try searching for the movie again
-                  </Text>
-                  <Text style={styles.errorHelpText}>
-                    • Check if the movie title is spelled correctly
-                  </Text>
-                  <Text style={styles.errorHelpText}>
-                    • Some files may have been removed from Internet Archive
-                  </Text>
-                  <Text style={styles.errorHelpText}>
-                    • Try a different quality/version if available
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${downloadProgress}%` }]} />
-                </View>
-                <Text style={styles.progressText}>{downloadProgress}%</Text>
-              </View>
-
-              {/* Detailed Progress Info */}
-              <View style={styles.progressDetails}>
-                <View style={styles.progressDetailRow}>
-                  <Text style={styles.progressDetailLabel}>Speed:</Text>
-                  <Text style={styles.progressDetailValue}>
-                    {formatSpeed(downloadSpeed)}
-                  </Text>
-                </View>
-                
-                <View style={styles.progressDetailRow}>
-                  <Text style={styles.progressDetailLabel}>ETA:</Text>
-                  <Text style={styles.progressDetailValue}>
-                    {formatTime(estimatedTime)}
-                  </Text>
-                </View>
-                
-                {progressInfo && progressInfo.receivedBytes && progressInfo.totalBytes && (
-                  <View style={styles.progressDetailRow}>
-                    <Text style={styles.progressDetailLabel}>Size:</Text>
-                    <Text style={styles.progressDetailValue}>
-                      {formatFileSize(progressInfo.receivedBytes / (1024 * 1024))} / {formatFileSize(progressInfo.totalBytes / (1024 * 1024))}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.downloadActions}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={cancelDownload}
-                >
-                  <Ionicons name="close-circle" size={20} color="#fff" />
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={retryDownload}
-                >
-                  <Ionicons name="refresh" size={20} color="#fff" />
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          
 
           <View style={styles.infoSection}>
             <Text style={styles.infoTitle}>How it works:</Text>
