@@ -143,9 +143,11 @@ export default function TMDbContentDetails() {
       const title = (content as any).title || (content as any).name;
       
       // Use downloadService to search for the content on Internet Archive
-      const archiveItem = await downloadService.searchInternetArchive(title);
-      if (archiveItem && archiveItem.url) {
-        setInternetArchiveUrl(archiveItem.url);
+      const searchResult = await downloadService.searchInternetArchive(title);
+      if (searchResult && searchResult.found && searchResult.identifier) {
+        // If found, construct the archive URL
+        const archiveUrl = `https://archive.org/details/${searchResult.identifier}`;
+        setInternetArchiveUrl(archiveUrl);
       } else {
         setInternetArchiveUrl(null); // Explicitly set to null if no item found
       }
