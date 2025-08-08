@@ -383,19 +383,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 });
-import React, { useState, useEffect } from 'react';
-import { 
-  ScrollView, 
-  StyleSheet, 
-  Text, 
-  View, 
-  Image, 
-  TouchableOpacity, 
-  Dimensions, 
-  Alert,
-  Modal,
-  FlatList
-} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -404,6 +391,7 @@ import { userService } from '@/services/userService';
 import { downloadService, DownloadQuality } from '@/services/downloadService';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
+import { Footer } from '@/components/Footer';
 
 const { width, height } = Dimensions.get('window');
 
@@ -789,6 +777,39 @@ export default function ContentDetailScreen() {
       )}
 
       {renderDownloadModal()}
+
+      <Footer
+        onFavoritePress={() => {
+          const favorites = userService.getFavorites();
+          if (favorites.length > 0) {
+            Alert.alert(
+              `My Favorites (${favorites.length})`,
+              'Your favorite movies and shows are saved in your profile.',
+              [
+                { text: 'View Profile', onPress: () => router.push('/(tabs)/profile') },
+                { text: 'OK' }
+              ]
+            );
+          } else {
+            Alert.alert('No Favorites', 'You haven\'t added any favorites yet. Tap the heart icon on any content to add it to your favorites!');
+          }
+        }}
+        onWatchlistPress={() => {
+          const watchlist = userService.getWatchlist();
+          if (watchlist.length > 0) {
+            Alert.alert(
+              `My Watchlist (${watchlist.length})`,
+              'Your watchlist items are saved in your profile.',
+              [
+                { text: 'View Profile', onPress: () => router.push('/(tabs)/profile') },
+                { text: 'OK' }
+              ]
+            );
+          } else {
+            Alert.alert('No Watchlist Items', 'You haven\'t added any items to your watchlist yet. Tap the bookmark icon on any content to add it!');
+          }
+        }}
+      />
     </>
   );
 }
