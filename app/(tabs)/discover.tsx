@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, FlatList, TouchableOpacity, View, Dimensions, TextInput } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
@@ -17,11 +18,12 @@ interface Genre {
 
 export default function DiscoverScreen() {
   const router = useRouter();
-  const { genre: genreParam } = useLocalSearchParams<{ genre?: string }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [content, setContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const carouselRef = useRef<FlatList>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   const genres: Genre[] = [
     { id: 28, name: 'Action' },
@@ -43,19 +45,30 @@ export default function DiscoverScreen() {
   ];
 
   useEffect(() => {
-    if (genreParam) {
-      const genreId = parseInt(genreParam, 10);
-      if (!isNaN(genreId)) {
-        handleGenreFilter(genreId);
-        const genreName = genres.find(g => g.id === genreId)?.name;
-        setSelectedGenre(genreId);
-      } else {
-        loadTrendingContent();
-      }
-    } else {
-      loadTrendingContent();
+    // Load trending content by default
+    loadTrendingContent();
+  }, []);
+
+  // Auto-scroll carousel
+  useEffect(() => {
+    if (content.length > 4 && !searchQuery.trim() && !selectedGenre) {
+      const interval = setInterval(() => {
+        setCarouselIndex(prevIndex => {
+          const maxItems = Math.max(1, content.slice(0, 10).length - 2);
+          const nextIndex = (prevIndex + 1) % maxItems;
+          
+          carouselRef.current?.scrollToIndex({ 
+            index: nextIndex, 
+            animated: true 
+          });
+          
+          return nextIndex;
+        });
+      }, 3000);
+
+      return () => clearInterval(interval);
     }
-  }, [genreParam]);
+  }, [content.length, searchQuery, selectedGenre]);
 
   const loadTrendingContent = async () => {
     try {
@@ -148,7 +161,7 @@ export default function DiscoverScreen() {
               placeholderTextColor="#8E8E93"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity
+              <TouchableOpacity 
                 onPress={() => {
                   setSearchQuery('');
                   setSelectedGenre(null);
@@ -206,11 +219,53 @@ export default function DiscoverScreen() {
           </ScrollView>
         </View>
 
+        {/* Auto-Sliding Content Carousel */}
+        {!searchQuery.trim() && !selectedGenre && content.length > 0 && (
+          <View style={styles.carouselSection}>
+            <ThemedText style={styles.sectionTitle}>Featured Content</ThemedText>
+            <FlatList
+              ref={carouselRef}
+              data={content.slice(0, 10)}
+              renderItem={({ item, index }) => {
+                const mediaType = determineMediaType(item);
+                const nextItem = content.slice(0, 10)[index + 1];
+                const nextMediaType = nextItem ? determineMediaType(nextItem) : null;
+                
+                return (
+                  <View style={styles.carouselItem}>
+                    <TMDbContentCard
+                      content={item}
+                      type={mediaType}
+                      onPress={() => handleContentPress(item)}
+                      style={styles.carouselCard}
+                    />
+                    {nextItem && (
+                      <TMDbContentCard
+                        content={nextItem}
+                        type={nextMediaType!}
+                        onPress={() => handleContentPress(nextItem)}
+                        style={styles.carouselCard}
+                      />
+                    )}
+                  </View>
+                );
+              }}
+              keyExtractor={(item) => `carousel-${item.id}-${determineMediaType(item)}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              pagingEnabled
+              snapToInterval={cardWidth * 2 + 20}
+              decelerationRate="fast"
+              contentContainerStyle={styles.carouselContainer}
+            />
+          </View>
+        )}
+
         {/* Content Section */}
         <View style={styles.contentSection}>
           <View style={styles.resultHeader}>
             <ThemedText style={styles.sectionTitle}>
-              {searchQuery.trim() ? 'Search Results' : selectedGenre ? genres.find(g => g.id === selectedGenre)?.name || 'Filtered Results' : 'Trending Now'}
+              {searchQuery.trim() ? 'Search Results' : selectedGenre ? 'Filtered Results' : 'Trending Now'}
             </ThemedText>
             {content.length > 0 && (
               <ThemedText style={styles.resultCount}>
@@ -392,5 +447,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     textAlign: 'center',
+  },
+  carouselSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  carouselContainer: {
+    paddingHorizontal: 10,
+  },
+  carouselItem: {
+    width: cardWidth * 2 + 10,
+    marginHorizontal: 5,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  carouselCard: {
+    width: cardWidth,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
 });

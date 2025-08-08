@@ -83,12 +83,6 @@ class TMDbService {
     return response.data.results;
   }
 
-  // Get top rated TV shows
-  async getTopRatedTVShows(page: number = 1) {
-    const response = await tmdbApi.get('/tv/top_rated', { params: { page } });
-    return response.data.results;
-  }
-
   // Get upcoming movies
   async getUpcomingMovies(page: number = 1) {
     const response = await tmdbApi.get('/movie/upcoming', { params: { page } });
@@ -158,11 +152,6 @@ class TMDbService {
       params: { query, page }
     });
     return response.data.results;
-  }
-
-  // Search content (alias for searchMulti for compatibility)
-  async searchContent(query: string, page: number = 1) {
-    return this.searchMulti(query, page);
   }
 
   // Get movie details
