@@ -19,7 +19,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
-
+import { downloadService } from '@/services/downloadService';
 import { userService } from '@/services/userService';
 import { apiService } from '@/services/apiService';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
@@ -51,10 +51,11 @@ export default function TMDbContentDetails() {
   const [cast, setCast] = useState<Cast[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [isDownloaded, setIsDownloaded] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [showPlayer, setShowPlayer] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [recommendations, setRecommendations] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export default function TMDbContentDetails() {
       loadContent();
       checkFavoriteStatus();
       checkWatchlistStatus();
-
+      checkDownloadStatus();
     }
   }, [id, type]);
 
@@ -100,6 +101,13 @@ export default function TMDbContentDetails() {
     }
   };
 
+  const checkDownloadStatus = async () => {
+    if (id) {
+      const downloaded = await downloadService.isDownloaded(Number(id));
+      setIsDownloaded(downloaded);
+    }
+  };
+
   const checkFavoriteStatus = async () => {
     if (id) {
       const favorited = await apiService.isFavorite(id as string);
@@ -111,6 +119,32 @@ export default function TMDbContentDetails() {
     if (id) {
       const watchlisted = await apiService.isInWatchlist(id as string);
       setIsWatchlisted(watchlisted);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!content) return;
+
+    try {
+      if (isDownloaded) {
+        await downloadService.removeDownload(content.id);
+        setIsDownloaded(false);
+        Alert.alert('Success', 'Removed from downloads');
+      } else {
+        await downloadService.addDownload({
+          id: content.id,
+          title: (content as any).title || (content as any).name,
+          poster_path: content.poster_path,
+          overview: content.overview,
+          vote_average: content.vote_average,
+          release_date: (content as any).release_date || (content as any).first_air_date,
+          downloadedAt: new Date().toISOString(),
+        });
+        setIsDownloaded(true);
+        Alert.alert('Success', 'Added to downloads');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update downloads');
     }
   };
 
@@ -314,6 +348,23 @@ export default function TMDbContentDetails() {
           <TouchableOpacity style={styles.primaryButton}>
             <Ionicons name="play" size={24} color="#fff" />
             <Text style={styles.primaryButtonText}>Play</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
+            onPress={handleDownload}
+          >
+            <Ionicons
+              name={isDownloaded ? "checkmark-circle" : "download"}
+              size={24}
+              color={isDownloaded ? "#4CAF50" : "#fff"}
+            />
+            <Text style={[
+              styles.secondaryButtonText,
+              isDownloaded && styles.downloadedButtonText
+            ]}>
+              {isDownloaded ? 'Downloaded' : 'Download'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -725,11 +776,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
+  downloadedButton: {
+    backgroundColor: 'rgba(76,175,80,0.15)',
+    borderColor: '#4CAF50',
+  },
   secondaryButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  downloadedButtonText: {
+    color: '#4CAF50',
   },
   favoriteButtonActive: {
     backgroundColor: 'rgba(229, 9, 20, 0.2)',

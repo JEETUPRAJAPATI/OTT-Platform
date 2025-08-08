@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
 import { userService } from '@/services/userService';
-
+import { downloadService } from '@/services/downloadService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
