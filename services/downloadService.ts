@@ -115,10 +115,13 @@ class DownloadService {
       
       // Try different search queries for better results
       const searchQueries = [
-        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+format:(mp4+OR+mkv+OR+avi)`,
+        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+format:(mp4+OR+mkv+OR+avi+OR+webm)`,
         `${encodedTitle}+AND+mediatype:(movies)+AND+collection:(feature_films)`,
-        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+creator:(*)`,
-        `${encodedTitle}+movie+AND+mediatype:(movies)`
+        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+format:(mp4)`,
+        `${encodedTitle}+AND+mediatype:(movies)+AND+format:(mkv)`,
+        `title:"${cleanTitle}"+AND+mediatype:(movies)`,
+        `${encodedTitle}+movie+AND+mediatype:(movies)`,
+        `${encodedTitle}+AND+mediatype:(movies)+AND+subject:(feature+films)`
       ];
       
       let bestResults: any[] = [];
@@ -381,48 +384,73 @@ class DownloadService {
         const lowerName = fileName.toLowerCase();
         
         if (lowerName.includes('2160p') || lowerName.includes('4k') || lowerName.includes('uhd')) {
-          quality = '4K';
+          quality = '4K UHD';
         } else if (lowerName.includes('1440p')) {
-          quality = '1440p';
+          quality = '1440p QHD';
         } else if (lowerName.includes('1080p') || lowerName.includes('1080')) {
-          quality = '1080p';
+          quality = '1080p Full HD';
         } else if (lowerName.includes('720p') || lowerName.includes('720')) {
-          quality = '720p';
+          quality = '720p HD';
         } else if (lowerName.includes('480p') || lowerName.includes('480')) {
-          quality = '480p';
+          quality = '480p SD';
         } else if (lowerName.includes('360p') || lowerName.includes('360')) {
           quality = '360p';
         } else if (lowerName.includes('hd')) {
           quality = 'HD';
+        } else if (fileSizeMB > 4000) {
+          quality = '4K Quality';
         } else if (fileSizeMB > 2000) {
-          quality = 'High Quality';
-        } else if (fileSizeMB > 700) {
-          quality = 'Medium Quality';
-        } else {
+          quality = 'Full HD Quality';
+        } else if (fileSizeMB > 1000) {
+          quality = 'HD Quality';
+        } else if (fileSizeMB > 500) {
           quality = 'Standard Quality';
+        } else {
+          quality = 'Low Quality';
         }
         
-        // Extract format
+        // Extract format from file extension
         const format = fileName.split('.').pop()?.toUpperCase() || 'MP4';
+        
+        // Construct proper download URL - handle encoding properly
+        const downloadUrl = `https://archive.org/download/${encodeURIComponent(cleanIdentifier)}/${encodeURIComponent(fileName)}`;
         
         return {
           name: fileName,
           size: Math.max(fileSizeMB, 1), // Ensure minimum 1MB to avoid zero-size files
           format,
           quality,
-          downloadUrl: `https://archive.org/download/${encodeURIComponent(cleanIdentifier)}/${encodeURIComponent(fileName)}`
+          downloadUrl
         };
-      }).filter(file => file.size > 0); // Filter out files with no size
+      }).filter(file => file.size > 0 && file.name.length > 0); // Filter out invalid files
 
       // Sort by quality (highest first) and size
-      const qualityOrder = ['4K', '1440p', '1080p', 'HD', '720p', '480p', '360p', 'High Quality', 'Medium Quality', 'Standard Quality', 'Unknown'];
+      const qualityOrder = [
+        '4K UHD', '4K Quality', '1440p QHD', '1080p Full HD', 'Full HD Quality', 
+        'HD', '720p HD', 'HD Quality', '480p SD', 'Standard Quality', 
+        '360p', 'Low Quality', 'Unknown'
+      ];
+      
       processedFiles.sort((a, b) => {
         const aIndex = qualityOrder.indexOf(a.quality);
         const bIndex = qualityOrder.indexOf(b.quality);
-        if (aIndex !== bIndex) {
+        
+        // If qualities are different, sort by quality order
+        if (aIndex !== -1 && bIndex !== -1 && aIndex !== bIndex) {
           return aIndex - bIndex;
         }
-        return b.size - a.size; // Larger files first for same quality
+        
+        // If same quality or one is unknown, sort by file size (larger first)
+        if (a.size !== b.size) {
+          return b.size - a.size;
+        }
+        
+        // If same size, prefer certain formats
+        const formatPriority = { 'MKV': 3, 'MP4': 2, 'WEBM': 1, 'AVI': 0 };
+        const aFormatPriority = formatPriority[a.format] || 0;
+        const bFormatPriority = formatPriority[b.format] || 0;
+        
+        return bFormatPriority - aFormatPriority;
       });
 
       this.logNetwork('Files processed successfully', metadataUrl, { 

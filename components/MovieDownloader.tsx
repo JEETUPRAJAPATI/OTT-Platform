@@ -65,12 +65,17 @@ export function MovieDownloader({
     setArchiveIdentifier('');
 
     try {
-      console.log('Starting search for:', title.trim());
+      console.log('🔍 Starting search for:', title.trim());
       
       // Search for movie on Internet Archive
       const searchResult = await downloadService.searchInternetArchive(title.trim());
 
-      console.log('Search result:', searchResult);
+      console.log('🎬 Search result:', searchResult);
+      console.log('📝 Search details:', {
+        found: searchResult.found,
+        identifier: searchResult.identifier,
+        title: searchResult.title
+      });
 
       if (!searchResult.found) {
         console.log('No movie found, search result:', searchResult);
@@ -312,16 +317,25 @@ export function MovieDownloader({
               </TouchableOpacity>
 
               <View style={styles.filesPreview}>
-                {movieFiles.slice(0, 3).map((file, index) => (
-                  <Text key={index} style={styles.fileInfo}>
-                    {file.quality} - {formatFileSize(file.size)} - {file.format}
-                  </Text>
+                <Text style={styles.archiveInfoTitle}>Available Files:</Text>
+                {movieFiles.slice(0, 4).map((file, index) => (
+                  <View key={index} style={styles.fileInfoContainer}>
+                    <Text style={styles.fileInfo}>
+                      📹 {file.quality} • {formatFileSize(file.size)} • {file.format}
+                    </Text>
+                    <Text style={styles.fileName} numberOfLines={1}>
+                      {file.name}
+                    </Text>
+                  </View>
                 ))}
-                {movieFiles.length > 3 && (
+                {movieFiles.length > 4 && (
                   <Text style={styles.moreFiles}>
-                    +{movieFiles.length - 3} more files...
+                    +{movieFiles.length - 4} more files available...
                   </Text>
                 )}
+                <Text style={styles.archiveId}>
+                  Archive ID: {archiveIdentifier}
+                </Text>
               </View>
             </View>
           )}
@@ -473,16 +487,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  fileInfo: {
-    color: 'rgba(255,255,255,0.8)',
+  archiveInfoTitle: {
+    color: '#4CAF50',
     fontSize: 14,
-    marginBottom: 4,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  fileInfoContainer: {
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  fileInfo: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  fileName: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   moreFiles: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     fontStyle: 'italic',
-    marginTop: 4,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  archiveId: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: 'center',
+    fontFamily: 'monospace',
   },
   debugSection: {
     backgroundColor: 'rgba(255,0,0,0.1)',
