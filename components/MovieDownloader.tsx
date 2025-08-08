@@ -191,25 +191,35 @@ export function MovieDownloader({
 
       setDownloadId(id);
 
-      // Set up progress callback
+      // Set up real-time progress callback
       downloadService.setProgressCallback(id, (progress, progressDetails) => {
-        setDownloadProgress(progress);
+        console.log('Progress update:', { progress, progressDetails });
+        
+        setDownloadProgress(Math.max(0, Math.min(100, progress)));
         
         if (progressDetails) {
           setProgressInfo(progressDetails);
           setDownloadSpeed(progressDetails.speed || 0);
           setEstimatedTime(progressDetails.estimatedTimeRemaining || 0);
-          setStatusMessage(progressDetails.status || '');
+          setStatusMessage(progressDetails.status || 'Downloading...');
+          
+          // Force re-render for smooth progress updates
+          if (progressDetails.receivedBytes && progressDetails.totalBytes) {
+            const actualProgress = (progressDetails.receivedBytes / progressDetails.totalBytes) * 100;
+            setDownloadProgress(Math.max(0, Math.min(100, Math.round(actualProgress))));
+          }
         }
         
         if (progress >= 100) {
           setIsDownloading(false);
           setDownloadProgress(100);
           setStatusMessage('Download completed!');
-          showToast('Download Complete', `${searchTitle} has been downloaded to your Downloads folder!`);
+          showToast('Download Complete', `${searchTitle} has been downloaded successfully!`);
+          
+          // Auto-close after showing success message
           setTimeout(() => {
             onClose();
-          }, 2000);
+          }, 3000);
         }
       });
 

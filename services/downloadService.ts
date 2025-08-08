@@ -671,7 +671,7 @@ class DownloadService {
     this.processDownloadQueue();
   }
 
-  // Download from Internet Archive with browser-compatible implementation
+  // Download from Internet Archive with improved error handling and real-time progress
   private async downloadFromInternetArchive(item: DownloadItem): Promise<void> {
     if (!item.downloadUrl) {
       throw new Error('No download URL provided');
@@ -689,18 +689,40 @@ class DownloadService {
     let estimatedTimeRemaining = 0;
 
     try {
-      // Set status to connecting
+      // Set initial status
       this.updateDownloadStatus(item.id, 'connecting');
-      
+      this.updateDownloadProgress(item.id, {
+        progress: 0,
+        speed: 0,
+        estimatedTimeRemaining: 0,
+        status: 'Connecting to server...',
+        receivedBytes: 0,
+        totalBytes: 0
+      });
+
+      // Create a more robust fetch request with proper headers
       const response = await fetch(item.downloadUrl, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://archive.org/'
+        },
+        mode: 'cors'
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (response.status === 404) {
+          throw new Error('File not found on server. The download link may be invalid.');
+        } else if (response.status === 403) {
+          throw new Error('Access forbidden. The file may have restricted access.');
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.');
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
       }
 
       const contentLength = response.headers.get('Content-Length');
@@ -713,15 +735,24 @@ class DownloadService {
 
       // Set status to downloading
       this.updateDownloadStatus(item.id, 'downloading');
+      this.updateDownloadProgress(item.id, {
+        progress: 0,
+        speed: 0,
+        estimatedTimeRemaining: 0,
+        status: 'Starting download...',
+        receivedBytes: 0,
+        totalBytes: totalSize
+      });
 
       const reader = response.body?.getReader();
       if (!reader) {
-        throw new Error('Failed to get response reader');
+        throw new Error('Failed to get response reader - browser may not support streaming downloads');
       }
 
       const chunks: Uint8Array[] = [];
       let receivedLength = 0;
 
+      // Real-time progress loop
       while (true) {
         const { done, value } = await reader.read();
         
@@ -730,16 +761,16 @@ class DownloadService {
         chunks.push(value);
         receivedLength += value.length;
         
-        // Calculate progress
+        // Calculate progress and update UI frequently
         if (totalSize > 0) {
           const progress = (receivedLength / totalSize) * 100;
           item.progress = Math.round(Math.min(progress, 100));
           
-          // Calculate speed and ETA
+          // Calculate speed and ETA every 500ms for smoother updates
           const currentTime = Date.now();
           const timeDiff = currentTime - lastUpdateTime;
           
-          if (timeDiff >= 1000) { // Update every second
+          if (timeDiff >= 500) { // Update every 500ms for smoother progress
             const bytesDiff = receivedLength - lastBytesLoaded;
             speed = bytesDiff / (timeDiff / 1000); // bytes per second
             
@@ -750,39 +781,76 @@ class DownloadService {
             
             lastUpdateTime = currentTime;
             lastBytesLoaded = receivedLength;
+
+            // Update progress with detailed real-time info
+            this.updateDownloadProgress(item.id, {
+              progress: item.progress,
+              speed,
+              estimatedTimeRemaining,
+              status: `Downloading... ${item.progress}%`,
+              receivedBytes: receivedLength,
+              totalBytes: totalSize
+            });
           }
+        } else {
+          // For unknown size, just show bytes downloaded
+          item.progress = Math.min((receivedLength / (50 * 1024 * 1024)) * 100, 95); // Estimate based on 50MB
           
-          // Update progress with detailed info
           this.updateDownloadProgress(item.id, {
             progress: item.progress,
-            speed,
-            estimatedTimeRemaining,
-            status: 'downloading',
+            speed: 0,
+            estimatedTimeRemaining: 0,
+            status: `Downloading... ${Math.round(receivedLength / (1024 * 1024))}MB`,
             receivedBytes: receivedLength,
-            totalBytes: totalSize
+            totalBytes: 0
           });
         }
       }
 
       // Create blob from chunks
+      this.updateDownloadStatus(item.id, 'completing');
+      this.updateDownloadProgress(item.id, {
+        progress: 95,
+        speed: 0,
+        estimatedTimeRemaining: 0,
+        status: 'Finalizing download...',
+        receivedBytes: receivedLength,
+        totalBytes: totalSize || receivedLength
+      });
+
       const blob = new Blob(chunks);
       
-      // Set status to completing
-      this.updateDownloadStatus(item.id, 'completing');
-      
-      // Create download link and trigger download
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the object URL
-      window.URL.revokeObjectURL(url);
+      // For React Native web, we need to handle downloads differently
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.userAgent.includes('Expo')) {
+        // React Native Web environment - save to file system
+        const url = URL.createObjectURL(blob);
+        
+        // Create download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+      } else {
+        // Regular web browser
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        URL.revokeObjectURL(url);
+      }
       
       // Set final progress
       item.progress = 100;
@@ -792,23 +860,39 @@ class DownloadService {
         progress: 100,
         speed: 0,
         estimatedTimeRemaining: 0,
-        status: 'completed',
+        status: 'Download completed!',
         receivedBytes: receivedLength,
         totalBytes: totalSize || receivedLength
       });
 
     } catch (error: any) {
+      console.error('Download error details:', error);
       this.updateDownloadStatus(item.id, 'failed');
       
+      let errorMessage = 'Download failed';
+      
       if (error.name === 'AbortError') {
-        throw new Error('Download was cancelled');
-      } else if (error.message.includes('Network') || error.message.includes('fetch')) {
-        throw new Error('Network error occurred. Please check your internet connection and try again.');
+        errorMessage = 'Download was cancelled';
+      } else if (error.message.includes('CORS') || error.message.includes('cors')) {
+        errorMessage = 'Network access blocked. Try using a different browser or disable ad blockers.';
+      } else if (error.message.includes('Network') || error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
       } else if (error.message.includes('HTTP')) {
-        throw new Error(`Server error: ${error.message}`);
+        errorMessage = error.message;
       } else {
-        throw new Error(`Download failed: ${error.message}`);
+        errorMessage = error.message || 'Unknown error occurred during download';
       }
+
+      this.updateDownloadProgress(item.id, {
+        progress: 0,
+        speed: 0,
+        estimatedTimeRemaining: 0,
+        status: errorMessage,
+        receivedBytes: 0,
+        totalBytes: 0
+      });
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -844,7 +928,7 @@ class DownloadService {
     }
   }
 
-  // Helper method to update detailed progress info
+  // Helper method to update detailed progress info with real-time notifications
   private updateDownloadProgress(downloadId: string, progressInfo: {
     progress: number;
     speed: number;
@@ -855,14 +939,26 @@ class DownloadService {
   }): void {
     const download = this.downloads.find(item => item.id === downloadId);
     if (download) {
+      // Update download progress
+      download.progress = progressInfo.progress;
+      
       // Store detailed progress info
       (download as any).progressInfo = progressInfo;
-      this.saveToStorage();
+      (download as any).statusMessage = progressInfo.status;
       
-      // Notify progress callback with detailed info
+      // Save to storage less frequently for performance
+      if (progressInfo.progress % 5 === 0 || progressInfo.progress >= 100) {
+        this.saveToStorage();
+      }
+      
+      // Always notify callback for real-time UI updates
       const callback = this.downloadCallbacks.get(downloadId);
       if (callback) {
-        callback(progressInfo.progress, progressInfo);
+        try {
+          callback(progressInfo.progress, progressInfo);
+        } catch (callbackError) {
+          console.warn('Progress callback error:', callbackError);
+        }
       }
     }
   }
