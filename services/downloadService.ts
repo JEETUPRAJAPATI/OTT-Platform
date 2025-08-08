@@ -1,33 +1,7 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
-
-interface ArchiveSearchResult {
-  identifier: string;
-  title: string;
-  description?: string;
-  downloads: number;
-  files?: ArchiveFile[];
-}
-
-interface ArchiveFile {
-  name: string;
-  source: string;
-  format: string;
-  size?: string;
-  length?: string;
-}
-
-interface ArchiveMetadata {
-  identifier: string;
-  metadata: {
-    title: string;
-    description?: string;
-    subject?: string[];
-    date?: string;
-  };
-  files: ArchiveFile[];
-}
 
 export interface DownloadItem {
   id: string;
@@ -72,106 +46,6 @@ class DownloadService {
     Alert.alert(title, message);
   }
 
-  // Search Internet Archive for movie content
-  async searchInternetArchive(movieTitle: string, year?: number): Promise<ArchiveSearchResult[]> {
-    try {
-      const searchQuery = year ? `${movieTitle} ${year}` : movieTitle;
-      const encodedQuery = encodeURIComponent(searchQuery);
-      
-      // Search for movies/videos in Internet Archive
-      const searchUrl = `https://archive.org/advancedsearch.php?q=title:(${encodedQuery}) AND collection:(movies OR etree OR opensource_movies)&fl=identifier,title,description,downloads&rows=20&page=1&output=json`;
-      
-      const response = await fetch(searchUrl);
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.response?.docs || [];
-    } catch (error) {
-      console.error('Archive.org search error:', error);
-      throw new Error('Failed to search Internet Archive. Please check your connection.');
-    }
-  }
-
-  // Get metadata and file list for a specific item
-  async getArchiveMetadata(identifier: string): Promise<ArchiveMetadata | null> {
-    try {
-      const metadataUrl = `https://archive.org/metadata/${identifier}`;
-      
-      const response = await fetch(metadataUrl);
-      if (!response.ok) {
-        throw new Error(`Metadata fetch failed: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Filter for video files
-      const videoFiles = data.files?.filter((file: ArchiveFile) => 
-        file.format && ['mp4', 'avi', 'mkv', 'mov', 'wmv'].includes(file.format.toLowerCase())
-      ) || [];
-      
-      return {
-        identifier: data.metadata?.identifier || identifier,
-        metadata: data.metadata || {},
-        files: videoFiles
-      };
-    } catch (error) {
-      console.error('Archive.org metadata error:', error);
-      return null;
-    }
-  }
-
-  // Find best quality video file from archive metadata
-  findBestVideoFile(files: ArchiveFile[]): ArchiveFile | null {
-    if (!files || files.length === 0) return null;
-    
-    // Prefer MP4 format and larger files
-    const mp4Files = files.filter(f => f.format?.toLowerCase() === 'mp4');
-    const targetFiles = mp4Files.length > 0 ? mp4Files : files;
-    
-    // Sort by size (if available) or name
-    return targetFiles.sort((a, b) => {
-      // Try to sort by file size
-      if (a.size && b.size) {
-        const sizeA = parseInt(a.size) || 0;
-        const sizeB = parseInt(b.size) || 0;
-        return sizeB - sizeA; // Larger files first
-      }
-      
-      // Fallback to name comparison (longer names often indicate higher quality)
-      return b.name.length - a.name.length;
-    })[0];
-  }
-
-  // Search for movie and return download URL if found
-  async findMovieDownloadUrl(movieTitle: string, year?: number): Promise<string | null> {
-    try {
-      // Search for the movie
-      const searchResults = await this.searchInternetArchive(movieTitle, year);
-      
-      if (!searchResults || searchResults.length === 0) {
-        return null;
-      }
-      
-      // Try each search result until we find a downloadable video
-      for (const result of searchResults) {
-        const metadata = await this.getArchiveMetadata(result.identifier);
-        if (metadata && metadata.files.length > 0) {
-          const bestFile = this.findBestVideoFile(metadata.files);
-          if (bestFile) {
-            return `https://archive.org/download/${metadata.identifier}/${bestFile.name}`;
-          }
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error finding movie download URL:', error);
-      return null;
-    }
-  }
-
   // Get available quality options
   getQualityOptions(): DownloadQuality[] {
     return [
@@ -209,7 +83,7 @@ class DownloadService {
     episodeNumber?: number
   ): string {
     const downloadId = `download-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
+    
     // Estimate file size based on quality
     let estimatedSize = 500; // MB
     switch (quality) {
@@ -241,10 +115,10 @@ class DownloadService {
     this.downloads.push(downloadItem);
     this.downloadQueue.push(downloadItem);
     this.saveToStorage();
-
+    
     // Start download if we have capacity
     this.processDownloadQueue();
-
+    
     return downloadId;
   }
 
@@ -271,7 +145,7 @@ class DownloadService {
       }
       nextDownload.status = 'completed';
       nextDownload.progress = 100;
-
+      
       // Set expiration (30 days from now)
       nextDownload.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
@@ -280,14 +154,14 @@ class DownloadService {
     } catch (error) {
       nextDownload.status = 'failed';
       console.error('Download failed:', error);
-
+      
       // Show error toast
       this.showToast('Download Failed', `Failed to download ${nextDownload.title}. Please try again.`);
     }
 
     this.activeDownloads--;
     this.saveToStorage();
-
+    
     // Process next item in queue
     this.processDownloadQueue();
   }
@@ -298,18 +172,15 @@ class DownloadService {
       throw new Error('No download URL provided');
     }
 
-    const fileName = `${item.title.replace(/[^a-zA-Z0-9\s]/g, '_').replace(/\s+/g, '_')}_${Date.now()}.mp4`;
-    const downloadDir = `${FileSystem.documentDirectory}downloads/`;
-    const downloadPath = `${downloadDir}${fileName}`;
-
-    console.log('Download path:', downloadPath);
-
+    const fileName = `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}_${item.id}.mp4`;
+    const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
+    
     // Ensure downloads directory exists
+    const downloadDir = `${FileSystem.documentDirectory}downloads/`;
     try {
       const dirInfo = await FileSystem.getInfoAsync(downloadDir);
       if (!dirInfo.exists) {
         await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
-        console.log('Created downloads directory:', downloadDir);
       }
     } catch (error) {
       console.error('Error creating downloads directory:', error);
@@ -320,7 +191,7 @@ class DownloadService {
     try {
       const freeSpace = await FileSystem.getFreeDiskStorageAsync();
       const requiredSpace = item.size * 1024 * 1024; // Convert MB to bytes
-
+      
       if (freeSpace < requiredSpace * 1.1) { // Add 10% buffer
         throw new Error('Insufficient storage space. Please free up some space and try again.');
       }
@@ -345,10 +216,10 @@ class DownloadService {
             const progress = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
             item.progress = Math.round(Math.min(progress, 100));
             item.fileSize = downloadProgress.totalBytesExpectedToWrite;
-
+            
             // Calculate actual size in MB
             item.size = Math.round(downloadProgress.totalBytesExpectedToWrite / (1024 * 1024));
-
+            
             // Calculate download speed (optional - for future use)
             const currentTime = Date.now();
             const timeDiff = currentTime - lastUpdateTime;
@@ -356,13 +227,13 @@ class DownloadService {
               const bytesDiff = downloadProgress.totalBytesWritten - lastBytesWritten;
               const speedBps = bytesDiff / (timeDiff / 1000);
               const speedMbps = (speedBps / (1024 * 1024)).toFixed(1);
-
+              
               lastUpdateTime = currentTime;
               lastBytesWritten = downloadProgress.totalBytesWritten;
             }
-
+            
             this.saveToStorage();
-
+            
             // Notify progress callback if exists
             const callback = this.downloadCallbacks.get(item.id);
             if (callback) {
@@ -379,7 +250,7 @@ class DownloadService {
       const result = await downloadResumable.downloadAsync();
       if (result) {
         item.filePath = result.uri;
-
+        
         // Verify file integrity
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
         if (!fileInfo.exists || fileInfo.size === 0) {
@@ -395,7 +266,7 @@ class DownloadService {
       } catch (cleanupError) {
         console.error('Cleanup error:', cleanupError);
       }
-
+      
       if (error.message.includes('Network')) {
         throw new Error('Network error occurred. Please check your internet connection and try again.');
       } else if (error.message.includes('storage') || error.message.includes('space')) {
@@ -516,12 +387,12 @@ class DownloadService {
       if (download.status === 'downloading') {
         this.activeDownloads--;
       }
-
+      
       // Remove file if it exists
       if (download.filePath) {
         FileSystem.deleteAsync(download.filePath, { idempotent: true });
       }
-
+      
       this.downloads.splice(downloadIndex, 1);
       this.downloadQueue = this.downloadQueue.filter(item => item.id !== downloadId);
       this.removeProgressCallback(downloadId);
@@ -565,11 +436,11 @@ class DownloadService {
     try {
       const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
       const totalDiskCapacity = await FileSystem.getTotalDiskCapacityAsync();
-
+      
       const used = this.getTotalDownloadedSize();
       const total = Math.round(totalDiskCapacity / (1024 * 1024)); // Convert to MB
       const available = Math.round(freeDiskStorage / (1024 * 1024)); // Convert to MB
-
+      
       return { used, total, available };
     } catch (error) {
       console.error('Error getting storage info:', error);
@@ -584,7 +455,7 @@ class DownloadService {
     const expiredDownloads = this.downloads.filter(item => 
       item.expiresAt && item.expiresAt < now
     );
-
+    
     expiredDownloads.forEach(item => {
       this.deleteDownload(item.id);
     });
@@ -598,7 +469,7 @@ class DownloadService {
         FileSystem.deleteAsync(item.filePath, { idempotent: true });
       }
     });
-
+    
     this.downloads = [];
     this.downloadQueue = [];
     this.activeDownloads = 0;
@@ -626,17 +497,17 @@ class DownloadService {
         const downloadData = JSON.parse(stored);
         this.downloads = downloadData.downloads || [];
         this.downloadQueue = downloadData.downloadQueue || [];
-
+        
         // Reset any downloading items to pending on app restart
         this.downloads.forEach(item => {
           if (item.status === 'downloading') {
             item.status = 'pending';
           }
         });
-
+        
         // Clean up expired downloads
         this.cleanupExpiredDownloads();
-
+        
         // Resume processing queue
         this.processDownloadQueue();
       }
