@@ -204,9 +204,7 @@ class DownloadService {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
+              'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0'
             },
             signal: controller.signal
           });
@@ -383,9 +381,7 @@ class DownloadService {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0'
         },
         signal: controller.signal
       });
