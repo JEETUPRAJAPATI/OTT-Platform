@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, FlatList, TouchableOpacity, View, Dimensions, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
@@ -18,6 +17,7 @@ interface Genre {
 
 export default function DiscoverScreen() {
   const router = useRouter();
+  const { genre: genreParam } = useLocalSearchParams<{ genre?: string }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [content, setContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,9 +43,19 @@ export default function DiscoverScreen() {
   ];
 
   useEffect(() => {
-    // Load trending content by default
-    loadTrendingContent();
-  }, []);
+    if (genreParam) {
+      const genreId = parseInt(genreParam, 10);
+      if (!isNaN(genreId)) {
+        handleGenreFilter(genreId);
+        const genreName = genres.find(g => g.id === genreId)?.name;
+        setSelectedGenre(genreId);
+      } else {
+        loadTrendingContent();
+      }
+    } else {
+      loadTrendingContent();
+    }
+  }, [genreParam]);
 
   const loadTrendingContent = async () => {
     try {
@@ -138,7 +148,7 @@ export default function DiscoverScreen() {
               placeholderTextColor="#8E8E93"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   setSearchQuery('');
                   setSelectedGenre(null);
@@ -200,7 +210,7 @@ export default function DiscoverScreen() {
         <View style={styles.contentSection}>
           <View style={styles.resultHeader}>
             <ThemedText style={styles.sectionTitle}>
-              {searchQuery.trim() ? 'Search Results' : selectedGenre ? 'Filtered Results' : 'Trending Now'}
+              {searchQuery.trim() ? 'Search Results' : selectedGenre ? genres.find(g => g.id === selectedGenre)?.name || 'Filtered Results' : 'Trending Now'}
             </ThemedText>
             {content.length > 0 && (
               <ThemedText style={styles.resultCount}>
