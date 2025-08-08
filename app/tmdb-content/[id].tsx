@@ -114,13 +114,13 @@ export default function TMDbContentDetails() {
     if (id) {
       const downloaded = downloadService.isDownloaded(Number(id), type as 'movie' | 'tv');
       setIsDownloaded(downloaded);
-      
+
       // Check if there's an active download for this content
       const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
       if (downloadInfo && (downloadInfo.status === 'downloading' || downloadInfo.status === 'pending')) {
         setActiveDownloadId(downloadInfo.id);
         setDownloadProgress(downloadInfo.progress);
-        
+
         // Set up progress callback
         downloadService.setProgressCallback(downloadInfo.id, (progress) => {
           setDownloadProgress(progress);
@@ -137,43 +137,22 @@ export default function TMDbContentDetails() {
 
   const checkInternetArchiveAvailability = async () => {
     if (!content || !id) return;
-    
+
     setIsCheckingArchive(true);
     try {
       const title = (content as any).title || (content as any).name;
-      const year = content.release_date ? new Date(content.release_date).getFullYear() : 
-                  (content as any).first_air_date ? new Date((content as any).first_air_date).getFullYear() : '';
       
-      // Common Internet Archive URL patterns
-      const searchQueries = [
-        `${title} ${year}`,
-        title.replace(/[^a-zA-Z0-9 ]/g, ''),
-        `${title} ${year} movie`,
-        title.toLowerCase().replace(/\s+/g, '-')
-      ];
-      
-      // Try different archive.org patterns
-      const archivePatterns = [
-        `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '-')}-${year}/${title.toLowerCase().replace(/\s+/g, '-')}-${year}.mp4`,
-        `https://archive.org/download/${title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}-${year}/${title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}.mp4`,
-        `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '.')}.${year}/${title.toLowerCase().replace(/\s+/g, '.')}.${year}.mp4`,
-        `https://archive.org/download/movies-${year}/${title.toLowerCase().replace(/\s+/g, '-')}.mp4`
-      ];
-      
-      // Check if any of these URLs exist
-      for (const url of archivePatterns) {
-        try {
-          const response = await fetch(url, { method: 'HEAD' });
-          if (response.ok && response.headers.get('content-type')?.includes('video')) {
-            setInternetArchiveUrl(url);
-            break;
-          }
-        } catch (error) {
-          // Continue to next URL
-        }
+      // Use downloadService to search for the content on Internet Archive
+      const archiveItem = await downloadService.searchInternetArchive(title);
+      if (archiveItem && archiveItem.url) {
+        setInternetArchiveUrl(archiveItem.url);
+      } else {
+        setInternetArchiveUrl(null); // Explicitly set to null if no item found
       }
+
     } catch (error) {
       console.error('Error checking Internet Archive:', error);
+      setInternetArchiveUrl(null); // Ensure url is null on error
     } finally {
       setIsCheckingArchive(false);
     }
