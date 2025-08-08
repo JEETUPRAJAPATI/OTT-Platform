@@ -390,6 +390,10 @@ export function MovieDownloader({
                   <Text style={styles.actionButtonText}>Download</Text>
                 </TouchableOpacity>
               </View>
+              
+              <Text style={styles.playbackNote}>
+                💡 Some videos may only support download due to Internet Archive streaming limitations
+              </Text>
 
               <View style={styles.filesPreview}>
                 <Text style={styles.archiveInfoTitle}>Available Files:</Text>
@@ -776,6 +780,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  playbackNote: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 11,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
   modalOverlay: {
     flex: 1,

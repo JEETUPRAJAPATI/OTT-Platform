@@ -84,19 +84,43 @@ export function VideoPlayerModal({
       console.log('Starting playback for:', file.name);
       console.log('Video URL:', file.downloadUrl);
       
+      // Check if it's a direct Internet Archive URL and modify if needed
+      let playbackUrl = file.downloadUrl;
+      
+      // For Internet Archive URLs, ensure proper format for streaming
+      if (playbackUrl.includes('archive.org/download/')) {
+        // Remove the ?download=1 parameter if present for streaming
+        playbackUrl = playbackUrl.replace('?download=1', '');
+        console.log('Modified URL for streaming:', playbackUrl);
+      }
+      
       // Load and play the video
       if (videoRef.current) {
-        await videoRef.current.loadAsync({ uri: file.downloadUrl });
+        const videoSource = {
+          uri: playbackUrl,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Referer': 'https://archive.org/'
+          }
+        };
+        
+        console.log('Loading video with source:', videoSource);
+        await videoRef.current.loadAsync(videoSource);
+        console.log('Video loaded successfully, starting playback...');
         await videoRef.current.playAsync();
         setIsPlaying(true);
+        console.log('Video playback started');
       }
     } catch (error) {
       console.error('Playback error:', error);
-      setError('Failed to load video. The file may be corrupted or unavailable.');
+      setError(`Failed to load video: ${error.message || 'Unknown error'}. This video may not support streaming playback.`);
       Alert.alert(
         'Playback Error',
-        'Unable to play this video. Please try a different quality or check your internet connection.',
-        [{ text: 'OK' }]
+        'This video cannot be streamed directly. You can try:\n\n• Download the video first\n• Try a different quality\n• Check your internet connection\n\nSome Internet Archive videos only support download, not streaming.',
+        [
+          { text: 'Try Different Quality', onPress: () => setShowQualitySelector(true) },
+          { text: 'OK' }
+        ]
       );
     } finally {
       setIsLoading(false);
@@ -176,14 +200,28 @@ export function VideoPlayerModal({
           style={styles.video}
           resizeMode={ResizeMode.CONTAIN}
           useNativeControls={false}
+          shouldPlay={false}
           onPlaybackStatusUpdate={(status) => {
             if (status.isLoaded) {
               setIsPlaying(status.isPlaying || false);
+              if (status.error) {
+                console.error('Video playback status error:', status.error);
+                setError(`Playback error: ${status.error}`);
+              }
             }
           }}
           onError={(error) => {
-            console.error('Video error:', error);
-            setError('Playback failed. Please try again or select a different quality.');
+            console.error('Video component error:', error);
+            setError(`Video loading failed: ${error.message || 'Unknown error'}. This video may not support streaming.`);
+            setIsLoading(false);
+          }}
+          onLoad={(status) => {
+            console.log('Video loaded successfully:', status);
+            setIsLoading(false);
+          }}
+          onLoadStart={() => {
+            console.log('Video loading started...');
+            setIsLoading(true);
           }}
         />
 
@@ -200,12 +238,51 @@ export function VideoPlayerModal({
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={48} color="#F44336" />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => setShowQualitySelector(true)}
-            >
-              <Text style={styles.retryButtonText}>Try Different Quality</Text>
-            </TouchableOpacity>
+            <View style={styles.errorActions}>
+              <TouchableOpacity 
+                style={styles.retryButton}
+                onPress={() => setShowQualitySelector(true)}
+              >
+                <Ionicons name="refresh" size={20} color="#fff" />
+                <Text style={styles.retryButtonText}>Try Different Quality</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.retryButton, { backgroundColor: '#4CAF50' }]}
+                onPress={() => {
+                  if (selectedFile) {
+                    Alert.alert(
+                      'Download Video',
+                      'This video may work better if downloaded first. Would you like to download it?',
+                      [
+                        { text: 'Cancel' },
+                        { 
+                          text: 'Download', 
+                          onPress: () => {
+                            // Use the download service to open download URL
+                            const downloadUrl = selectedFile.downloadUrl.includes('?download=1') 
+                              ? selectedFile.downloadUrl 
+                              : `${selectedFile.downloadUrl}?download=1`;
+                            
+                            import('../services/downloadService').then(({ downloadService }) => {
+                              downloadService.downloadFile(downloadUrl, selectedFile.name);
+                              handleClose();
+                            });
+                          }
+                        }
+                      ]
+                    );
+                  }
+                }}
+              >
+                <Ionicons name="download" size={20} color="#fff" />
+                <Text style={styles.retryButtonText}>Download Instead</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.errorHint}>
+              💡 Some Internet Archive videos only support download, not direct streaming
+            </Text>
           </View>
         )}
 
@@ -392,17 +469,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 20,
+    lineHeight: 22,
+  },
+  errorActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
   },
   retryButton: {
     backgroundColor: '#FF9800',
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
+    marginLeft: 6,
+  },
+  errorHint: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
   controlsOverlay: {
     position: 'absolute',
