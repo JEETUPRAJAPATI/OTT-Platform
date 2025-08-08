@@ -34,10 +34,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="movies"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Movies',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="film.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -53,15 +53,6 @@ export default function TabLayout() {
           title: 'Search',
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol size={28} name={focused ? 'magnifyingglass' : 'magnifyingglass'} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="downloads"
-        options={{
-          title: 'Downloads',
-          tabBarIcon: ({ color, focused }) => (
-            <IconSymbol size={28} name={focused ? 'arrow.down.circle.fill' : 'arrow.down.circle'} color={color} />
           ),
         }}
       />
