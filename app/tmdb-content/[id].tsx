@@ -63,17 +63,6 @@ export default function TMDbContentDetails() {
   const [activeDownloadId, setActiveDownloadId] = useState<string | null>(null);
   const [downloadSpeed, setDownloadSpeed] = useState<string>('');
   const [downloadError, setDownloadError] = useState<string>('');
-  const [showFormatSelector, setShowFormatSelector] = useState(false);
-  const [availableFormats, setAvailableFormats] = useState<Array<{
-    title: string;
-    identifier: string;
-    files: Array<{
-      name: string;
-      format: string;
-      size?: string;
-      downloadUrl: string;
-    }>;
-  }>>([]);
 
   useEffect(() => {
     if (id && type) {
@@ -155,23 +144,19 @@ export default function TMDbContentDetails() {
 
       console.log(`Searching Internet Archive for: ${title} ${year}`);
       
-      // Use Internet Archive API to search for movie options
-      const downloadOptions = await downloadService.findMovieDownloadOptions(title, year);
+      // Use Internet Archive API to search for the movie
+      const downloadUrl = await downloadService.findMovieDownloadUrl(title, year);
       
-      if (downloadOptions && downloadOptions.results.length > 0) {
-        console.log('Found Internet Archive options:', downloadOptions.results);
-        setAvailableFormats(downloadOptions.results);
-        // Set the first available URL for backward compatibility
-        setInternetArchiveUrl(downloadOptions.results[0].files[0].downloadUrl);
+      if (downloadUrl) {
+        console.log('Found Internet Archive URL:', downloadUrl);
+        setInternetArchiveUrl(downloadUrl);
       } else {
         console.log('Movie not found on Internet Archive');
         setInternetArchiveUrl(null);
-        setAvailableFormats([]);
       }
     } catch (error) {
       console.error('Error checking Internet Archive:', error);
       setInternetArchiveUrl(null);
-      setAvailableFormats([]);
     } finally {
       setIsCheckingArchive(false);
     }
@@ -204,55 +189,11 @@ export default function TMDbContentDetails() {
       return;
     }
 
-    if (isCheckingArchive) {
-      Alert.alert('Please Wait', 'Still checking Internet Archive availability. Please try again in a moment.');
+    // Check if Internet Archive URL is available
+    if (!internetArchiveUrl) {
+      Alert.alert('Not Available', 'Movie not found on Internet Archive. Please try another movie.');
       return;
     }
-
-    // Check if we have available formats
-    if (availableFormats.length === 0) {
-      // Try to search again if not found
-      setIsCheckingArchive(true);
-      try {
-        const title = (content as any).title || (content as any).name;
-        const year = content.release_date ? new Date(content.release_date).getFullYear() : 
-                    (content as any).first_air_date ? new Date((content as any).first_air_date).getFullYear() : '';
-        
-        const downloadOptions = await downloadService.findMovieDownloadOptions(title, year);
-        
-        if (downloadOptions && downloadOptions.results.length > 0) {
-          setAvailableFormats(downloadOptions.results);
-          setInternetArchiveUrl(downloadOptions.results[0].files[0].downloadUrl);
-        } else {
-          Alert.alert('Not Available', 'This movie is not available on Internet Archive for download. Please try another movie.');
-          setIsCheckingArchive(false);
-          return;
-        }
-      } catch (error) {
-        Alert.alert('Search Error', 'Unable to search Internet Archive. Please check your connection and try again.');
-        setIsCheckingArchive(false);
-        return;
-      }
-      setIsCheckingArchive(false);
-    }
-
-    // Show format selector if multiple options are available
-    if (availableFormats.length > 0) {
-      const totalFiles = availableFormats.reduce((sum, result) => sum + result.files.length, 0);
-      if (totalFiles > 1) {
-        setShowFormatSelector(true);
-        return;
-      }
-    }
-
-    // Proceed with download using the first available format
-    if (availableFormats.length > 0 && availableFormats[0].files.length > 0) {
-      startDownload(availableFormats[0].files[0].downloadUrl, availableFormats[0].files[0].format);
-    }
-  };
-
-  const startDownload = (downloadUrl: string, format: string) => {
-    if (!content || !id) return;
 
     const title = (content as any).title || (content as any).name;
     const posterPath = content.poster_path || '';
@@ -260,7 +201,7 @@ export default function TMDbContentDetails() {
     try {
       Alert.alert(
         'Start Download',
-        `Download "${title}" in ${format.toUpperCase()} format?\n\nThis will be saved to your device's Downloads folder.`,
+        `Download "${title}" in HD quality?\n\nThis will be saved to your device's Downloads folder.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -272,12 +213,11 @@ export default function TMDbContentDetails() {
                 title,
                 posterPath,
                 'high', // Default to high quality
-                downloadUrl
+                internetArchiveUrl
               );
 
               setActiveDownloadId(downloadId);
               setDownloadError(''); // Clear any previous errors
-              setShowFormatSelector(false); // Close selector
 
               // Set up progress tracking
               downloadService.setProgressCallback(downloadId, (progress) => {
@@ -535,17 +475,12 @@ export default function TMDbContentDetails() {
               styles.secondaryButton, 
               isDownloaded && styles.downloadedButton,
               activeDownloadId && styles.downloadingButton,
-              (availableFormats.length === 0 && !isDownloaded && !activeDownloadId && !isCheckingArchive) && styles.disabledButton
+              !internetArchiveUrl && !isDownloaded && !activeDownloadId && styles.disabledButton
             ]}
             onPress={handleDownload}
-            disabled={availableFormats.length === 0 && !isDownloaded && !activeDownloadId && !isCheckingArchive}
+            disabled={!internetArchiveUrl && !isDownloaded && !activeDownloadId}
           >
-            {isCheckingArchive ? (
-              <>
-                <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.secondaryButtonText}>Checking...</Text>
-              </>
-            ) : activeDownloadId ? (
+            {activeDownloadId ? (
               <>
                 <View style={styles.progressContainer}>
                   <View style={[styles.progressBar, { width: `${downloadProgress}%` }]} />
@@ -557,27 +492,25 @@ export default function TMDbContentDetails() {
             ) : (
               <>
                 <Ionicons
-                  name={isDownloaded ? "checkmark-circle" : availableFormats.length > 0 ? "cloud-download" : "download-outline"}
+                  name={isDownloaded ? "checkmark-circle" : internetArchiveUrl ? "cloud-download" : "download-outline"}
                   size={24}
-                  color={isDownloaded ? "#4CAF50" : availableFormats.length > 0 ? "#fff" : "#666"}
+                  color={isDownloaded ? "#4CAF50" : internetArchiveUrl ? "#fff" : "#666"}
                 />
                 <Text style={[
                   styles.secondaryButtonText,
                   isDownloaded && styles.downloadedButtonText,
-                  (availableFormats.length === 0 && !isDownloaded && !isCheckingArchive) && styles.disabledButtonText
+                  !internetArchiveUrl && !isDownloaded && styles.disabledButtonText
                 ]}>
-                  {isDownloaded ? 'Downloaded' : availableFormats.length > 0 ? 'Download HD' : 'Not Available'}
+                  {isDownloaded ? 'Downloaded' : internetArchiveUrl ? 'Download HD' : 'Not Available'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
 
-          {availableFormats.length > 0 && !isDownloaded && !activeDownloadId && (
+          {internetArchiveUrl && !isDownloaded && !activeDownloadId && (
             <View style={styles.archiveNotice}>
               <Ionicons name="information-circle" size={16} color="#4CAF50" />
-              <Text style={styles.archiveNoticeText}>
-                {availableFormats.reduce((sum, result) => sum + result.files.length, 0)} format(s) available from Internet Archive
-              </Text>
+              <Text style={styles.archiveNoticeText}>HD version available from Internet Archive</Text>
             </View>
           )}
 
@@ -587,7 +520,7 @@ export default function TMDbContentDetails() {
             </View>
           )}
 
-          {availableFormats.length === 0 && !isCheckingArchive && !isDownloaded && (
+          {!internetArchiveUrl && !isCheckingArchive && !isDownloaded && (
             <View style={styles.notAvailableNotice}>
               <Ionicons name="information-circle" size={16} color="#F44336" />
               <Text style={styles.notAvailableText}>Not available on Internet Archive</Text>
@@ -782,67 +715,6 @@ export default function TMDbContentDetails() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-
-      {/* Format Selector Modal */}
-      <Modal
-        visible={showFormatSelector}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowFormatSelector(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.formatSelectorContainer}>
-            <View style={styles.formatSelectorHeader}>
-              <Text style={styles.formatSelectorTitle}>Select Download Format</Text>
-              <TouchableOpacity
-                style={styles.closeModalButton}
-                onPress={() => setShowFormatSelector(false)}
-              >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.formatList} showsVerticalScrollIndicator={false}>
-              {availableFormats.map((result, resultIndex) => (
-                <View key={resultIndex} style={styles.formatGroup}>
-                  <Text style={styles.formatGroupTitle}>{result.title}</Text>
-                  {result.files.map((file, fileIndex) => (
-                    <TouchableOpacity
-                      key={fileIndex}
-                      style={styles.formatOption}
-                      onPress={() => startDownload(file.downloadUrl, file.format)}
-                    >
-                      <View style={styles.formatInfo}>
-                        <View style={styles.formatHeader}>
-                          <Text style={styles.formatName}>
-                            {file.format.toUpperCase()} Format
-                          </Text>
-                          <View style={[styles.formatBadge, { 
-                            backgroundColor: file.format.toLowerCase() === 'mp4' ? '#4CAF50' : 
-                                            file.format.toLowerCase() === 'mkv' ? '#2196F3' : '#FF9800'
-                          }]}>
-                            <Text style={styles.formatBadgeText}>{file.format.toUpperCase()}</Text>
-                          </View>
-                        </View>
-                        <Text style={styles.fileName} numberOfLines={1}>{file.name}</Text>
-                        <Text style={styles.fileSize}>Size: {file.size || 'Unknown'}</Text>
-                      </View>
-                      <Ionicons name="download" size={24} color="#E50914" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowFormatSelector(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1320,114 +1192,5 @@ const styles = StyleSheet.create({
     top: -10,
     right: -10,
     zIndex: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  formatSelectorContainer: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    maxHeight: '80%',
-    width: '100%',
-    maxWidth: 400,
-  },
-  formatSelectorHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  formatSelectorTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  closeModalButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  formatList: {
-    maxHeight: 400,
-    padding: 20,
-  },
-  formatGroup: {
-    marginBottom: 20,
-  },
-  formatGroupTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  formatOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  formatInfo: {
-    flex: 1,
-    marginRight: 16,
-  },
-  formatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  formatName: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  formatBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  formatBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  fileName: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  fileSize: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-  },
-  cancelButton: {
-    margin: 20,
-    marginTop: 0,
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
