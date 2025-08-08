@@ -10,16 +10,20 @@ import {
   Alert,
   RefreshControl,
   Dimensions,
+  ScrollView,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { downloadService, DownloadItem } from '@/services/downloadService';
 import { LinearGradient } from 'expo-linear-gradient';
+import { downloadService, DownloadItem } from '@/services/downloadService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
+type TabType = 'all' | 'downloading' | 'completed' | 'pending';
+
 export default function DownloadsScreen() {
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'downloading' | 'completed' | 'pending'>('all');
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [storageInfo, setStorageInfo] = useState({ used: 0, total: 0, available: 0 });
 
@@ -27,10 +31,14 @@ export default function DownloadsScreen() {
     loadDownloads();
     loadStorageInfo();
     
+    // Set up interval to update progress for active downloads
     const interval = setInterval(() => {
-      loadDownloads();
-    }, 1000); // Update every second for progress
-    
+      const activeDownloads = downloadService.getActiveDownloads();
+      if (activeDownloads.length > 0) {
+        loadDownloads();
+      }
+    }, 1000);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -40,153 +48,204 @@ export default function DownloadsScreen() {
   };
 
   const loadStorageInfo = async () => {
-    const info = await downloadService.getStorageInfo();
-    setStorageInfo(info);
+    try {
+      const info = await downloadService.getStorageInfo();
+      setStorageInfo(info);
+    } catch (error) {
+      console.error('Error loading storage info:', error);
+    }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    loadDownloads();
+    await loadDownloads();
     await loadStorageInfo();
     setRefreshing(false);
   };
 
-  const getFilteredDownloads = () => {
+  const getFilteredDownloads = (): DownloadItem[] => {
     switch (activeTab) {
       case 'downloading':
         return downloads.filter(item => item.status === 'downloading');
       case 'completed':
         return downloads.filter(item => item.status === 'completed');
       case 'pending':
-        return downloads.filter(item => item.status === 'pending');
+        return downloads.filter(item => item.status === 'pending' || item.status === 'paused');
       default:
         return downloads;
     }
   };
 
   const handleDownloadAction = (item: DownloadItem) => {
-    switch (item.status) {
-      case 'downloading':
-        Alert.alert(
-          'Download Actions',
-          `What would you like to do with "${item.title}"?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Pause', 
-              onPress: () => downloadService.pauseDownload(item.id)
-            },
-            {
-              text: 'Cancel Download',
-              style: 'destructive',
-              onPress: () => {
-                Alert.alert(
-                  'Cancel Download',
-                  'Are you sure you want to cancel this download?',
-                  [
-                    { text: 'No', style: 'cancel' },
-                    { 
-                      text: 'Yes', 
-                      style: 'destructive',
-                      onPress: () => downloadService.cancelDownload(item.id)
-                    }
-                  ]
-                );
-              }
-            }
-          ]
-        );
-        break;
-      case 'paused':
-        downloadService.resumeDownload(item.id);
-        break;
-      case 'failed':
-        Alert.alert(
-          'Download Failed',
-          `"${item.title}" failed to download. Would you like to retry?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Delete', 
-              style: 'destructive',
-              onPress: () => downloadService.deleteDownload(item.id)
-            },
-            { 
-              text: 'Retry', 
-              onPress: () => downloadService.retryDownload(item.id)
-            }
-          ]
-        );
-        break;
-      case 'completed':
-        Alert.alert(
-          'Downloaded Movie',
-          `"${item.title}" is downloaded and ready to watch.`,
-          [
-            { text: 'OK', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: () => {
-                Alert.alert(
-                  'Delete Download',
-                  'Are you sure you want to delete this downloaded movie?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Delete', 
-                      style: 'destructive',
-                      onPress: () => downloadService.deleteDownload(item.id)
-                    }
-                  ]
-                );
-              }
-            }
-          ]
-        );
-        break;
+    const actions = [];
+
+    if (item.status === 'completed') {
+      actions.push({ text: 'Delete', onPress: () => deleteDownload(item.id), style: 'destructive' as const });
+    } else if (item.status === 'downloading') {
+      actions.push({ text: 'Pause', onPress: () => pauseDownload(item.id) });
+      actions.push({ text: 'Cancel', onPress: () => cancelDownload(item.id), style: 'destructive' as const });
+    } else if (item.status === 'paused') {
+      actions.push({ text: 'Resume', onPress: () => resumeDownload(item.id) });
+      actions.push({ text: 'Cancel', onPress: () => cancelDownload(item.id), style: 'destructive' as const });
+    } else if (item.status === 'failed') {
+      actions.push({ text: 'Retry', onPress: () => retryDownload(item.id) });
+      actions.push({ text: 'Delete', onPress: () => deleteDownload(item.id), style: 'destructive' as const });
+    } else if (item.status === 'pending') {
+      actions.push({ text: 'Cancel', onPress: () => cancelDownload(item.id), style: 'destructive' as const });
     }
+
+    actions.push({ text: 'Cancel', style: 'cancel' as const });
+
+    Alert.alert('Download Options', `What would you like to do with "${item.title}"?`, actions);
   };
 
-  const formatFileSize = (sizeInMB: number) => {
-    if (sizeInMB < 1024) {
-      return `${sizeInMB.toFixed(0)} MB`;
-    }
-    return `${(sizeInMB / 1024).toFixed(1)} GB`;
+  const deleteDownload = (downloadId: string) => {
+    Alert.alert(
+      'Delete Download',
+      'Are you sure you want to delete this download?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            downloadService.deleteDownload(downloadId);
+            loadDownloads();
+            loadStorageInfo();
+          }
+        }
+      ]
+    );
   };
 
-  const getStatusColor = (status: DownloadItem['status']) => {
-    switch (status) {
-      case 'completed':
-        return '#4CAF50';
-      case 'downloading':
-        return '#2196F3';
-      case 'failed':
-        return '#F44336';
-      case 'paused':
-        return '#FF9800';
-      case 'pending':
-        return '#9E9E9E';
-      default:
-        return '#9E9E9E';
-    }
+  const pauseDownload = (downloadId: string) => {
+    downloadService.pauseDownload(downloadId);
+    loadDownloads();
+  };
+
+  const resumeDownload = (downloadId: string) => {
+    downloadService.resumeDownload(downloadId);
+    loadDownloads();
+  };
+
+  const cancelDownload = (downloadId: string) => {
+    downloadService.cancelDownload(downloadId);
+    loadDownloads();
+    loadStorageInfo();
+  };
+
+  const retryDownload = (downloadId: string) => {
+    downloadService.retryDownload(downloadId);
+    loadDownloads();
+  };
+
+  const clearAllDownloads = () => {
+    Alert.alert(
+      'Clear All Downloads',
+      'Are you sure you want to clear all downloads? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => {
+            downloadService.clearAllDownloads();
+            loadDownloads();
+            loadStorageInfo();
+          }
+        }
+      ]
+    );
   };
 
   const getStatusIcon = (status: DownloadItem['status']) => {
     switch (status) {
-      case 'completed':
-        return 'checkmark-circle';
-      case 'downloading':
-        return 'download';
-      case 'failed':
-        return 'alert-circle';
-      case 'paused':
-        return 'pause-circle';
-      case 'pending':
-        return 'time';
-      default:
-        return 'help-circle';
+      case 'downloading': return 'download';
+      case 'completed': return 'checkmark-circle';
+      case 'failed': return 'alert-circle';
+      case 'paused': return 'pause-circle';
+      case 'pending': return 'time';
+      default: return 'help-circle';
     }
+  };
+
+  const getStatusColor = (status: DownloadItem['status']) => {
+    switch (status) {
+      case 'downloading': return '#2196F3';
+      case 'completed': return '#4CAF50';
+      case 'failed': return '#F44336';
+      case 'paused': return '#FF9800';
+      case 'pending': return '#9E9E9E';
+      default: return '#9E9E9E';
+    }
+  };
+
+  const formatFileSize = (sizeInMB: number) => {
+    if (sizeInMB >= 1024) {
+      return `${(sizeInMB / 1024).toFixed(1)} GB`;
+    }
+    return `${sizeInMB.toFixed(0)} MB`;
+  };
+
+  const formatStorageUsage = (used: number, total: number) => {
+    const usedGB = used / 1024;
+    const totalGB = total / 1024;
+    const percentage = (used / total) * 100;
+    return {
+      text: `${usedGB.toFixed(1)} GB / ${totalGB.toFixed(1)} GB`,
+      percentage: Math.min(percentage, 100)
+    };
+  };
+
+  const renderStorageInfo = () => {
+    const storage = formatStorageUsage(storageInfo.used, storageInfo.total);
+    
+    return (
+      <View style={styles.storageContainer}>
+        <View style={styles.storageHeader}>
+          <Text style={styles.storageTitle}>Storage Usage</Text>
+          <Text style={styles.storageText}>{storage.text}</Text>
+        </View>
+        <View style={styles.storageBar}>
+          <View style={[styles.storageUsed, { width: `${storage.percentage}%` }]} />
+        </View>
+        <Text style={styles.storageDetails}>
+          Downloads: {formatFileSize(storageInfo.used)} • Available: {formatFileSize(storageInfo.available)}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderTabBar = () => {
+    const tabCounts = {
+      all: downloads.length,
+      downloading: downloads.filter(item => item.status === 'downloading').length,
+      completed: downloads.filter(item => item.status === 'completed').length,
+      pending: downloads.filter(item => item.status === 'pending' || item.status === 'paused').length,
+    };
+
+    const tabs: { key: TabType; label: string }[] = [
+      { key: 'all', label: 'All' },
+      { key: 'downloading', label: 'Active' },
+      { key: 'completed', label: 'Done' },
+      { key: 'pending', label: 'Queue' },
+    ];
+
+    return (
+      <View style={styles.tabBar}>
+        {tabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.tabItem, activeTab === tab.key && styles.activeTab]}
+            onPress={() => setActiveTab(tab.key)}
+          >
+            <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>
+              {tab.label} {tabCounts[tab.key] > 0 && `(${tabCounts[tab.key]})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
   };
 
   const renderDownloadItem = ({ item }: { item: DownloadItem }) => (
@@ -218,7 +277,7 @@ export default function DownloadsScreen() {
           {formatFileSize(item.size)} • {item.quality.toUpperCase()}
         </Text>
 
-        {item.status === 'downloading' && (
+        {(item.status === 'downloading' || item.status === 'paused') && (
           <View style={styles.progressContainer}>
             <View style={styles.progressBackground}>
               <View style={[styles.progressFill, { width: `${item.progress}%` }]} />
@@ -230,6 +289,12 @@ export default function DownloadsScreen() {
         {item.status === 'completed' && (
           <Text style={styles.downloadDate}>
             Downloaded {new Date(item.downloadedAt).toLocaleDateString()}
+          </Text>
+        )}
+
+        {item.status === 'failed' && (
+          <Text style={styles.errorText}>
+            Download failed - Tap to retry
           </Text>
         )}
       </View>
@@ -252,104 +317,45 @@ export default function DownloadsScreen() {
     </View>
   );
 
-  const tabCounts = {
-    all: downloads.length,
-    downloading: downloads.filter(item => item.status === 'downloading').length,
-    completed: downloads.filter(item => item.status === 'completed').length,
-    pending: downloads.filter(item => item.status === 'pending').length,
-  };
+  const filteredDownloads = getFilteredDownloads();
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      
       {/* Header */}
-      <LinearGradient
-        colors={['#000', 'rgba(0,0,0,0.9)']}
-        style={styles.header}
-      >
+      <LinearGradient colors={['#E50914', '#B81D1D']} style={styles.header}>
         <Text style={styles.headerTitle}>Downloads</Text>
-        
-        {/* Storage Info */}
-        <View style={styles.storageInfo}>
-          <Text style={styles.storageText}>
-            {formatFileSize(storageInfo.used)} used of {formatFileSize(storageInfo.available)} available
-          </Text>
-          <View style={styles.storageBar}>
-            <View 
-              style={[
-                styles.storageBarFill, 
-                { width: `${Math.min((storageInfo.used / storageInfo.available) * 100, 100)}%` }
-              ]} 
-            />
-          </View>
-        </View>
+        {downloads.length > 0 && (
+          <TouchableOpacity style={styles.clearButton} onPress={clearAllDownloads}>
+            <Ionicons name="trash-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
       </LinearGradient>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        {(['all', 'downloading', 'completed', 'pending'] as const).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </Text>
-            {tabCounts[tab] > 0 && (
-              <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeText}>{tabCounts[tab]}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Storage Info */}
+      {downloads.length > 0 && renderStorageInfo()}
+
+      {/* Tab Bar */}
+      {downloads.length > 0 && renderTabBar()}
 
       {/* Downloads List */}
       <FlatList
-        data={getFilteredDownloads()}
-        keyExtractor={(item) => item.id}
+        data={filteredDownloads}
         renderItem={renderDownloadItem}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={filteredDownloads.length === 0 ? styles.emptyListContainer : styles.listContainer}
+        ListEmptyComponent={renderEmptyState}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#fff"
-            colors={['#fff']}
+            tintColor="#E50914"
+            colors={['#E50914']}
           />
         }
-        ListEmptyComponent={renderEmptyState}
+        showsVerticalScrollIndicator={false}
       />
-
-      {/* Clear All Button */}
-      {downloads.length > 0 && (
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.clearAllButton}
-            onPress={() => {
-              Alert.alert(
-                'Clear All Downloads',
-                'This will delete all downloaded files and cancel any active downloads. This action cannot be undone.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Clear All',
-                    style: 'destructive',
-                    onPress: () => {
-                      downloadService.clearAllDownloads();
-                      setDownloads([]);
-                    }
-                  }
-                ]
-              );
-            }}
-          >
-            <Ionicons name="trash-outline" size={20} color="#F44336" />
-            <Text style={styles.clearAllText}>Clear All Downloads</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -360,81 +366,93 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    paddingTop: 50,
-    paddingBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   headerTitle: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 16,
   },
-  storageInfo: {
-    marginBottom: 8,
+  clearButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  storageContainer: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginHorizontal: 20,
+    marginVertical: 16,
+    padding: 16,
+    borderRadius: 12,
+  },
+  storageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  storageTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   storageText: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
-    marginBottom: 8,
   },
   storageBar: {
-    height: 4,
+    height: 8,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 2,
+    borderRadius: 4,
     overflow: 'hidden',
+    marginBottom: 8,
   },
-  storageBarFill: {
+  storageUsed: {
     height: '100%',
-    backgroundColor: '#2196F3',
-    borderRadius: 2,
+    backgroundColor: '#E50914',
+    borderRadius: 4,
   },
-  tabContainer: {
+  storageDetails: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+  },
+  tabBar: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.05)',
     marginHorizontal: 20,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
     borderRadius: 8,
-    position: 'relative',
+    padding: 4,
+    marginBottom: 16,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
   },
   activeTab: {
     backgroundColor: '#E50914',
   },
   tabText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   activeTabText: {
     color: '#fff',
-  },
-  tabBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 4,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  tabBadgeText: {
-    color: '#fff',
-    fontSize: 12,
     fontWeight: '600',
   },
-  list: {
-    flex: 1,
+  listContainer: {
+    paddingHorizontal: 20,
   },
-  listContent: {
+  emptyListContainer: {
+    flex: 1,
     paddingHorizontal: 20,
   },
   downloadItem: {
@@ -503,6 +521,11 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 12,
   },
+  errorText: {
+    color: '#F44336',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
   actionButton: {
     width: 44,
     height: 44,
@@ -527,27 +550,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 16,
     textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  clearAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#F44336',
-  },
-  clearAllText: {
-    color: '#F44336',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
   },
 });

@@ -1,7 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
-import * as Notifications from 'expo-notifications';
+import { Alert } from 'react-native';
 
 export interface DownloadItem {
   id: string;
@@ -39,18 +39,11 @@ class DownloadService {
 
   constructor() {
     this.loadFromStorage();
-    this.setupNotifications();
   }
 
-  private async setupNotifications() {
-    await Notifications.requestPermissionsAsync();
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
-    });
+  // Toast notification helper
+  private showToast(title: string, message: string) {
+    Alert.alert(title, message);
   }
 
   // Get available quality options
@@ -156,26 +149,14 @@ class DownloadService {
       // Set expiration (30 days from now)
       nextDownload.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // Show completion notification
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Download Complete',
-          body: `${nextDownload.title} has been downloaded successfully.`,
-        },
-        trigger: null,
-      });
+      // Show completion toast
+      this.showToast('Download Complete', `${nextDownload.title} has been downloaded successfully.`);
     } catch (error) {
       nextDownload.status = 'failed';
       console.error('Download failed:', error);
       
-      // Show error notification
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Download Failed',
-          body: `Failed to download ${nextDownload.title}. Tap to retry.`,
-        },
-        trigger: null,
-      });
+      // Show error toast
+      this.showToast('Download Failed', `Failed to download ${nextDownload.title}. Please try again.`);
     }
 
     this.activeDownloads--;
@@ -185,7 +166,7 @@ class DownloadService {
     this.processDownloadQueue();
   }
 
-  // Download from Internet Archive
+  // Download from Internet Archive with enhanced error handling
   private async downloadFromInternetArchive(item: DownloadItem): Promise<void> {
     if (!item.downloadUrl) {
       throw new Error('No download URL provided');
@@ -196,36 +177,103 @@ class DownloadService {
     
     // Ensure downloads directory exists
     const downloadDir = `${FileSystem.documentDirectory}downloads/`;
-    const dirInfo = await FileSystem.getInfoAsync(downloadDir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+    try {
+      const dirInfo = await FileSystem.getInfoAsync(downloadDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+      }
+    } catch (error) {
+      console.error('Error creating downloads directory:', error);
+      throw new Error('Failed to create downloads directory. Please check storage permissions.');
     }
+
+    // Check available storage space before starting download
+    try {
+      const freeSpace = await FileSystem.getFreeDiskStorageAsync();
+      const requiredSpace = item.size * 1024 * 1024; // Convert MB to bytes
+      
+      if (freeSpace < requiredSpace * 1.1) { // Add 10% buffer
+        throw new Error('Insufficient storage space. Please free up some space and try again.');
+      }
+    } catch (error) {
+      console.error('Storage check failed:', error);
+    }
+
+    let lastUpdateTime = Date.now();
+    let lastBytesWritten = 0;
 
     const downloadResumable = FileSystem.createDownloadResumable(
       item.downloadUrl,
       downloadPath,
-      {},
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:40.0) Gecko/40.0 Firefox/40.0'
+        }
+      },
       (downloadProgress) => {
-        const progress = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
-        item.progress = Math.round(progress);
-        item.fileSize = downloadProgress.totalBytesExpectedToWrite;
-        
-        // Calculate actual size in MB
-        item.size = Math.round(downloadProgress.totalBytesExpectedToWrite / (1024 * 1024));
-        
-        this.saveToStorage();
-        
-        // Notify progress callback if exists
-        const callback = this.downloadCallbacks.get(item.id);
-        if (callback) {
-          callback(item.progress);
+        try {
+          if (downloadProgress.totalBytesExpectedToWrite > 0) {
+            const progress = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
+            item.progress = Math.round(Math.min(progress, 100));
+            item.fileSize = downloadProgress.totalBytesExpectedToWrite;
+            
+            // Calculate actual size in MB
+            item.size = Math.round(downloadProgress.totalBytesExpectedToWrite / (1024 * 1024));
+            
+            // Calculate download speed (optional - for future use)
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastUpdateTime;
+            if (timeDiff >= 1000) { // Update speed every second
+              const bytesDiff = downloadProgress.totalBytesWritten - lastBytesWritten;
+              const speedBps = bytesDiff / (timeDiff / 1000);
+              const speedMbps = (speedBps / (1024 * 1024)).toFixed(1);
+              
+              lastUpdateTime = currentTime;
+              lastBytesWritten = downloadProgress.totalBytesWritten;
+            }
+            
+            this.saveToStorage();
+            
+            // Notify progress callback if exists
+            const callback = this.downloadCallbacks.get(item.id);
+            if (callback) {
+              callback(item.progress);
+            }
+          }
+        } catch (error) {
+          console.error('Progress update error:', error);
         }
       }
     );
 
-    const result = await downloadResumable.downloadAsync();
-    if (result) {
-      item.filePath = result.uri;
+    try {
+      const result = await downloadResumable.downloadAsync();
+      if (result) {
+        item.filePath = result.uri;
+        
+        // Verify file integrity
+        const fileInfo = await FileSystem.getInfoAsync(result.uri);
+        if (!fileInfo.exists || fileInfo.size === 0) {
+          throw new Error('Downloaded file is corrupted or empty');
+        }
+      } else {
+        throw new Error('Download completed but no file was saved');
+      }
+    } catch (error) {
+      // Clean up partial download
+      try {
+        await FileSystem.deleteAsync(downloadPath, { idempotent: true });
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError);
+      }
+      
+      if (error.message.includes('Network')) {
+        throw new Error('Network error occurred. Please check your internet connection and try again.');
+      } else if (error.message.includes('storage') || error.message.includes('space')) {
+        throw new Error('Insufficient storage space. Please free up some space and try again.');
+      } else {
+        throw new Error(`Download failed: ${error.message}`);
+      }
     }
   }
 

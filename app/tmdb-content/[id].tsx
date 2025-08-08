@@ -61,6 +61,8 @@ export default function TMDbContentDetails() {
   const [isCheckingArchive, setIsCheckingArchive] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [activeDownloadId, setActiveDownloadId] = useState<string | null>(null);
+  const [downloadSpeed, setDownloadSpeed] = useState<string>('');
+  const [downloadError, setDownloadError] = useState<string>('');
 
   useEffect(() => {
     if (id && type) {
@@ -123,6 +125,8 @@ export default function TMDbContentDetails() {
           if (progress >= 100) {
             setIsDownloaded(true);
             setActiveDownloadId(null);
+            setDownloadError('');
+            Alert.alert('Success', `${(content as any).title || (content as any).name} downloaded successfully!`);
           }
         });
       }
@@ -245,6 +249,7 @@ export default function TMDbContentDetails() {
           // Set up progress callback
           downloadService.setProgressCallback(downloadId, (progress) => {
             setDownloadProgress(progress);
+            setDownloadError('');
             if (progress >= 100) {
               setIsDownloaded(true);
               setActiveDownloadId(null);
@@ -252,7 +257,7 @@ export default function TMDbContentDetails() {
             }
           });
           
-          Alert.alert('Download Started', 'Your movie is being downloaded from Internet Archive');
+          Alert.alert('Download Started', 'Your movie is being downloaded from Internet Archive in high quality.');
         } else {
           // Fallback to regular download (simulated)
           const downloadId = downloadService.addToDownloadQueue(
@@ -702,9 +707,12 @@ export default function TMDbContentDetails() {
           </SafeAreaView>
         </Modal>
 
-        {/* Retry Download Button */}
+        {/* Download Error and Retry */}
         {activeDownloadId && downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv')?.status === 'failed' && (
           <View style={styles.retryContainer}>
+            <Text style={styles.errorMessage}>
+              Download failed. Please check your internet connection and try again.
+            </Text>
             <TouchableOpacity style={styles.retryButton} onPress={handleRetryDownload}>
               <Ionicons name="refresh" size={24} color="#fff" />
               <Text style={styles.retryButtonText}>Retry Download</Text>
@@ -1125,6 +1133,14 @@ const styles = StyleSheet.create({
   retryContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
+    alignItems: 'center',
+  },
+  errorMessage: {
+    color: '#F44336',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 20,
   },
   retryButton: {
     flexDirection: 'row',
