@@ -69,7 +69,10 @@ export function MovieDownloader({
 
       if (!searchResult.found) {
         setIsSearching(false);
-        // Error message already shown by the service
+        // Show additional helpful message
+        if (searchResult.error?.includes('No movie archives found')) {
+          showToast('Search Tips', 'Try searching with:\n• Full movie title\n• Title + year (e.g. "Inception 2010")\n• Alternative titles\n• Director name + title');
+        }
         return;
       }
 
@@ -86,22 +89,28 @@ export function MovieDownloader({
 
       if (!filesResult.success) {
         setIsSearching(false);
-        // Error message already shown by the service
+        if (filesResult.error?.includes('No video files found')) {
+          showToast('Archive Issue', 'This archive exists but contains no video files. Try searching for a different version or title.');
+        }
         return;
       }
 
       if (filesResult.files.length === 0) {
         setIsSearching(false);
-        Alert.alert('No Files Found', 'This movie archive contains no downloadable video files.');
+        Alert.alert('No Video Files', 'This archive contains files but no video content. Try searching for a different movie or check your spelling.');
         return;
       }
 
       setMovieFiles(filesResult.files);
       setMovieFound(true);
-      showToast('Success', `Found ${filesResult.files.length} video file(s) for "${searchResult.title}"`);
+      
+      // Show more detailed success message
+      const totalSize = filesResult.files.reduce((sum, file) => sum + file.size, 0);
+      const sizeText = totalSize > 1024 ? `${(totalSize / 1024).toFixed(1)}GB` : `${totalSize}MB`;
+      showToast('Movie Found!', `Found ${filesResult.files.length} video file(s) for "${searchResult.title}"\nTotal size: ${sizeText}`);
     } catch (error) {
       console.error('Search error:', error);
-      showToast('Unexpected Error', 'An unexpected error occurred. Please try again.');
+      showToast('Unexpected Error', 'An unexpected error occurred. Please check your internet connection and try again.');
     } finally {
       setIsSearching(false);
     }

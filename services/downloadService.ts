@@ -92,7 +92,7 @@ class DownloadService {
     }
   }
 
-  // Search Internet Archive for movies with enhanced error handling
+  // Search Internet Archive for movies with enhanced error handling and filtering
   async searchInternetArchive(movieTitle: string): Promise<SearchResult> {
     if (!movieTitle || movieTitle.trim().length === 0) {
       return { found: false, error: 'Movie title is required' };
@@ -110,79 +110,117 @@ class DownloadService {
     }
 
     try {
-      // Properly encode the search query
+      // Properly encode the search query with multiple search strategies
       const encodedTitle = encodeURIComponent(cleanTitle);
-      const searchQuery = `title:(${encodedTitle})+AND+mediatype:(movies)`;
-      const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title&rows=5&page=1&output=json`;
       
-      this.logNetwork('Fetching search results', searchUrl);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-      const response = await fetch(searchUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      this.logNetwork('Search response received', searchUrl, {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const responseText = await response.text();
+      // Try different search queries for better results
+      const searchQueries = [
+        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+format:(mp4+OR+mkv+OR+avi)`,
+        `${encodedTitle}+AND+mediatype:(movies)+AND+collection:(feature_films)`,
+        `title:(${encodedTitle})+AND+mediatype:(movies)+AND+creator:(*)`,
+        `${encodedTitle}+movie+AND+mediatype:(movies)`
+      ];
       
-      if (!responseText || responseText.trim().length === 0) {
-        throw new Error('Empty response from server');
+      let bestResults: any[] = [];
+      
+      // Try each search query until we find good results
+      for (const searchQuery of searchQueries) {
+        const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title,description,creator,year&rows=10&page=1&output=json&sort[]=downloads+desc`;
+        
+        this.logNetwork('Trying search query', searchUrl);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        try {
+          const response = await fetch(searchUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            },
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            continue; // Try next query
+          }
+
+          const responseText = await response.text();
+          if (!responseText || responseText.trim().length === 0) {
+            continue;
+          }
+
+          const data = JSON.parse(responseText);
+          
+          if (data.response && Array.isArray(data.response.docs) && data.response.docs.length > 0) {
+            // Filter out obvious non-movie results
+            const filteredResults = data.response.docs.filter((doc: any) => {
+              const title = doc.title?.toLowerCase() || '';
+              const identifier = doc.identifier?.toLowerCase() || '';
+              
+              // Skip Twitter posts, social media, and other non-movie content
+              if (title.includes('twitter') || title.includes('@') || 
+                  identifier.includes('twitter') || identifier.includes('odysee')) {
+                return false;
+              }
+              
+              // Skip obvious non-movie formats
+              if (title.includes('podcast') || title.includes('radio') || 
+                  title.includes('tv show') || title.includes('episode')) {
+                return false;
+              }
+              
+              return true;
+            });
+            
+            if (filteredResults.length > 0) {
+              bestResults = filteredResults;
+              break; // Found good results, stop searching
+            }
+          }
+        } catch (queryError) {
+          this.logNetwork('Query error', searchUrl, queryError);
+          continue; // Try next query
+        }
       }
 
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        this.logNetwork('JSON parse error', searchUrl, { responseText: responseText.substring(0, 200) });
-        throw new Error('Invalid JSON response from server');
-      }
-
-      this.logNetwork('Search data parsed', searchUrl, {
-        responseCount: data.response?.docs?.length || 0,
-        numFound: data.response?.numFound || 0
+      this.logNetwork('Search completed', 'all queries', {
+        resultCount: bestResults.length,
+        totalQueries: searchQueries.length
       });
 
-      if (!data.response || !Array.isArray(data.response.docs)) {
-        throw new Error('Invalid response format from Internet Archive');
+      if (bestResults.length === 0) {
+        this.showToast('Movie Not Found', `No movie files found for "${cleanTitle}". Try searching for a more specific title or a different movie.`);
+        return { found: false, error: 'No movie archives found' };
       }
 
-      if (data.response.docs.length === 0) {
-        this.showToast('Movie Not Found', `No results found for "${cleanTitle}". Try a different title or check the spelling.`);
-        return { found: false, error: 'No search results found' };
-      }
-
-      // Find the best match (prefer exact title matches)
-      const bestMatch = data.response.docs.find((doc: any) => 
+      // Find the best match - prioritize exact title matches and proper movie archives
+      const exactMatches = bestResults.filter((doc: any) => 
         doc.title && doc.title.toLowerCase().includes(cleanTitle.toLowerCase())
-      ) || data.response.docs[0];
+      );
+      
+      const bestMatch = exactMatches.length > 0 ? exactMatches[0] : bestResults[0];
 
       if (!bestMatch.identifier) {
         throw new Error('Search result missing identifier');
       }
 
-      this.logNetwork('Best match found', searchUrl, {
+      // Validate that this archive actually contains video files
+      const validationResult = await this.validateMovieArchive(bestMatch.identifier);
+      if (!validationResult.isValid) {
+        this.showToast('No Video Files', `Found archive "${bestMatch.title}" but it contains no downloadable video files. Try a different search term.`);
+        return { found: false, error: 'Archive contains no video files' };
+      }
+
+      this.logNetwork('Valid movie archive found', bestMatch.identifier, {
         identifier: bestMatch.identifier,
-        title: bestMatch.title
+        title: bestMatch.title,
+        videoFileCount: validationResult.videoFileCount
       });
 
       return {
@@ -208,6 +246,49 @@ class DownloadService {
 
       this.showToast('Search Failed', errorMessage);
       return { found: false, error: errorMessage };
+    }
+  }
+
+  // Validate that an archive contains actual video files
+  private async validateMovieArchive(identifier: string): Promise<{ isValid: boolean; videoFileCount: number }> {
+    try {
+      const metadataUrl = `https://archive.org/metadata/${encodeURIComponent(identifier)}`;
+      
+      const response = await fetch(metadataUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0'
+        }
+      });
+
+      if (!response.ok) {
+        return { isValid: false, videoFileCount: 0 };
+      }
+
+      const responseText = await response.text();
+      const data = JSON.parse(responseText);
+
+      if (!data.files || !Array.isArray(data.files)) {
+        return { isValid: false, videoFileCount: 0 };
+      }
+
+      // Count video files
+      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
+      const videoFiles = data.files.filter((file: any) => {
+        if (!file.name) return false;
+        const fileName = file.name.toLowerCase();
+        return videoExtensions.some(ext => fileName.endsWith(ext)) && 
+               parseInt(file.size || '0', 10) > 1024 * 1024; // At least 1MB
+      });
+
+      return { 
+        isValid: videoFiles.length > 0, 
+        videoFileCount: videoFiles.length 
+      };
+    } catch (error) {
+      this.logNetwork('Validation error', identifier, error);
+      return { isValid: false, videoFileCount: 0 };
     }
   }
 
