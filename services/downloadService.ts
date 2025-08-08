@@ -57,7 +57,7 @@ class DownloadService {
   private downloadQueue: DownloadItem[] = [];
   private maxConcurrentDownloads = 3;
   private activeDownloads = 0;
-  private downloadCallbacks: Map<string, (progress: number) => void> = new Map();
+  private downloadCallbacks: Map<string, (progress: number, progressInfo?: any) => void> = new Map();
 
   constructor() {
     this.loadFromStorage();
@@ -671,113 +671,198 @@ class DownloadService {
     this.processDownloadQueue();
   }
 
-  // Download from Internet Archive with enhanced error handling
+  // Download from Internet Archive with browser-compatible implementation
   private async downloadFromInternetArchive(item: DownloadItem): Promise<void> {
     if (!item.downloadUrl) {
       throw new Error('No download URL provided');
     }
 
-    const fileName = `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}_${item.id}.mp4`;
-    const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
-    
-    // Ensure downloads directory exists
-    const downloadDir = `${FileSystem.documentDirectory}downloads/`;
-    try {
-      const dirInfo = await FileSystem.getInfoAsync(downloadDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
-      }
-    } catch (error) {
-      console.error('Error creating downloads directory:', error);
-      throw new Error('Failed to create downloads directory. Please check storage permissions.');
-    }
+    // Extract filename from URL or create one
+    const urlParts = item.downloadUrl.split('/');
+    const originalFilename = urlParts[urlParts.length - 1] || `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
+    const fileName = decodeURIComponent(originalFilename);
 
-    // Check available storage space before starting download
+    let startTime = Date.now();
+    let lastUpdateTime = startTime;
+    let lastBytesLoaded = 0;
+    let speed = 0;
+    let estimatedTimeRemaining = 0;
+
     try {
-      const freeSpace = await FileSystem.getFreeDiskStorageAsync();
-      const requiredSpace = item.size * 1024 * 1024; // Convert MB to bytes
+      // Set status to connecting
+      this.updateDownloadStatus(item.id, 'connecting');
       
-      if (freeSpace < requiredSpace * 1.1) { // Add 10% buffer
-        throw new Error('Insufficient storage space. Please free up some space and try again.');
-      }
-    } catch (error) {
-      console.error('Storage check failed:', error);
-    }
-
-    let lastUpdateTime = Date.now();
-    let lastBytesWritten = 0;
-
-    const downloadResumable = FileSystem.createDownloadResumable(
-      item.downloadUrl,
-      downloadPath,
-      {
+      const response = await fetch(item.downloadUrl, {
+        method: 'GET',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-      },
-      (downloadProgress) => {
-        try {
-          if (downloadProgress.totalBytesExpectedToWrite > 0) {
-            const progress = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
-            item.progress = Math.round(Math.min(progress, 100));
-            item.fileSize = downloadProgress.totalBytesExpectedToWrite;
-            
-            // Calculate actual size in MB
-            item.size = Math.round(downloadProgress.totalBytesExpectedToWrite / (1024 * 1024));
-            
-            // Calculate download speed (optional - for future use)
-            const currentTime = Date.now();
-            const timeDiff = currentTime - lastUpdateTime;
-            if (timeDiff >= 1000) { // Update speed every second
-              const bytesDiff = downloadProgress.totalBytesWritten - lastBytesWritten;
-              const speedBps = bytesDiff / (timeDiff / 1000);
-              const speedMbps = (speedBps / (1024 * 1024)).toFixed(1);
-              
-              lastUpdateTime = currentTime;
-              lastBytesWritten = downloadProgress.totalBytesWritten;
-            }
-            
-            this.saveToStorage();
-            
-            // Notify progress callback if exists
-            const callback = this.downloadCallbacks.get(item.id);
-            if (callback) {
-              callback(item.progress);
-            }
-          }
-        } catch (error) {
-          console.error('Progress update error:', error);
-        }
-      }
-    );
+      });
 
-    try {
-      const result = await downloadResumable.downloadAsync();
-      if (result) {
-        item.filePath = result.uri;
-        
-        // Verify file integrity
-        const fileInfo = await FileSystem.getInfoAsync(result.uri);
-        if (!fileInfo.exists || fileInfo.size === 0) {
-          throw new Error('Downloaded file is corrupted or empty');
-        }
-      } else {
-        throw new Error('Download completed but no file was saved');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-    } catch (error) {
-      // Clean up partial download
-      try {
-        await FileSystem.deleteAsync(downloadPath, { idempotent: true });
-      } catch (cleanupError) {
-        console.error('Cleanup error:', cleanupError);
-      }
+
+      const contentLength = response.headers.get('Content-Length');
+      const totalSize = contentLength ? parseInt(contentLength, 10) : 0;
       
-      if (error.message.includes('Network')) {
+      if (totalSize > 0) {
+        item.size = Math.round(totalSize / (1024 * 1024)); // Update size in MB
+        item.fileSize = totalSize;
+      }
+
+      // Set status to downloading
+      this.updateDownloadStatus(item.id, 'downloading');
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Failed to get response reader');
+      }
+
+      const chunks: Uint8Array[] = [];
+      let receivedLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        chunks.push(value);
+        receivedLength += value.length;
+        
+        // Calculate progress
+        if (totalSize > 0) {
+          const progress = (receivedLength / totalSize) * 100;
+          item.progress = Math.round(Math.min(progress, 100));
+          
+          // Calculate speed and ETA
+          const currentTime = Date.now();
+          const timeDiff = currentTime - lastUpdateTime;
+          
+          if (timeDiff >= 1000) { // Update every second
+            const bytesDiff = receivedLength - lastBytesLoaded;
+            speed = bytesDiff / (timeDiff / 1000); // bytes per second
+            
+            if (speed > 0) {
+              const remainingBytes = totalSize - receivedLength;
+              estimatedTimeRemaining = Math.round(remainingBytes / speed);
+            }
+            
+            lastUpdateTime = currentTime;
+            lastBytesLoaded = receivedLength;
+          }
+          
+          // Update progress with detailed info
+          this.updateDownloadProgress(item.id, {
+            progress: item.progress,
+            speed,
+            estimatedTimeRemaining,
+            status: 'downloading',
+            receivedBytes: receivedLength,
+            totalBytes: totalSize
+          });
+        }
+      }
+
+      // Create blob from chunks
+      const blob = new Blob(chunks);
+      
+      // Set status to completing
+      this.updateDownloadStatus(item.id, 'completing');
+      
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the object URL
+      window.URL.revokeObjectURL(url);
+      
+      // Set final progress
+      item.progress = 100;
+      item.filePath = `Downloaded: ${fileName}`;
+      
+      this.updateDownloadProgress(item.id, {
+        progress: 100,
+        speed: 0,
+        estimatedTimeRemaining: 0,
+        status: 'completed',
+        receivedBytes: receivedLength,
+        totalBytes: totalSize || receivedLength
+      });
+
+    } catch (error: any) {
+      this.updateDownloadStatus(item.id, 'failed');
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Download was cancelled');
+      } else if (error.message.includes('Network') || error.message.includes('fetch')) {
         throw new Error('Network error occurred. Please check your internet connection and try again.');
-      } else if (error.message.includes('storage') || error.message.includes('space')) {
-        throw new Error('Insufficient storage space. Please free up some space and try again.');
+      } else if (error.message.includes('HTTP')) {
+        throw new Error(`Server error: ${error.message}`);
       } else {
         throw new Error(`Download failed: ${error.message}`);
+      }
+    }
+  }
+
+  // Helper method to update download status
+  private updateDownloadStatus(downloadId: string, status: string): void {
+    const download = this.downloads.find(item => item.id === downloadId);
+    if (download) {
+      // Add status message based on current state
+      let statusMessage = '';
+      switch (status) {
+        case 'connecting':
+          statusMessage = 'Connecting...';
+          break;
+        case 'downloading':
+          statusMessage = 'Downloading...';
+          break;
+        case 'completing':
+          statusMessage = 'Finalizing download...';
+          break;
+        case 'completed':
+          statusMessage = 'Download completed!';
+          break;
+        case 'failed':
+          statusMessage = 'Download failed';
+          break;
+        default:
+          statusMessage = status;
+      }
+      
+      // Store status message for UI to display
+      (download as any).statusMessage = statusMessage;
+      this.saveToStorage();
+    }
+  }
+
+  // Helper method to update detailed progress info
+  private updateDownloadProgress(downloadId: string, progressInfo: {
+    progress: number;
+    speed: number;
+    estimatedTimeRemaining: number;
+    status: string;
+    receivedBytes: number;
+    totalBytes: number;
+  }): void {
+    const download = this.downloads.find(item => item.id === downloadId);
+    if (download) {
+      // Store detailed progress info
+      (download as any).progressInfo = progressInfo;
+      this.saveToStorage();
+      
+      // Notify progress callback with detailed info
+      const callback = this.downloadCallbacks.get(downloadId);
+      if (callback) {
+        callback(progressInfo.progress, progressInfo);
       }
     }
   }
@@ -819,7 +904,7 @@ class DownloadService {
   }
 
   // Set progress callback for real-time updates
-  setProgressCallback(downloadId: string, callback: (progress: number) => void): void {
+  setProgressCallback(downloadId: string, callback: (progress: number, progressInfo?: any) => void): void {
     this.downloadCallbacks.set(downloadId, callback);
   }
 

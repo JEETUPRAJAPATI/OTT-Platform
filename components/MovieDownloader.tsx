@@ -46,6 +46,10 @@ export function MovieDownloader({
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadId, setDownloadId] = useState<string | null>(null);
+  const [progressInfo, setProgressInfo] = useState<any>(null);
+  const [downloadSpeed, setDownloadSpeed] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
   const [movieFound, setMovieFound] = useState(false);
   const [archiveIdentifier, setArchiveIdentifier] = useState<string>('');
 
@@ -188,12 +192,21 @@ export function MovieDownloader({
       setDownloadId(id);
 
       // Set up progress callback
-      downloadService.setProgressCallback(id, (progress) => {
+      downloadService.setProgressCallback(id, (progress, progressDetails) => {
         setDownloadProgress(progress);
+        
+        if (progressDetails) {
+          setProgressInfo(progressDetails);
+          setDownloadSpeed(progressDetails.speed || 0);
+          setEstimatedTime(progressDetails.estimatedTimeRemaining || 0);
+          setStatusMessage(progressDetails.status || '');
+        }
+        
         if (progress >= 100) {
           setIsDownloading(false);
           setDownloadProgress(100);
-          showToast('Download Complete', `${searchTitle} has been downloaded successfully!`);
+          setStatusMessage('Download completed!');
+          showToast('Download Complete', `${searchTitle} has been downloaded to your Downloads folder!`);
           setTimeout(() => {
             onClose();
           }, 2000);
@@ -230,6 +243,37 @@ export function MovieDownloader({
       return `${(sizeInMB / 1024).toFixed(1)}GB`;
     }
     return `${sizeInMB}MB`;
+  };
+
+  const formatSpeed = (bytesPerSecond: number): string => {
+    if (bytesPerSecond === 0) return '0 B/s';
+    
+    const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    let size = bytesPerSecond;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  };
+
+  const formatTime = (seconds: number): string => {
+    if (seconds === 0 || !isFinite(seconds)) return 'Calculating...';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
   };
 
   const renderQualityModal = () => (
@@ -379,12 +423,41 @@ export function MovieDownloader({
 
           {isDownloading && (
             <View style={styles.progressSection}>
-              <Text style={styles.sectionTitle}>Downloading...</Text>
+              <Text style={styles.sectionTitle}>
+                {statusMessage || 'Downloading...'}
+              </Text>
+              
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { width: `${downloadProgress}%` }]} />
                 </View>
                 <Text style={styles.progressText}>{downloadProgress}%</Text>
+              </View>
+
+              {/* Detailed Progress Info */}
+              <View style={styles.progressDetails}>
+                <View style={styles.progressDetailRow}>
+                  <Text style={styles.progressDetailLabel}>Speed:</Text>
+                  <Text style={styles.progressDetailValue}>
+                    {formatSpeed(downloadSpeed)}
+                  </Text>
+                </View>
+                
+                <View style={styles.progressDetailRow}>
+                  <Text style={styles.progressDetailLabel}>ETA:</Text>
+                  <Text style={styles.progressDetailValue}>
+                    {formatTime(estimatedTime)}
+                  </Text>
+                </View>
+                
+                {progressInfo && progressInfo.receivedBytes && progressInfo.totalBytes && (
+                  <View style={styles.progressDetailRow}>
+                    <Text style={styles.progressDetailLabel}>Size:</Text>
+                    <Text style={styles.progressDetailValue}>
+                      {formatFileSize(progressInfo.receivedBytes / (1024 * 1024))} / {formatFileSize(progressInfo.totalBytes / (1024 * 1024))}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.downloadActions}>
@@ -652,6 +725,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  progressDetails: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  progressDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressDetailLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  progressDetailValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   infoSection: {
     backgroundColor: 'rgba(255,255,255,0.05)',
