@@ -1,13 +1,12 @@
-
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Modal, 
-  ScrollView, 
-  Alert 
+import React, { memo, useCallback, useState } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Modal,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -17,34 +16,31 @@ interface FooterProps {
   onWatchlistPress?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({
-  onFavoritePress,
-  onWatchlistPress
-}) => {
+const FooterComponent = ({ onFavoritePress, onWatchlistPress }: FooterProps) => {
   const router = useRouter();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  const handleSettingsPress = () => {
+  const handleSettingsPress = useCallback(() => {
     setShowSettingsModal(true);
-  };
+  }, []);
 
-  const handleAbout = () => {
+  const handleAbout = useCallback(() => {
     Alert.alert(
       'About RKSWOT',
       'RKSWOT is a comprehensive OTT platform providing access to movies, TV shows, and more. Built with React Native and powered by TMDb API.',
       [{ text: 'OK' }]
     );
-  };
+  }, []);
 
-  const handlePrivacyPolicy = () => {
+  const handlePrivacyPolicy = useCallback(() => {
     Alert.alert(
       'Privacy Policy',
       'We respect your privacy. Your viewing data is stored locally on your device and is not shared with third parties.',
       [{ text: 'OK' }]
     );
-  };
+  }, []);
 
-  const handleRating = () => {
+  const handleRating = useCallback(() => {
     Alert.alert(
       'Rate Our App',
       'Thank you for using RKSWOT! Please rate us on the app store.',
@@ -53,9 +49,9 @@ export const Footer: React.FC<FooterProps> = ({
         { text: 'Rate Now', onPress: () => console.log('Opening rating page') }
       ]
     );
-  };
+  }, []);
 
-  const handleReview = () => {
+  const handleReview = useCallback(() => {
     Alert.alert(
       'Write a Review',
       'Share your experience with RKSWOT. Your feedback helps us improve!',
@@ -64,7 +60,7 @@ export const Footer: React.FC<FooterProps> = ({
         { text: 'Write Review', onPress: () => console.log('Opening review page') }
       ]
     );
-  };
+  }, []);
 
   const SettingsModal = () => (
     <Modal
@@ -83,8 +79,8 @@ export const Footer: React.FC<FooterProps> = ({
           </View>
 
           <ScrollView style={styles.settingsOptions}>
-            <TouchableOpacity 
-              style={styles.settingItem} 
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => {
                 setShowSettingsModal(false);
                 onFavoritePress?.();
@@ -95,8 +91,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Ionicons name="chevron-forward" size={16} color="#999" />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.settingItem} 
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => {
                 setShowSettingsModal(false);
                 onWatchlistPress?.();
@@ -107,8 +103,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Ionicons name="chevron-forward" size={16} color="#999" />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.settingItem} 
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => {
                 setShowSettingsModal(false);
                 handleAbout();
@@ -119,8 +115,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Ionicons name="chevron-forward" size={16} color="#999" />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.settingItem} 
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => {
                 setShowSettingsModal(false);
                 handlePrivacyPolicy();
@@ -131,8 +127,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Ionicons name="chevron-forward" size={16} color="#999" />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.settingItem} 
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => {
                 setShowSettingsModal(false);
                 handleRating();
@@ -143,8 +139,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Ionicons name="chevron-forward" size={16} color="#999" />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.settingItem} 
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => {
                 setShowSettingsModal(false);
                 handleReview();
@@ -163,7 +159,7 @@ export const Footer: React.FC<FooterProps> = ({
   return (
     <>
       <View style={styles.footerContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.footerButton}
           onPress={() => router.push('/(tabs)/')}
         >
@@ -171,7 +167,7 @@ export const Footer: React.FC<FooterProps> = ({
           <Text style={styles.footerText}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.footerButton}
           onPress={() => router.push('/(tabs)/discover')}
         >
@@ -179,7 +175,7 @@ export const Footer: React.FC<FooterProps> = ({
           <Text style={styles.footerText}>Discover</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.footerButton}
           onPress={() => router.push('/(tabs)/downloads')}
         >
@@ -187,7 +183,7 @@ export const Footer: React.FC<FooterProps> = ({
           <Text style={styles.footerText}>Downloads</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.footerButton}
           onPress={() => router.push('/(tabs)/profile')}
         >
@@ -195,7 +191,7 @@ export const Footer: React.FC<FooterProps> = ({
           <Text style={styles.footerText}>Profile</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.footerButton}
           onPress={handleSettingsPress}
         >
@@ -274,3 +270,5 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+
+export const Footer = memo(FooterComponent);

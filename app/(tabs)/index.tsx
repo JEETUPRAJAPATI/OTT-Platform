@@ -43,10 +43,10 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
+  const handleTMDbContentPress = useCallback((content: TMDbMovie | TMDbTVShow) => {
     const type = (content as any).title ? 'movie' : 'tv';
     router.push(`/tmdb-content/${content.id}?type=${type}`);
-  };
+  }, [router]);
 
   const shuffleArray = (array: any[]) => {
     const shuffled = [...array];
@@ -382,10 +382,10 @@ export default function HomeScreen() {
     );
   };
 
-  const handleViewAll = (sectionId: string) => {
+  const handleViewAll = useCallback((sectionId: string) => {
     // Navigate to discover with the specific category
     router.push(`/discover?category=${sectionId}`);
-  };
+  }, [router]);
 
   if (showSplash) {
     return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;
@@ -413,9 +413,13 @@ export default function HomeScreen() {
             />
           );
         }}
-        keyExtractor={(item, index) => 
-          item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`
-        }
+        keyExtractor={useCallback((item: any, index: number) => 
+          item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`, []
+        )}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+        initialNumToRender={3}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
