@@ -1,4 +1,3 @@
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
@@ -83,7 +82,7 @@ class DownloadService {
     episodeNumber?: number
   ): string {
     const downloadId = `download-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Estimate file size based on quality
     let estimatedSize = 500; // MB
     switch (quality) {
@@ -115,10 +114,10 @@ class DownloadService {
     this.downloads.push(downloadItem);
     this.downloadQueue.push(downloadItem);
     this.saveToStorage();
-    
+
     // Start download if we have capacity
     this.processDownloadQueue();
-    
+
     return downloadId;
   }
 
@@ -145,7 +144,7 @@ class DownloadService {
       }
       nextDownload.status = 'completed';
       nextDownload.progress = 100;
-      
+
       // Set expiration (30 days from now)
       nextDownload.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
@@ -154,14 +153,14 @@ class DownloadService {
     } catch (error) {
       nextDownload.status = 'failed';
       console.error('Download failed:', error);
-      
+
       // Show error toast
       this.showToast('Download Failed', `Failed to download ${nextDownload.title}. Please try again.`);
     }
 
     this.activeDownloads--;
     this.saveToStorage();
-    
+
     // Process next item in queue
     this.processDownloadQueue();
   }
@@ -174,7 +173,7 @@ class DownloadService {
 
     const fileName = `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}_${item.id}.mp4`;
     const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
-    
+
     // Ensure downloads directory exists
     const downloadDir = `${FileSystem.documentDirectory}downloads/`;
     try {
@@ -191,7 +190,7 @@ class DownloadService {
     try {
       const freeSpace = await FileSystem.getFreeDiskStorageAsync();
       const requiredSpace = item.size * 1024 * 1024; // Convert MB to bytes
-      
+
       if (freeSpace < requiredSpace * 1.1) { // Add 10% buffer
         throw new Error('Insufficient storage space. Please free up some space and try again.');
       }
@@ -216,10 +215,10 @@ class DownloadService {
             const progress = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
             item.progress = Math.round(Math.min(progress, 100));
             item.fileSize = downloadProgress.totalBytesExpectedToWrite;
-            
+
             // Calculate actual size in MB
             item.size = Math.round(downloadProgress.totalBytesExpectedToWrite / (1024 * 1024));
-            
+
             // Calculate download speed (optional - for future use)
             const currentTime = Date.now();
             const timeDiff = currentTime - lastUpdateTime;
@@ -227,13 +226,13 @@ class DownloadService {
               const bytesDiff = downloadProgress.totalBytesWritten - lastBytesWritten;
               const speedBps = bytesDiff / (timeDiff / 1000);
               const speedMbps = (speedBps / (1024 * 1024)).toFixed(1);
-              
+
               lastUpdateTime = currentTime;
               lastBytesWritten = downloadProgress.totalBytesWritten;
             }
-            
+
             this.saveToStorage();
-            
+
             // Notify progress callback if exists
             const callback = this.downloadCallbacks.get(item.id);
             if (callback) {
@@ -250,7 +249,7 @@ class DownloadService {
       const result = await downloadResumable.downloadAsync();
       if (result) {
         item.filePath = result.uri;
-        
+
         // Verify file integrity
         const fileInfo = await FileSystem.getInfoAsync(result.uri);
         if (!fileInfo.exists || fileInfo.size === 0) {
@@ -266,7 +265,7 @@ class DownloadService {
       } catch (cleanupError) {
         console.error('Cleanup error:', cleanupError);
       }
-      
+
       if (error.message.includes('Network')) {
         throw new Error('Network error occurred. Please check your internet connection and try again.');
       } else if (error.message.includes('storage') || error.message.includes('space')) {
@@ -387,12 +386,12 @@ class DownloadService {
       if (download.status === 'downloading') {
         this.activeDownloads--;
       }
-      
+
       // Remove file if it exists
       if (download.filePath) {
         FileSystem.deleteAsync(download.filePath, { idempotent: true });
       }
-      
+
       this.downloads.splice(downloadIndex, 1);
       this.downloadQueue = this.downloadQueue.filter(item => item.id !== downloadId);
       this.removeProgressCallback(downloadId);
@@ -436,11 +435,11 @@ class DownloadService {
     try {
       const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
       const totalDiskCapacity = await FileSystem.getTotalDiskCapacityAsync();
-      
+
       const used = this.getTotalDownloadedSize();
       const total = Math.round(totalDiskCapacity / (1024 * 1024)); // Convert to MB
       const available = Math.round(freeDiskStorage / (1024 * 1024)); // Convert to MB
-      
+
       return { used, total, available };
     } catch (error) {
       console.error('Error getting storage info:', error);
@@ -455,7 +454,7 @@ class DownloadService {
     const expiredDownloads = this.downloads.filter(item => 
       item.expiresAt && item.expiresAt < now
     );
-    
+
     expiredDownloads.forEach(item => {
       this.deleteDownload(item.id);
     });
@@ -469,7 +468,7 @@ class DownloadService {
         FileSystem.deleteAsync(item.filePath, { idempotent: true });
       }
     });
-    
+
     this.downloads = [];
     this.downloadQueue = [];
     this.activeDownloads = 0;
@@ -497,17 +496,17 @@ class DownloadService {
         const downloadData = JSON.parse(stored);
         this.downloads = downloadData.downloads || [];
         this.downloadQueue = downloadData.downloadQueue || [];
-        
+
         // Reset any downloading items to pending on app restart
         this.downloads.forEach(item => {
           if (item.status === 'downloading') {
             item.status = 'pending';
           }
         });
-        
+
         // Clean up expired downloads
         this.cleanupExpiredDownloads();
-        
+
         // Resume processing queue
         this.processDownloadQueue();
       }
