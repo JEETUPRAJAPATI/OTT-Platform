@@ -32,7 +32,7 @@ const getRankingBadgeColor = (rank: number) => {
     case 1: return '#FFD700'; // Gold for #1
     case 2: return '#C0C0C0'; // Silver for #2
     case 3: return '#CD7F32'; // Bronze for #3
-    default: return '#E50914'; // Netflix red for 4-10
+    default: return '#FF0000'; // Bright red for 4-10
   }
 };
 
@@ -261,33 +261,34 @@ const styles = StyleSheet.create({
     height: CARD_WIDTH * 1.5,
   },
   cardWithRank: {
-    marginTop: 20,
+    marginTop: 15,
+    marginLeft: 15,
   },
   rankingBadge: {
     position: 'absolute',
-    top: -15,
-    left: -8,
+    top: -10,
+    left: -10,
     zIndex: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 8,
   },
   rankingNumber: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textShadowColor: '#fff',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 2,
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '900',
+    textShadowColor: '#000',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   arrow: {
     position: 'absolute',
