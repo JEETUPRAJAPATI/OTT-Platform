@@ -90,6 +90,7 @@ export default function HomeScreen() {
       const getUniqueContent = (data: any[], count: number, preserveOrder = false) => {
         let filtered = data.filter(item => !usedIds.has(item.id));
         if (!preserveOrder) {
+          // Always randomize content for dynamic experience
           filtered = shuffleArray(filtered);
         }
         const selected = filtered.slice(0, count);
@@ -312,6 +313,7 @@ export default function HomeScreen() {
               onContentPress={handleTMDbContentPress}
               onViewAll={() => handleViewAll(item.section.id)}
               showRanking={item.section.showRanking}
+              autoSlide={true}
             />
           );
         }}

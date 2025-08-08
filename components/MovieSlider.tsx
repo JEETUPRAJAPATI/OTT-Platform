@@ -1,5 +1,5 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -23,6 +23,7 @@ interface MovieSliderProps {
   onContentPress: (item: TMDbMovie | TMDbTVShow) => void;
   onViewAll?: () => void;
   showRanking?: boolean;
+  autoSlide?: boolean;
 }
 
 export function MovieSlider({ 
@@ -31,31 +32,88 @@ export function MovieSlider({
   data, 
   onContentPress, 
   onViewAll, 
-  showRanking = false 
+  showRanking = false,
+  autoSlide = true
 }: MovieSliderProps) {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(data.length > 3);
 
+  // Auto-slide functionality
+  useEffect(() => {
+    if (autoSlide && data.length > 3) {
+      const interval = setInterval(() => {
+        setCurrentIndex(prevIndex => {
+          const nextIndex = prevIndex + 1;
+          const maxIndex = Math.max(0, data.length - 3);
+          
+          // If we've reached the end, go back to start
+          const finalIndex = nextIndex > maxIndex ? 0 : nextIndex;
+          
+          try {
+            flatListRef.current?.scrollToIndex({ 
+              index: finalIndex, 
+              animated: true 
+            });
+          } catch (error) {
+            // Fallback to scrollToOffset if scrollToIndex fails
+            const offset = finalIndex * (CARD_WIDTH + CARD_MARGIN);
+            flatListRef.current?.scrollToOffset({ 
+              offset, 
+              animated: true 
+            });
+          }
+          
+          return finalIndex;
+        });
+      }, 3000); // Auto-slide every 3 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [autoSlide, data.length]);
+
+  // Update scroll indicators based on current index
+  useEffect(() => {
+    setCanScrollLeft(currentIndex > 0);
+    setCanScrollRight(currentIndex < data.length - 3);
+  }, [currentIndex, data.length]);
+
   const scrollLeft = () => {
     if (currentIndex > 0) {
       const newIndex = Math.max(0, currentIndex - 2);
-      flatListRef.current?.scrollToIndex({ 
-        index: newIndex, 
-        animated: true 
-      });
+      try {
+        flatListRef.current?.scrollToIndex({ 
+          index: newIndex, 
+          animated: true 
+        });
+      } catch (error) {
+        const offset = newIndex * (CARD_WIDTH + CARD_MARGIN);
+        flatListRef.current?.scrollToOffset({ 
+          offset, 
+          animated: true 
+        });
+      }
       setCurrentIndex(newIndex);
     }
   };
 
   const scrollRight = () => {
-    if (currentIndex < data.length - 3) {
-      const newIndex = Math.min(data.length - 3, currentIndex + 2);
-      flatListRef.current?.scrollToIndex({ 
-        index: newIndex, 
-        animated: true 
-      });
+    const maxIndex = Math.max(0, data.length - 3);
+    if (currentIndex < maxIndex) {
+      const newIndex = Math.min(maxIndex, currentIndex + 2);
+      try {
+        flatListRef.current?.scrollToIndex({ 
+          index: newIndex, 
+          animated: true 
+        });
+      } catch (error) {
+        const offset = newIndex * (CARD_WIDTH + CARD_MARGIN);
+        flatListRef.current?.scrollToOffset({ 
+          offset, 
+          animated: true 
+        });
+      }
       setCurrentIndex(newIndex);
     }
   };
@@ -64,8 +122,6 @@ export function MovieSlider({
     const scrollX = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollX / (CARD_WIDTH + CARD_MARGIN));
     setCurrentIndex(index);
-    setCanScrollLeft(index > 0);
-    setCanScrollRight(index < data.length - 3);
   };
 
   if (!data || data.length === 0) return null;
@@ -130,7 +186,13 @@ export function MovieSlider({
           onScrollToIndexFailed={(info) => {
             const wait = new Promise(resolve => setTimeout(resolve, 500));
             wait.then(() => {
-              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+              try {
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+              } catch (error) {
+                // Fallback to scrollToOffset
+                const offset = info.index * (CARD_WIDTH + CARD_MARGIN);
+                flatListRef.current?.scrollToOffset({ offset, animated: true });
+              }
             });
           }}
         />
