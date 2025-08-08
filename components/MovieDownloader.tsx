@@ -80,9 +80,13 @@ export function MovieDownloader({
       if (!searchResult.found) {
         console.log('No movie found, search result:', searchResult);
         setIsSearching(false);
+        setMovieFound(false);
+        setMovieFiles([]);
         // Show additional helpful message
         if (searchResult.error?.includes('No movie archives found')) {
           showToast('Search Tips', 'Try searching with:\n• Full movie title\n• Title + year (e.g. "Inception 2010")\n• Alternative titles\n• Director name + title');
+        } else {
+          showToast('Movie Not Found', searchResult.error || 'No movies found with that title. Please try a different search term.');
         }
         return;
       }
@@ -90,6 +94,7 @@ export function MovieDownloader({
       if (!searchResult.identifier) {
         console.log('No identifier found in search result');
         setIsSearching(false);
+        setMovieFound(false);
         Alert.alert('Search Error', 'Invalid search result received. Please try again.');
         return;
       }
@@ -106,8 +111,12 @@ export function MovieDownloader({
       if (!filesResult.success) {
         console.log('Files fetch failed:', filesResult.error);
         setIsSearching(false);
+        setMovieFound(false);
+        setMovieFiles([]);
         if (filesResult.error?.includes('No video files found')) {
           showToast('Archive Issue', 'This archive exists but contains no video files. Try searching for a different version or title.');
+        } else {
+          showToast('Files Load Error', filesResult.error || 'Failed to load movie files. Please try again.');
         }
         return;
       }
@@ -115,6 +124,8 @@ export function MovieDownloader({
       if (filesResult.files.length === 0) {
         console.log('No files in successful result');
         setIsSearching(false);
+        setMovieFound(false);
+        setMovieFiles([]);
         Alert.alert('No Video Files', 'This archive contains files but no video content. Try searching for a different movie or check your spelling.');
         return;
       }
@@ -130,6 +141,8 @@ export function MovieDownloader({
       showToast('Movie Found!', `Found ${filesResult.files.length} video file(s) for "${searchResult.title}"\nTotal size: ${sizeText}`);
     } catch (error) {
       console.error('Search error:', error);
+      setMovieFound(false);
+      setMovieFiles([]);
       showToast('Unexpected Error', 'An unexpected error occurred. Please check your internet connection and try again.');
     } finally {
       setIsSearching(false);
@@ -303,35 +316,49 @@ export function MovieDownloader({
             </View>
           </View>
 
-          {movieFound && movieFiles.length > 0 && !isDownloading && (
+          {movieFound && movieFiles && movieFiles.length > 0 && !isDownloading && (
             <View style={styles.downloadSection}>
               <Text style={styles.sectionTitle}>
                 Found {movieFiles.length} file(s) - Ready to Download
               </Text>
+              
               <TouchableOpacity
                 style={styles.downloadButton}
                 onPress={startDownload}
               >
                 <Ionicons name="download" size={24} color="#fff" />
-                <Text style={styles.downloadButtonText}>Download</Text>
+                <Text style={styles.downloadButtonText}>Start Download</Text>
               </TouchableOpacity>
 
               <View style={styles.filesPreview}>
                 <Text style={styles.archiveInfoTitle}>Available Files:</Text>
                 {movieFiles.slice(0, 4).map((file, index) => (
-                  <View key={index} style={styles.fileInfoContainer}>
-                    <Text style={styles.fileInfo}>
-                      📹 {file.quality} • {formatFileSize(file.size)} • {file.format}
-                    </Text>
-                    <Text style={styles.fileName} numberOfLines={1}>
-                      {file.name}
-                    </Text>
-                  </View>
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.fileInfoContainer}
+                    onPress={() => downloadMovie(file)}
+                  >
+                    <View style={styles.fileDetails}>
+                      <Text style={styles.fileInfo}>
+                        📹 {file.quality} • {formatFileSize(file.size)} • {file.format}
+                      </Text>
+                      <Text style={styles.fileName} numberOfLines={1}>
+                        {file.name}
+                      </Text>
+                    </View>
+                    <Ionicons name="download-outline" size={20} color="#4CAF50" />
+                  </TouchableOpacity>
                 ))}
                 {movieFiles.length > 4 && (
-                  <Text style={styles.moreFiles}>
-                    +{movieFiles.length - 4} more files available...
-                  </Text>
+                  <TouchableOpacity 
+                    style={styles.showAllButton}
+                    onPress={() => setShowQualityModal(true)}
+                  >
+                    <Text style={styles.showAllText}>
+                      View all {movieFiles.length} files
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color="#2196F3" />
+                  </TouchableOpacity>
                 )}
                 <Text style={styles.archiveId}>
                   Archive ID: {archiveIdentifier}
@@ -340,14 +367,13 @@ export function MovieDownloader({
             </View>
           )}
 
-          {/* Debug info - remove this after testing */}
-          {__DEV__ && (
-            <View style={styles.debugSection}>
-              <Text style={styles.debugText}>Debug Info:</Text>
-              <Text style={styles.debugText}>movieFound: {movieFound.toString()}</Text>
-              <Text style={styles.debugText}>movieFiles.length: {movieFiles.length}</Text>
-              <Text style={styles.debugText}>isDownloading: {isDownloading.toString()}</Text>
-              <Text style={styles.debugText}>archiveIdentifier: {archiveIdentifier}</Text>
+          {!movieFound && !isSearching && searchTitle.trim().length > 0 && (
+            <View style={styles.noResultsSection}>
+              <Ionicons name="search" size={48} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.noResultsTitle}>No Movie Found</Text>
+              <Text style={styles.noResultsText}>
+                Try searching with a different title or check your spelling
+              </Text>
             </View>
           )}
 
@@ -494,10 +520,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   fileInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   fileInfo: {
     color: 'rgba(255,255,255,0.9)',
@@ -524,19 +555,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'monospace',
   },
-  debugSection: {
-    backgroundColor: 'rgba(255,0,0,0.1)',
+  fileDetails: {
+    flex: 1,
+    marginRight: 12,
+  },
+  showAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(33, 150, 243, 0.1)',
     borderRadius: 8,
     padding: 12,
-    marginTop: 16,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.3)',
+    borderColor: 'rgba(33, 150, 243, 0.3)',
   },
-  debugText: {
-    color: '#ff6b6b',
-    fontSize: 12,
-    fontFamily: 'monospace',
-    marginBottom: 4,
+  showAllText: {
+    color: '#2196F3',
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  noResultsSection: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  noResultsTitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noResultsText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   progressSection: {
     marginBottom: 30,
