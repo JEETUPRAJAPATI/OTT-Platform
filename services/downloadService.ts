@@ -1,4 +1,5 @@
 
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
@@ -30,6 +31,27 @@ export interface DownloadQuality {
   estimatedSize: string;
 }
 
+export interface VideoFile {
+  name: string;
+  size: number;
+  format: string;
+  quality: string;
+  downloadUrl: string;
+}
+
+export interface SearchResult {
+  identifier?: string;
+  title?: string;
+  found: boolean;
+  error?: string;
+}
+
+export interface FilesResult {
+  files: VideoFile[];
+  success: boolean;
+  error?: string;
+}
+
 class DownloadService {
   private downloads: DownloadItem[] = [];
   private downloadQueue: DownloadItem[] = [];
@@ -46,121 +68,306 @@ class DownloadService {
     Alert.alert(title, message);
   }
 
-  // Search Internet Archive for movies
-  async searchInternetArchive(movieTitle: string): Promise<{
-    identifier?: string;
-    title?: string;
-    found: boolean;
-  }> {
+  // Log network debugging information
+  private logNetwork(action: string, url: string, error?: any) {
+    console.log(`[DownloadService] ${action}:`, {
+      url,
+      timestamp: new Date().toISOString(),
+      error: error?.message || error
+    });
+  }
+
+  // Check network connectivity
+  private async checkNetworkConnectivity(): Promise<boolean> {
     try {
-      const searchQuery = encodeURIComponent(`title:(${movieTitle}) AND mediatype:(movies)`);
-      const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title&rows=1&page=1&output=json`;
+      // Simple connectivity test using a reliable endpoint
+      const response = await fetch('https://httpbin.org/status/200', {
+        method: 'HEAD',
+        timeout: 5000
+      });
+      return response.ok;
+    } catch (error) {
+      console.warn('[DownloadService] Network connectivity check failed:', error);
+      return false;
+    }
+  }
+
+  // Search Internet Archive for movies with enhanced error handling
+  async searchInternetArchive(movieTitle: string): Promise<SearchResult> {
+    if (!movieTitle || movieTitle.trim().length === 0) {
+      return { found: false, error: 'Movie title is required' };
+    }
+
+    const cleanTitle = movieTitle.trim();
+    this.logNetwork('Starting search', `title: ${cleanTitle}`);
+
+    // Check network connectivity first
+    const isConnected = await this.checkNetworkConnectivity();
+    if (!isConnected) {
+      const error = 'No internet connection. Please check your network and try again.';
+      this.showToast('Network Error', error);
+      return { found: false, error };
+    }
+
+    try {
+      // Properly encode the search query
+      const encodedTitle = encodeURIComponent(cleanTitle);
+      const searchQuery = `title:(${encodedTitle})+AND+mediatype:(movies)`;
+      const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title&rows=5&page=1&output=json`;
       
+      this.logNetwork('Fetching search results', searchUrl);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
       const response = await fetch(searchUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Mobile; rv:40.0) Gecko/40.0 Firefox/40.0'
-        }
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        signal: controller.signal
       });
-      
+
+      clearTimeout(timeoutId);
+
+      this.logNetwork('Search response received', searchUrl, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (!response.ok) {
-        throw new Error(`Search failed: ${response.status} - ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const responseText = await response.text();
       
-      const data = await response.json();
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('Empty response from server');
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        this.logNetwork('JSON parse error', searchUrl, { responseText: responseText.substring(0, 200) });
+        throw new Error('Invalid JSON response from server');
+      }
+
+      this.logNetwork('Search data parsed', searchUrl, {
+        responseCount: data.response?.docs?.length || 0,
+        numFound: data.response?.numFound || 0
+      });
+
+      if (!data.response || !Array.isArray(data.response.docs)) {
+        throw new Error('Invalid response format from Internet Archive');
+      }
+
+      if (data.response.docs.length === 0) {
+        this.showToast('Movie Not Found', `No results found for "${cleanTitle}". Try a different title or check the spelling.`);
+        return { found: false, error: 'No search results found' };
+      }
+
+      // Find the best match (prefer exact title matches)
+      const bestMatch = data.response.docs.find((doc: any) => 
+        doc.title && doc.title.toLowerCase().includes(cleanTitle.toLowerCase())
+      ) || data.response.docs[0];
+
+      if (!bestMatch.identifier) {
+        throw new Error('Search result missing identifier');
+      }
+
+      this.logNetwork('Best match found', searchUrl, {
+        identifier: bestMatch.identifier,
+        title: bestMatch.title
+      });
+
+      return {
+        identifier: bestMatch.identifier,
+        title: bestMatch.title || cleanTitle,
+        found: true
+      };
+
+    } catch (error: any) {
+      this.logNetwork('Search error', 'searchInternetArchive', error);
+
+      let errorMessage = 'Failed to search for movie';
       
-      if (data.response && data.response.docs && data.response.docs.length > 0) {
-        const result = data.response.docs[0];
-        return {
-          identifier: result.identifier,
-          title: result.title,
-          found: true
-        };
-      } else {
-        return { found: false };
+      if (error.name === 'AbortError') {
+        errorMessage = 'Search timed out. Please try again.';
+      } else if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message.includes('JSON')) {
+        errorMessage = 'Server returned invalid data. Please try again later.';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage = `Server error: ${error.message}`;
       }
-    } catch (error) {
-      console.error('Internet Archive search error:', error);
-      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
-        this.showToast('Network Error', 'Please check your internet connection and try again.');
-      }
-      return { found: false };
+
+      this.showToast('Search Failed', errorMessage);
+      return { found: false, error: errorMessage };
     }
   }
 
-  // Get movie files and metadata from Internet Archive
-  async getInternetArchiveFiles(identifier: string): Promise<{
-    files: Array<{
-      name: string;
-      size: number;
-      format: string;
-      quality: string;
-      downloadUrl: string;
-    }>;
-    success: boolean;
-  }> {
+  // Get movie files and metadata from Internet Archive with enhanced error handling
+  async getInternetArchiveFiles(identifier: string): Promise<FilesResult> {
+    if (!identifier || identifier.trim().length === 0) {
+      return { files: [], success: false, error: 'Identifier is required' };
+    }
+
+    const cleanIdentifier = identifier.trim();
+    this.logNetwork('Fetching metadata', `identifier: ${cleanIdentifier}`);
+
     try {
-      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      const metadataUrl = `https://archive.org/metadata/${encodeURIComponent(cleanIdentifier)}`;
+      
+      this.logNetwork('Fetching metadata from URL', metadataUrl);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout for metadata
+
       const response = await fetch(metadataUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Mobile; rv:40.0) Gecko/40.0 Firefox/40.0'
-        }
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        signal: controller.signal
       });
-      
+
+      clearTimeout(timeoutId);
+
+      this.logNetwork('Metadata response received', metadataUrl, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (!response.ok) {
-        throw new Error(`Metadata fetch failed: ${response.status} - ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const responseText = await response.text();
       
-      const data = await response.json();
-      
-      if (!data.files) {
-        return { files: [], success: false };
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('Empty metadata response');
       }
-      
-      // Filter video files and extract quality information
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        this.logNetwork('Metadata JSON parse error', metadataUrl, { responseText: responseText.substring(0, 200) });
+        throw new Error('Invalid JSON in metadata response');
+      }
+
+      if (!data.files || !Array.isArray(data.files)) {
+        this.logNetwork('No files array in metadata', metadataUrl, { hasFiles: !!data.files });
+        return { files: [], success: false, error: 'No files found in archive' };
+      }
+
+      this.logNetwork('Processing files', metadataUrl, { fileCount: data.files.length });
+
+      // Filter and process video files
+      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
       const videoFiles = data.files.filter((file: any) => {
-        const name = file.name?.toLowerCase() || '';
-        return name.endsWith('.mp4') || name.endsWith('.mkv') || name.endsWith('.webm') || name.endsWith('.avi');
+        if (!file.name) return false;
+        const fileName = file.name.toLowerCase();
+        return videoExtensions.some(ext => fileName.endsWith(ext));
       });
-      
-      const processedFiles = videoFiles.map((file: any) => {
+
+      this.logNetwork('Video files found', metadataUrl, { videoFileCount: videoFiles.length });
+
+      if (videoFiles.length === 0) {
+        this.showToast('No Video Files', 'This archive contains no downloadable video files.');
+        return { files: [], success: false, error: 'No video files found' };
+      }
+
+      const processedFiles: VideoFile[] = videoFiles.map((file: any) => {
         const fileName = file.name || '';
-        const fileSize = parseInt(file.size || '0');
+        const fileSize = parseInt(file.size || '0', 10);
         const fileSizeMB = Math.round(fileSize / (1024 * 1024));
         
-        // Extract quality from filename
+        // Extract quality from filename with better detection
         let quality = 'Unknown';
-        if (fileName.includes('1080p') || fileName.includes('1080')) quality = '1080p';
-        else if (fileName.includes('720p') || fileName.includes('720')) quality = '720p';
-        else if (fileName.includes('480p') || fileName.includes('480')) quality = '480p';
-        else if (fileName.includes('360p') || fileName.includes('360')) quality = '360p';
-        else if (fileName.includes('HD') || fileName.includes('hd')) quality = 'HD';
+        const lowerName = fileName.toLowerCase();
+        
+        if (lowerName.includes('2160p') || lowerName.includes('4k') || lowerName.includes('uhd')) {
+          quality = '4K';
+        } else if (lowerName.includes('1440p')) {
+          quality = '1440p';
+        } else if (lowerName.includes('1080p') || lowerName.includes('1080')) {
+          quality = '1080p';
+        } else if (lowerName.includes('720p') || lowerName.includes('720')) {
+          quality = '720p';
+        } else if (lowerName.includes('480p') || lowerName.includes('480')) {
+          quality = '480p';
+        } else if (lowerName.includes('360p') || lowerName.includes('360')) {
+          quality = '360p';
+        } else if (lowerName.includes('hd')) {
+          quality = 'HD';
+        } else if (fileSizeMB > 2000) {
+          quality = 'High Quality';
+        } else if (fileSizeMB > 700) {
+          quality = 'Medium Quality';
+        } else {
+          quality = 'Standard Quality';
+        }
         
         // Extract format
         const format = fileName.split('.').pop()?.toUpperCase() || 'MP4';
         
         return {
           name: fileName,
-          size: fileSizeMB,
+          size: Math.max(fileSizeMB, 1), // Ensure minimum 1MB to avoid zero-size files
           format,
           quality,
-          downloadUrl: `https://archive.org/download/${identifier}/${fileName}`
+          downloadUrl: `https://archive.org/download/${encodeURIComponent(cleanIdentifier)}/${encodeURIComponent(fileName)}`
         };
       }).filter(file => file.size > 0); // Filter out files with no size
-      
+
+      // Sort by quality (highest first) and size
+      const qualityOrder = ['4K', '1440p', '1080p', 'HD', '720p', '480p', '360p', 'High Quality', 'Medium Quality', 'Standard Quality', 'Unknown'];
+      processedFiles.sort((a, b) => {
+        const aIndex = qualityOrder.indexOf(a.quality);
+        const bIndex = qualityOrder.indexOf(b.quality);
+        if (aIndex !== bIndex) {
+          return aIndex - bIndex;
+        }
+        return b.size - a.size; // Larger files first for same quality
+      });
+
+      this.logNetwork('Files processed successfully', metadataUrl, { 
+        processedCount: processedFiles.length,
+        qualities: processedFiles.map(f => f.quality)
+      });
+
       return {
         files: processedFiles,
         success: true
       };
-    } catch (error) {
-      console.error('Internet Archive metadata error:', error);
-      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
-        this.showToast('Network Error', 'Please check your internet connection and try again.');
+
+    } catch (error: any) {
+      this.logNetwork('Metadata fetch error', 'getInternetArchiveFiles', error);
+
+      let errorMessage = 'Failed to get movie files';
+      
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. Please try again.';
+      } else if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.message.includes('JSON')) {
+        errorMessage = 'Server returned invalid data. Please try again later.';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage = `Server error: ${error.message}`;
       }
-      return { files: [], success: false };
+
+      this.showToast('Failed to Load Files', errorMessage);
+      return { files: [], success: false, error: errorMessage };
     }
   }
 
@@ -325,7 +532,7 @@ class DownloadService {
       downloadPath,
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Mobile; rv:40.0) Gecko/40.0 Firefox/40.0'
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0'
         }
       },
       (downloadProgress) => {
@@ -636,3 +843,4 @@ class DownloadService {
 }
 
 export const downloadService = new DownloadService();
+

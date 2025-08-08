@@ -67,9 +67,15 @@ export function MovieDownloader({
       // Search for movie on Internet Archive
       const searchResult = await downloadService.searchInternetArchive(title.trim());
 
-      if (!searchResult.found || !searchResult.identifier) {
+      if (!searchResult.found) {
         setIsSearching(false);
-        Alert.alert('Movie Not Found', 'The movie could not be found on Internet Archive. This could be due to network issues or the movie not being available. Please check your connection and try a different title.');
+        // Error message already shown by the service
+        return;
+      }
+
+      if (!searchResult.identifier) {
+        setIsSearching(false);
+        Alert.alert('Search Error', 'Invalid search result received. Please try again.');
         return;
       }
 
@@ -78,9 +84,15 @@ export function MovieDownloader({
       // Get movie files and metadata
       const filesResult = await downloadService.getInternetArchiveFiles(searchResult.identifier);
 
-      if (!filesResult.success || filesResult.files.length === 0) {
-        showToast('Error', 'No video files found for this movie');
+      if (!filesResult.success) {
         setIsSearching(false);
+        // Error message already shown by the service
+        return;
+      }
+
+      if (filesResult.files.length === 0) {
+        setIsSearching(false);
+        Alert.alert('No Files Found', 'This movie archive contains no downloadable video files.');
         return;
       }
 
@@ -89,7 +101,7 @@ export function MovieDownloader({
       showToast('Success', `Found ${filesResult.files.length} video file(s) for "${searchResult.title}"`);
     } catch (error) {
       console.error('Search error:', error);
-      showToast('Error', 'Failed to search. Please check your internet connection and try again.');
+      showToast('Unexpected Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setIsSearching(false);
     }
