@@ -112,13 +112,13 @@ export default function TMDbContentDetails() {
     if (id) {
       const downloaded = downloadService.isDownloaded(Number(id), type as 'movie' | 'tv');
       setIsDownloaded(downloaded);
-      
+
       // Check if there's an active download for this content
       const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
       if (downloadInfo && (downloadInfo.status === 'downloading' || downloadInfo.status === 'pending')) {
         setActiveDownloadId(downloadInfo.id);
         setDownloadProgress(downloadInfo.progress);
-        
+
         // Set up progress callback
         downloadService.setProgressCallback(downloadInfo.id, (progress) => {
           setDownloadProgress(progress);
@@ -135,13 +135,13 @@ export default function TMDbContentDetails() {
 
   const checkInternetArchiveAvailability = async () => {
     if (!content || !id) return;
-    
+
     setIsCheckingArchive(true);
     try {
       const title = (content as any).title || (content as any).name;
       const year = content.release_date ? new Date(content.release_date).getFullYear() : 
                   (content as any).first_air_date ? new Date((content as any).first_air_date).getFullYear() : '';
-      
+
       // Common Internet Archive URL patterns
       const searchQueries = [
         `${title} ${year}`,
@@ -149,7 +149,7 @@ export default function TMDbContentDetails() {
         `${title} ${year} movie`,
         title.toLowerCase().replace(/\s+/g, '-')
       ];
-      
+
       // Try different archive.org patterns
       const archivePatterns = [
         `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '-')}-${year}/${title.toLowerCase().replace(/\s+/g, '-')}-${year}.mp4`,
@@ -157,7 +157,7 @@ export default function TMDbContentDetails() {
         `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '.')}.${year}/${title.toLowerCase().replace(/\s+/g, '.')}.${year}.mp4`,
         `https://archive.org/download/movies-${year}/${title.toLowerCase().replace(/\s+/g, '-')}.mp4`
       ];
-      
+
       // Check if any of these URLs exist
       for (const url of archivePatterns) {
         try {
@@ -194,87 +194,72 @@ export default function TMDbContentDetails() {
   const handleDownload = async () => {
     if (!content || !id) return;
 
+    if (isDownloaded) {
+      Alert.alert('Already Downloaded', 'This movie is already in your downloads.');
+      return;
+    }
+
+    if (activeDownloadId) {
+      Alert.alert('Download in Progress', 'This movie is currently being downloaded.');
+      return;
+    }
+
+    // Check if Internet Archive URL is available
+    if (!internetArchiveUrl) {
+      Alert.alert('Not available', 'Movie not found on Internet Archive');
+      return;
+    }
+
+    const title = (content as any).title || (content as any).name;
+    const posterPath = content.poster_path || '';
+
     try {
-      if (isDownloaded) {
+      const downloadId = downloadService.addToDownloadQueue(
+        Number(id),
+        type as 'movie' | 'tv',
+        title,
+        posterPath,
+        'high', // Default to high quality
+        internetArchiveUrl
+      );
+
+      setActiveDownloadId(downloadId);
+      setDownloadError(''); // Clear any previous errors
+
+      // Set up progress tracking with better error handling
+      downloadService.setProgressCallback(downloadId, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      // Check download status periodically
+      const checkDownloadStatus = setInterval(() => {
         const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
+
         if (downloadInfo) {
-          downloadService.deleteDownload(downloadInfo.id);
-          setIsDownloaded(false);
-          Alert.alert('Success', 'Removed from downloads');
+          if (downloadInfo.status === 'completed') {
+            setIsDownloaded(true);
+            setActiveDownloadId(null);
+            setDownloadProgress(0);
+            downloadService.removeProgressCallback(downloadId);
+            clearInterval(checkDownloadStatus);
+            // Show success toast
+            Alert.alert('Download Complete', `${title} has been downloaded successfully.`);
+          } else if (downloadInfo.status === 'failed') {
+            setActiveDownloadId(null);
+            setDownloadProgress(0);
+            setDownloadError('Download failed. Please check your connection and try again.');
+            downloadService.removeProgressCallback(downloadId);
+            clearInterval(checkDownloadStatus);
+            // Show error toast
+            Alert.alert('Download Failed', `Failed to download ${title}. Please try again.`);
+          }
         }
-      } else if (activeDownloadId) {
-        // Handle pause/resume/cancel for active download
-        const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
-        if (downloadInfo) {
-          Alert.alert(
-            'Download in Progress',
-            'What would you like to do with this download?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'Pause', 
-                onPress: () => {
-                  downloadService.pauseDownload(downloadInfo.id);
-                  setActiveDownloadId(null);
-                }
-              },
-              {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: () => {
-                  downloadService.cancelDownload(downloadInfo.id);
-                  setActiveDownloadId(null);
-                  setDownloadProgress(0);
-                }
-              }
-            ]
-          );
-        }
-      } else {
-        // Start new download
-        if (internetArchiveUrl) {
-          // Download from Internet Archive
-          const downloadId = downloadService.addToDownloadQueue(
-            Number(id),
-            type as 'movie' | 'tv',
-            (content as any).title || (content as any).name,
-            content.poster_path || '',
-            'high', // Default to high quality for Internet Archive
-            internetArchiveUrl
-          );
-          
-          setActiveDownloadId(downloadId);
-          setDownloadProgress(0);
-          
-          // Set up progress callback
-          downloadService.setProgressCallback(downloadId, (progress) => {
-            setDownloadProgress(progress);
-            setDownloadError('');
-            if (progress >= 100) {
-              setIsDownloaded(true);
-              setActiveDownloadId(null);
-              Alert.alert('Download Complete', `${(content as any).title || (content as any).name} has been downloaded successfully!`);
-            }
-          });
-          
-          Alert.alert('Download Started', 'Your movie is being downloaded from Internet Archive in high quality.');
-        } else {
-          // Fallback to regular download (simulated)
-          const downloadId = downloadService.addToDownloadQueue(
-            Number(id),
-            type as 'movie' | 'tv',
-            (content as any).title || (content as any).name,
-            content.poster_path || '',
-            'high'
-          );
-          
-          setActiveDownloadId(downloadId);
-          Alert.alert('Download Started', 'Download added to queue');
-        }
-      }
+      }, 1000);
+
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Error', 'Failed to start download');
+      Alert.alert('Download Error', 'Failed to start download. Please try again.');
+      setDownloadError('Failed to start download. Please try again.');
     }
   };
 

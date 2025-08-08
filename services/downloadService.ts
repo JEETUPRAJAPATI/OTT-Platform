@@ -2,6 +2,33 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
 
+interface ArchiveSearchResult {
+  identifier: string;
+  title: string;
+  description?: string;
+  downloads: number;
+  files?: ArchiveFile[];
+}
+
+interface ArchiveFile {
+  name: string;
+  source: string;
+  format: string;
+  size?: string;
+  length?: string;
+}
+
+interface ArchiveMetadata {
+  identifier: string;
+  metadata: {
+    title: string;
+    description?: string;
+    subject?: string[];
+    date?: string;
+  };
+  files: ArchiveFile[];
+}
+
 export interface DownloadItem {
   id: string;
   contentId: number;
@@ -43,6 +70,106 @@ class DownloadService {
   // Toast notification helper
   private showToast(title: string, message: string) {
     Alert.alert(title, message);
+  }
+
+  // Search Internet Archive for movie content
+  async searchInternetArchive(movieTitle: string, year?: number): Promise<ArchiveSearchResult[]> {
+    try {
+      const searchQuery = year ? `${movieTitle} ${year}` : movieTitle;
+      const encodedQuery = encodeURIComponent(searchQuery);
+      
+      // Search for movies/videos in Internet Archive
+      const searchUrl = `https://archive.org/advancedsearch.php?q=title:(${encodedQuery}) AND collection:(movies OR etree OR opensource_movies)&fl=identifier,title,description,downloads&rows=20&page=1&output=json`;
+      
+      const response = await fetch(searchUrl);
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.response?.docs || [];
+    } catch (error) {
+      console.error('Archive.org search error:', error);
+      throw new Error('Failed to search Internet Archive. Please check your connection.');
+    }
+  }
+
+  // Get metadata and file list for a specific item
+  async getArchiveMetadata(identifier: string): Promise<ArchiveMetadata | null> {
+    try {
+      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      
+      const response = await fetch(metadataUrl);
+      if (!response.ok) {
+        throw new Error(`Metadata fetch failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Filter for video files
+      const videoFiles = data.files?.filter((file: ArchiveFile) => 
+        file.format && ['mp4', 'avi', 'mkv', 'mov', 'wmv'].includes(file.format.toLowerCase())
+      ) || [];
+      
+      return {
+        identifier: data.metadata?.identifier || identifier,
+        metadata: data.metadata || {},
+        files: videoFiles
+      };
+    } catch (error) {
+      console.error('Archive.org metadata error:', error);
+      return null;
+    }
+  }
+
+  // Find best quality video file from archive metadata
+  findBestVideoFile(files: ArchiveFile[]): ArchiveFile | null {
+    if (!files || files.length === 0) return null;
+    
+    // Prefer MP4 format and larger files
+    const mp4Files = files.filter(f => f.format?.toLowerCase() === 'mp4');
+    const targetFiles = mp4Files.length > 0 ? mp4Files : files;
+    
+    // Sort by size (if available) or name
+    return targetFiles.sort((a, b) => {
+      // Try to sort by file size
+      if (a.size && b.size) {
+        const sizeA = parseInt(a.size) || 0;
+        const sizeB = parseInt(b.size) || 0;
+        return sizeB - sizeA; // Larger files first
+      }
+      
+      // Fallback to name comparison (longer names often indicate higher quality)
+      return b.name.length - a.name.length;
+    })[0];
+  }
+
+  // Search for movie and return download URL if found
+  async findMovieDownloadUrl(movieTitle: string, year?: number): Promise<string | null> {
+    try {
+      // Search for the movie
+      const searchResults = await this.searchInternetArchive(movieTitle, year);
+      
+      if (!searchResults || searchResults.length === 0) {
+        return null;
+      }
+      
+      // Try each search result until we find a downloadable video
+      for (const result of searchResults) {
+        const metadata = await this.getArchiveMetadata(result.identifier);
+        if (metadata && metadata.files.length > 0) {
+          const bestFile = this.findBestVideoFile(metadata.files);
+          if (bestFile) {
+            return `https://archive.org/download/${metadata.identifier}/${bestFile.name}`;
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error finding movie download URL:', error);
+      return null;
+    }
   }
 
   // Get available quality options
