@@ -20,7 +20,106 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Proxy endpoint for Internet Archive downloads
+// Direct download API endpoint for Internet Archive files
+app.post('/api/download', async (req, res) => {
+  try {
+    const { url, filename } = req.body;
+    
+    if (!url || !url.includes('archive.org/download/')) {
+      return res.status(400).json({
+        error: 'Invalid or missing archive.org download URL'
+      });
+    }
+
+    console.log('=== DIRECT DOWNLOAD REQUEST ===');
+    console.log('Archive URL:', url);
+    console.log('Filename:', filename);
+    
+    // Set headers for download
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://archive.org/'
+    };
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers
+    });
+    
+    if (!response.ok) {
+      console.error('=== ARCHIVE.ORG ERROR ===');
+      console.error('Status:', response.status);
+      console.error('Status Text:', response.statusText);
+      
+      let errorMessage = '';
+      if (response.status === 404) {
+        errorMessage = 'File not found on Internet Archive. The file may have been removed or the URL is incorrect.';
+      } else if (response.status === 403) {
+        errorMessage = 'Access forbidden. The file may have restricted access.';
+      } else if (response.status === 503) {
+        errorMessage = 'Internet Archive service temporarily unavailable. Please try again later.';
+      } else {
+        errorMessage = `Archive.org returned ${response.status}: ${response.statusText}`;
+      }
+      
+      return res.status(response.status).json({
+        error: errorMessage,
+        details: {
+          status: response.status,
+          statusText: response.statusText,
+          url: url
+        }
+      });
+    }
+    
+    // Set appropriate headers for download
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const contentLength = response.headers.get('content-length');
+    
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type, Content-Disposition');
+    
+    // Set content headers
+    res.header('Content-Type', contentType);
+    
+    if (contentLength) {
+      res.header('Content-Length', contentLength);
+    }
+    
+    // Extract filename from URL or use provided filename
+    const urlParts = url.split('/');
+    const originalFilename = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]);
+    const downloadFilename = filename || originalFilename;
+    res.header('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+    
+    // Stream the response
+    response.body.pipe(res);
+    
+    // Handle stream errors
+    response.body.on('error', (error) => {
+      console.error('Stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Stream error occurred' });
+      }
+    });
+    
+  } catch (error) {
+    console.error('Download API error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Download server error',
+        details: error.message
+      });
+    }
+  }
+});
+
+// Proxy endpoint for Internet Archive downloads (legacy)
 app.get('/proxy/archive/*', async (req, res) => {
   try {
     // Extract the original URL from the request path

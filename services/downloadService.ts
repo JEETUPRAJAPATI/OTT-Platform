@@ -63,34 +63,20 @@ class DownloadService {
     this.loadFromStorage();
   }
 
-  // Convert Internet Archive URL to proxy URL
-  private getProxyUrl(archiveUrl: string): string {
-    // For direct download URLs, check if it's already a download URL
+  // Ensure Internet Archive URL has download parameter
+  private normalizeArchiveUrl(archiveUrl: string): string {
+    // For direct download URLs, ensure they have the download parameter
     if (archiveUrl.includes('archive.org/download/')) {
-      // Extract the path after archive.org
-      const archivePattern = /https?:\/\/[^\/]*archive\.org\/(.+)/;
-      const match = archiveUrl.match(archivePattern);
-      
-      if (!match) {
-        throw new Error('Invalid Internet Archive URL');
-      }
-      
-      let archivePath = match[1];
-      
       // Ensure the URL has the download parameter
-      if (!archivePath.includes('?download=1')) {
-        archivePath = archivePath.includes('?') 
-          ? archivePath + '&download=1' 
-          : archivePath + '?download=1';
+      if (!archiveUrl.includes('?download=1')) {
+        return archiveUrl.includes('?') 
+          ? archiveUrl + '&download=1' 
+          : archiveUrl + '?download=1';
       }
-      
-      // Use current domain for proxy (works in both dev and production)
-      const proxyBaseUrl = `https://${window.location.hostname}`;
-      
-      return `${proxyBaseUrl}/proxy/archive/${archivePath}`;
+      return archiveUrl;
     }
     
-    // If it's not a download URL, return as is for now
+    // If it's not a download URL, return as is
     return archiveUrl;
   }
 
@@ -736,68 +722,45 @@ class DownloadService {
         totalBytes: 0
       });
 
-      // Always use proxy for Internet Archive downloads to avoid CORS issues
-      const proxyUrl = this.getProxyUrl(item.downloadUrl);
+      // Normalize the archive URL to ensure it has download parameter
+      const normalizedUrl = this.normalizeArchiveUrl(item.downloadUrl);
       console.log('Original URL:', item.downloadUrl);
-      console.log('Using proxy URL:', proxyUrl);
+      console.log('Normalized URL:', normalizedUrl);
 
-      // First, do a HEAD request to validate the file exists
+      // Use backend API to download from archive.org directly
+      const backendUrl = `${window.location.origin}/api/download`;
+      
       this.updateDownloadProgress(item.id, {
         progress: 0,
         speed: 0,
         estimatedTimeRemaining: 0,
-        status: 'Checking if file exists...',
+        status: 'Starting download through backend...',
         receivedBytes: 0,
         totalBytes: 0
       });
 
-      const headResponse = await fetch(proxyUrl, {
-        method: 'HEAD',
+      const response = await fetch(backendUrl, {
+        method: 'POST',
         headers: {
-          'Accept': '*/*',
-          'Accept-Language': 'en-US,en;q=0.9'
-        }
-      });
-
-      if (!headResponse.ok) {
-        if (headResponse.status === 404) {
-          throw new Error('File not found on Internet Archive. The file may have been removed or the URL is incorrect.');
-        } else if (headResponse.status === 403) {
-          throw new Error('Access to file is forbidden. The file may have restricted access.');
-        } else if (headResponse.status === 502) {
-          throw new Error('Proxy server error. Internet Archive may be temporarily unavailable.');
-        } else {
-          throw new Error(`File validation failed: HTTP ${headResponse.status}`);
-        }
-      }
-
-      this.updateDownloadProgress(item.id, {
-        progress: 0,
-        speed: 0,
-        estimatedTimeRemaining: 0,
-        status: 'File validated, starting download...',
-        receivedBytes: 0,
-        totalBytes: 0
-      });
-
-      const response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': '*/*',
-          'Accept-Language': 'en-US,en;q=0.9'
-        }
+          'Content-Type': 'application/json',
+          'Accept': '*/*'
+        },
+        body: JSON.stringify({
+          url: normalizedUrl,
+          filename: item.title
+        })
       });
 
       if (!response.ok) {
-        // Handle proxy-specific errors with more detailed messages
+        // Handle backend API errors
         if (response.status === 404) {
           throw new Error('File not found on Internet Archive. Please check:\n• The file URL is correct\n• The file hasn\'t been removed\n• Try searching for the movie again');
         } else if (response.status === 403) {
           throw new Error('Access forbidden. The file may have restricted access or require authentication.');
         } else if (response.status === 502) {
-          throw new Error('Proxy server error. Internet Archive may be temporarily unavailable. Please try again later.');
+          throw new Error('Backend server error. Internet Archive may be temporarily unavailable. Please try again later.');
         } else if (response.status >= 500) {
-          throw new Error(`Server error (${response.status}). Please try again later.`);
+          throw new Error(`Backend server error (${response.status}). Please try again later.`);
         } else {
           throw new Error(`Download failed with HTTP ${response.status}: ${response.statusText}`);
         }
