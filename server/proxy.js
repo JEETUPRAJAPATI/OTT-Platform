@@ -25,7 +25,7 @@ app.get('/proxy/archive/*', async (req, res) => {
   try {
     // Extract the original URL from the request path
     const originalUrl = req.params[0];
-    const fullUrl = `https://archive.org/${originalUrl}`;
+    const fullUrl = `https://archive.org/${originalUrl}?download=1`;
     
     console.log('Proxying request to:', fullUrl);
     

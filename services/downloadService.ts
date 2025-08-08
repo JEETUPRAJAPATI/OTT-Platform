@@ -77,10 +77,8 @@ class DownloadService {
       
       const archivePath = match[1];
       
-      // Get the proxy server URL - in development, use localhost:5000
-      const proxyBaseUrl = process.env.NODE_ENV === 'production' 
-        ? `https://${window.location.hostname}` 
-        : 'http://localhost:5000';
+      // Use current domain for proxy (works in both dev and production)
+      const proxyBaseUrl = `https://${window.location.hostname}`;
       
       return `${proxyBaseUrl}/proxy/archive/${archivePath}`;
     }
@@ -506,7 +504,7 @@ class DownloadService {
         // Extract format from file extension
         const format = fileName.split('.').pop()?.toUpperCase() || 'MP4';
         
-        // Use exact URL construction pattern from example
+        // Use exact URL construction pattern from example with download parameter
         const downloadUrl = `https://archive.org/download/${cleanIdentifier}/${encodeURIComponent(fileName)}`;
         
         return {
@@ -726,60 +724,17 @@ class DownloadService {
         totalBytes: 0
       });
 
-      // For direct Internet Archive download URLs, try direct access first
-      let response: Response;
-      
-      if (item.downloadUrl.includes('archive.org/download/')) {
-        console.log('Attempting direct download from:', item.downloadUrl);
-        
-        // Try direct access first with proper headers
-        try {
-          response = await fetch(item.downloadUrl, {
-            method: 'GET',
-            headers: {
-              'Accept': '*/*',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-              'Referer': 'https://archive.org/'
-            },
-            mode: 'cors'
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Direct access failed: ${response.status}`);
-          }
-          
-          console.log('Direct download successful');
-        } catch (directError) {
-          console.log('Direct access failed, trying proxy:', directError);
-          
-          // Fall back to proxy
-          const proxyUrl = this.getProxyUrl(item.downloadUrl);
-          console.log('Using proxy URL:', proxyUrl);
+      // Always use proxy for Internet Archive downloads to avoid CORS issues
+      const proxyUrl = this.getProxyUrl(item.downloadUrl);
+      console.log('Using proxy URL:', proxyUrl);
 
-          response = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-              'Accept': '*/*',
-              'Accept-Language': 'en-US,en;q=0.9'
-            },
-            mode: 'cors'
-          });
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9'
         }
-      } else {
-        // Use proxy for non-direct URLs
-        const proxyUrl = this.getProxyUrl(item.downloadUrl);
-        console.log('Using proxy URL:', proxyUrl);
-
-        response = await fetch(proxyUrl, {
-          method: 'GET',
-          headers: {
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9'
-          },
-          mode: 'cors'
-        });
-      }
+      });
 
       if (!response.ok) {
         // Handle proxy-specific errors
