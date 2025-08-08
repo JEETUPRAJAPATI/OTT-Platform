@@ -364,19 +364,19 @@ export function Footer({ currentRoute }: FooterProps) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.footerButton, currentRoute === '/discover' && styles.activeButton]}
-          onPress={() => router.push('/discover')}
+          style={[styles.footerButton, currentRoute === '/(tabs)/discover' && styles.activeButton]}
+          onPress={() => router.push('/(tabs)/discover')}
         >
-          <Ionicons name="compass" size={24} color={currentRoute === '/discover' ? '#E50914' : '#666'} />
-          <Text style={[styles.footerText, currentRoute === '/discover' && styles.activeText]}>Discover</Text>
+          <Ionicons name="compass" size={24} color={currentRoute === '/(tabs)/discover' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/(tabs)/discover' && styles.activeText]}>Discover</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.footerButton, currentRoute === '/search' && styles.activeButton]}
-          onPress={() => router.push('/search')}
+          style={[styles.footerButton, currentRoute === '/(tabs)/search' && styles.activeButton]}
+          onPress={() => router.push('/(tabs)/search')}
         >
-          <Ionicons name="search" size={24} color={currentRoute === '/search' ? '#E50914' : '#666'} />
-          <Text style={[styles.footerText, currentRoute === '/search' && styles.activeText]}>Search</Text>
+          <Ionicons name="search" size={24} color={currentRoute === '/(tabs)/search' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/(tabs)/search' && styles.activeText]}>Search</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.footerButton, styles.settingsButton]} onPress={openSettings}>

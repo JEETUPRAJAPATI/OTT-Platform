@@ -1,371 +1,232 @@
+
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, FlatList, TouchableOpacity, View, Dimensions, TextInput } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
-import { Ionicons } from '@expo/vector-icons';
+import { Footer } from '@/components/Footer';
 
-const { width } = Dimensions.get('window');
-const cardWidth = (width - 60) / 2;
-
-interface Genre {
-  id: number;
-  name: string;
-}
+type TMDbContent = TMDbMovie | TMDbTVShow;
 
 export default function SearchScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
+  const [searchResults, setSearchResults] = useState<TMDbContent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const genres: Genre[] = [
-    { id: 28, name: 'Action' },
-    { id: 12, name: 'Adventure' },
-    { id: 16, name: 'Animation' },
-    { id: 35, name: 'Comedy' },
-    { id: 80, name: 'Crime' },
-    { id: 99, name: 'Documentary' },
-    { id: 18, name: 'Drama' },
-    { id: 10751, name: 'Family' },
-    { id: 14, name: 'Fantasy' },
-    { id: 27, name: 'Horror' },
-    { id: 10402, name: 'Music' },
-    { id: 9648, name: 'Mystery' },
-    { id: 10749, name: 'Romance' },
-    { id: 878, name: 'Sci-Fi' },
-    { id: 53, name: 'Thriller' },
-    { id: 10752, name: 'War' },
-  ];
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (searchQuery.trim().length >= 2) {
+        performSearch();
+      } else {
+        setSearchResults([]);
+        setHasSearched(false);
+      }
+    }, 500);
 
-  const handleSearch = async (query: string) => {
-    if (query.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
+    return () => clearTimeout(delayedSearch);
+  }, [searchQuery]);
+
+  const performSearch = async () => {
+    if (!searchQuery.trim()) return;
 
     try {
       setLoading(true);
-      const results = await tmdbService.searchContent(query);
-      setSearchResults(results);
+      setHasSearched(true);
+      const results = await tmdbService.searchMulti(searchQuery);
+      setSearchResults(results.filter((item: any) => 
+        item.media_type === 'movie' || item.media_type === 'tv'
+      ));
     } catch (error) {
       console.error('Search error:', error);
+      setSearchResults([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGenreFilter = async (genreId: number) => {
-    setSelectedGenre(genreId);
+  const handleContentPress = (item: TMDbContent) => {
+    const mediaType = (item as any).media_type || ((item as any).title ? 'movie' : 'tv');
+    router.push(`/tmdb-content/${item.id}?type=${mediaType}`);
+  };
+
+  const clearSearch = () => {
     setSearchQuery('');
-    try {
-      setLoading(true);
-      const results = await tmdbService.getMoviesByGenre(genreId);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Genre filter error:', error);
-    } finally {
-      setLoading(false);
-    }
+    setSearchResults([]);
+    setHasSearched(false);
   };
-
-  const handleContentPress = (contentItem: TMDbMovie | TMDbTVShow) => {
-    const type = (contentItem as any).title ? 'movie' : 'tv';
-    router.push(`/tmdb-content/${contentItem.id}?type=${type}`);
-  };
-
-  const determineMediaType = (item: any): 'movie' | 'tv' => {
-    return item.title ? 'movie' : 'tv';
-  };
-
-  const renderContentItem = ({ item, index }: { item: any, index: number }) => {
-    const mediaType = determineMediaType(item);
-    return (
-      <View style={[styles.contentItem, { width: cardWidth }]}>
-        <TMDbContentCard
-          content={item}
-          type={mediaType}
-          onPress={() => handleContentPress(item)}
-          style={styles.card}
-        />
-      </View>
-    );
-  };
-
-  const displayContent = searchResults;
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <ThemedText style={styles.title}>
-          Search
-        </ThemedText>
+        <ThemedText style={styles.headerTitle}>Search</ThemedText>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Search Section */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search movies and TV shows..."
-              value={searchQuery}
-              onChangeText={(text) => {
-                setSearchQuery(text);
-                handleSearch(text);
-              }}
-              placeholderTextColor="#8E8E93"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity 
-                onPress={() => {
-                  setSearchQuery('');
-                  setSearchResults([]);
-                  setSelectedGenre(null);
-                }}
-                style={styles.clearButton}
-              >
-                <Ionicons name="close" size={18} color="#8E8E93" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Filter by Genre */}
-        <View style={styles.genreSection}>
-          <ThemedText style={styles.sectionTitle}>Filter by Genre</ThemedText>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genreScroll}>
-            <TouchableOpacity
-              style={[
-                styles.genreChip,
-                !selectedGenre && styles.activeGenreChip
-              ]}
-              onPress={() => {
-                setSelectedGenre(null);
-                setSearchResults([]);
-              }}
-            >
-              <ThemedText style={[
-                styles.genreText,
-                !selectedGenre && styles.activeGenreText
-              ]}>
-                All
-              </ThemedText>
+      {/* Search Input */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search movies and TV shows..."
+            placeholderTextColor="#666"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color="#666" />
             </TouchableOpacity>
-
-            {genres.map((genre) => (
-              <TouchableOpacity
-                key={genre.id}
-                style={[
-                  styles.genreChip,
-                  selectedGenre === genre.id && styles.activeGenreChip
-                ]}
-                onPress={() => handleGenreFilter(genre.id)}
-              >
-                <ThemedText style={[
-                  styles.genreText,
-                  selectedGenre === genre.id && styles.activeGenreText
-                ]}>
-                  {genre.name}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          )}
         </View>
+      </View>
 
-        {/* Results Section */}
-        {(searchQuery.trim() || selectedGenre) && (
-          <View style={styles.resultsSection}>
-            <View style={styles.resultHeader}>
-              <ThemedText style={styles.sectionTitle}>
-                {searchQuery.trim() ? 'Search Results' : 'Filtered Results'}
-              </ThemedText>
-              {displayContent.length > 0 && (
-                <ThemedText style={styles.resultCount}>
-                  {displayContent.length} {displayContent.length === 1 ? 'item' : 'items'}
-                </ThemedText>
+      {/* Search Results */}
+      <View style={styles.resultsContainer}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#E50914" />
+            <ThemedText style={styles.loadingText}>Searching...</ThemedText>
+          </View>
+        ) : hasSearched ? (
+          searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              renderItem={({ item }) => (
+                <TMDbContentCard
+                  content={item}
+                  onPress={() => handleContentPress(item)}
+                  style={styles.resultCard}
+                />
               )}
+              keyExtractor={(item) => `${item.id}-${(item as any).media_type}`}
+              numColumns={2}
+              columnWrapperStyle={styles.row}
+              contentContainerStyle={styles.resultsList}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="film-outline" size={48} color="#666" />
+              <ThemedText style={styles.emptyText}>No results found</ThemedText>
+              <ThemedText style={styles.emptySubtext}>
+                Try searching for different keywords
+              </ThemedText>
             </View>
-
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <View style={styles.loadingSpinner}>
-                  <Ionicons name="refresh" size={32} color="#FF453A" />
-                </View>
-                <ThemedText style={styles.loadingText}>Searching...</ThemedText>
-              </View>
-            ) : displayContent.length > 0 ? (
-              <FlatList
-                data={displayContent}
-                renderItem={renderContentItem}
-                keyExtractor={(item) => `${item.id}-${determineMediaType(item)}`}
-                numColumns={2}
-                columnWrapperStyle={styles.row}
-                contentContainerStyle={styles.contentGrid}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="film-outline" size={48} color="#8E8E93" />
-                <ThemedText style={styles.emptyText}>
-                  No results found
-                </ThemedText>
-                <ThemedText style={styles.emptySubtext}>
-                  Try adjusting your search or filter
-                </ThemedText>
-              </View>
-            )}
+          )
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={48} color="#666" />
+            <ThemedText style={styles.emptyText}>Search for content</ThemedText>
+            <ThemedText style={styles.emptySubtext}>
+              Find your favorite movies and TV shows
+            </ThemedText>
           </View>
         )}
-      </ScrollView>
-    </View>
+      </View>
+
+      <Footer currentRoute="/search" />
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#000',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
     paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    backgroundColor: '#1C1C1E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#E50914',
   },
-  content: {
-    flex: 1,
-    backgroundColor: '#1C1C1E',
-  },
-  searchSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 28,
+  searchContainer: {
+    padding: 20,
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2C2C2E',
-    borderRadius: 16,
+    backgroundColor: '#222',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    height: 52,
     borderWidth: 1,
-    borderColor: '#3A3A3C',
+    borderColor: '#333',
   },
   searchIcon: {
     marginRight: 12,
   },
   searchInput: {
     flex: 1,
+    color: '#fff',
     fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '400',
+    paddingVertical: 16,
   },
   clearButton: {
-    marginLeft: 8,
     padding: 4,
   },
-  genreSection: {
+  resultsContainer: {
+    flex: 1,
     paddingHorizontal: 20,
-    paddingBottom: 32,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 16,
-  },
-  genreScroll: {
-    flexDirection: 'row',
-  },
-  genreChip: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
-    borderColor: '#3A3A3C',
-    marginRight: 12,
-  },
-  activeGenreChip: {
-    backgroundColor: '#FF453A',
-    borderColor: '#FF453A',
-  },
-  genreText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  activeGenreText: {
-    color: '#FFFFFF',
-  },
-  resultsSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  resultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  resultCount: {
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 16,
+  },
+  emptySubtext: {
     fontSize: 14,
-    color: '#8E8E93',
-    fontWeight: '500',
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
   },
-  contentGrid: {
-    paddingBottom: 20,
+  resultsList: {
+    paddingBottom: 100,
   },
   row: {
     justifyContent: 'space-between',
   },
-  contentItem: {
-    marginBottom: 20,
-  },
-  card: {
-    width: '100%',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  loadingSpinner: {
+  resultCard: {
+    width: '48%',
     marginBottom: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
   },
 });
