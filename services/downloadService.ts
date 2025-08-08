@@ -65,22 +65,28 @@ class DownloadService {
 
   // Convert Internet Archive URL to proxy URL
   private getProxyUrl(archiveUrl: string): string {
-    // Extract the path after archive.org
-    const archivePattern = /https?:\/\/[^\/]*archive\.org\/(.+)/;
-    const match = archiveUrl.match(archivePattern);
-    
-    if (!match) {
-      throw new Error('Invalid Internet Archive URL');
+    // For direct download URLs, check if it's already a download URL
+    if (archiveUrl.includes('archive.org/download/')) {
+      // Extract the path after archive.org
+      const archivePattern = /https?:\/\/[^\/]*archive\.org\/(.+)/;
+      const match = archiveUrl.match(archivePattern);
+      
+      if (!match) {
+        throw new Error('Invalid Internet Archive URL');
+      }
+      
+      const archivePath = match[1];
+      
+      // Get the proxy server URL - in development, use localhost:5000
+      const proxyBaseUrl = process.env.NODE_ENV === 'production' 
+        ? `https://${window.location.hostname}` 
+        : 'http://localhost:5000';
+      
+      return `${proxyBaseUrl}/proxy/archive/${archivePath}`;
     }
     
-    const archivePath = match[1];
-    
-    // Get the proxy server URL - in development, use localhost:5000
-    const proxyBaseUrl = process.env.NODE_ENV === 'production' 
-      ? `https://${window.location.hostname}` 
-      : 'http://localhost:5000';
-    
-    return `${proxyBaseUrl}/proxy/archive/${archivePath}`;
+    // If it's not a download URL, return as is for now
+    return archiveUrl;
   }
 
   // Helper function that follows the exact 3-step pattern from the example
@@ -720,19 +726,60 @@ class DownloadService {
         totalBytes: 0
       });
 
-      // Convert Internet Archive URL to use our proxy
-      const proxyUrl = this.getProxyUrl(item.downloadUrl);
-      console.log('Using proxy URL:', proxyUrl);
+      // For direct Internet Archive download URLs, try direct access first
+      let response: Response;
+      
+      if (item.downloadUrl.includes('archive.org/download/')) {
+        console.log('Attempting direct download from:', item.downloadUrl);
+        
+        // Try direct access first with proper headers
+        try {
+          response = await fetch(item.downloadUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': '*/*',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Referer': 'https://archive.org/'
+            },
+            mode: 'cors'
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Direct access failed: ${response.status}`);
+          }
+          
+          console.log('Direct download successful');
+        } catch (directError) {
+          console.log('Direct access failed, trying proxy:', directError);
+          
+          // Fall back to proxy
+          const proxyUrl = this.getProxyUrl(item.downloadUrl);
+          console.log('Using proxy URL:', proxyUrl);
 
-      // Create a fetch request through our proxy server
-      const response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': '*/*',
-          'Accept-Language': 'en-US,en;q=0.9'
-        },
-        mode: 'cors'
-      });
+          response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': '*/*',
+              'Accept-Language': 'en-US,en;q=0.9'
+            },
+            mode: 'cors'
+          });
+        }
+      } else {
+        // Use proxy for non-direct URLs
+        const proxyUrl = this.getProxyUrl(item.downloadUrl);
+        console.log('Using proxy URL:', proxyUrl);
+
+        response = await fetch(proxyUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9'
+          },
+          mode: 'cors'
+        });
+      }
 
       if (!response.ok) {
         // Handle proxy-specific errors

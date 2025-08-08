@@ -57,6 +57,64 @@ export function MovieDownloader({
     Alert.alert(title, message);
   };
 
+  const handleDirectDownload = async (downloadUrl: string) => {
+    try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+
+      // Extract filename from URL
+      const urlParts = downloadUrl.split('/');
+      const fileName = decodeURIComponent(urlParts[urlParts.length - 1]) || 'movie.mp4';
+      
+      // Determine quality from filename
+      let quality: 'low' | 'medium' | 'high' = 'medium';
+      const lowerFileName = fileName.toLowerCase();
+      if (lowerFileName.includes('1080p') || lowerFileName.includes('1080')) quality = 'high';
+      else if (lowerFileName.includes('720p') || lowerFileName.includes('720')) quality = 'medium';
+      else quality = 'low';
+
+      const id = downloadService.addToDownloadQueue(
+        contentId || Date.now(),
+        contentType,
+        fileName.replace(/\.[^/.]+$/, ""), // Remove extension for title
+        posterPath,
+        quality,
+        downloadUrl
+      );
+
+      setDownloadId(id);
+
+      // Set up progress callback
+      downloadService.setProgressCallback(id, (progress, progressDetails) => {
+        setDownloadProgress(Math.max(0, Math.min(100, progress)));
+        
+        if (progressDetails) {
+          setProgressInfo(progressDetails);
+          setDownloadSpeed(progressDetails.speed || 0);
+          setEstimatedTime(progressDetails.estimatedTimeRemaining || 0);
+          setStatusMessage(progressDetails.status || 'Downloading...');
+        }
+        
+        if (progress >= 100) {
+          setIsDownloading(false);
+          setDownloadProgress(100);
+          setStatusMessage('Download completed!');
+          showToast('Download Complete', `${fileName} has been downloaded successfully!`);
+          
+          setTimeout(() => {
+            onClose();
+          }, 3000);
+        }
+      });
+
+      showToast('Download Started', `Starting download: ${fileName}`);
+    } catch (error) {
+      console.error('Direct download error:', error);
+      setIsDownloading(false);
+      showToast('Download Failed', 'Failed to start download. Please check the URL and try again.');
+    }
+  };
+
   const searchMovie = async (title: string) => {
     if (!title.trim()) {
       showToast('Error', 'Please enter a movie title');
@@ -179,6 +237,9 @@ export function MovieDownloader({
       if (file.quality.includes('1080') || file.quality === 'HD') quality = 'high';
       else if (file.quality.includes('720')) quality = 'medium';
       else quality = 'low';
+
+      console.log('Starting download for file:', file);
+      console.log('Download URL:', file.downloadUrl);
 
       const id = downloadService.addToDownloadQueue(
         contentId || Date.now(), // Use contentId or timestamp as fallback
@@ -350,7 +411,7 @@ export function MovieDownloader({
             <View style={styles.searchContainer}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Enter movie title..."
+                placeholder="Enter movie title or direct download URL..."
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 value={searchTitle}
                 onChangeText={setSearchTitle}
@@ -358,16 +419,30 @@ export function MovieDownloader({
               />
               <TouchableOpacity
                 style={[styles.searchButton, (isSearching || isDownloading) && styles.disabledButton]}
-                onPress={() => searchMovie(searchTitle)}
+                onPress={() => {
+                  if (searchTitle.includes('archive.org/download/')) {
+                    // Direct download URL
+                    handleDirectDownload(searchTitle);
+                  } else {
+                    // Search for movie
+                    searchMovie(searchTitle);
+                  }
+                }}
                 disabled={isSearching || isDownloading}
               >
                 {isSearching ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Ionicons name="search" size={20} color="#fff" />
+                  <Ionicons name={searchTitle.includes('archive.org/download/') ? "download" : "search"} size={20} color="#fff" />
                 )}
               </TouchableOpacity>
             </View>
+            
+            {searchTitle.includes('archive.org/download/') && (
+              <Text style={styles.directUrlHint}>
+                💡 Direct download URL detected - Click to download
+              </Text>
+            )}
           </View>
 
           {movieFound && movieFiles && movieFiles.length > 0 && !isDownloading && (
@@ -777,6 +852,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     marginBottom: 4,
+  },
+  directUrlHint: {
+    color: '#4CAF50',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,
