@@ -100,4 +100,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx expo start"
+args = "npx expo start --web"

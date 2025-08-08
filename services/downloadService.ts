@@ -52,6 +52,7 @@ export interface FilesResult {
 class DownloadService {
   private downloads: DownloadItem[] = [];
   private downloadCallbacks: Map<string, (progress: number, progressInfo?: any) => void> = new Map();
+  private readonly STORAGE_KEY = 'rkswot-downloads';
 
   constructor() {
     this.loadFromStorage();
@@ -160,13 +161,13 @@ class DownloadService {
               const identifier = doc.identifier?.toLowerCase() || '';
 
               // Skip Twitter posts, social media, and other non-movie content
-              if (title.includes('twitter') || title.includes('@') || 
+              if (title.includes('twitter') || title.includes('@') ||
                   identifier.includes('twitter') || identifier.includes('odysee')) {
                 return false;
               }
 
               // Skip obvious non-movie formats
-              if (title.includes('podcast') || title.includes('radio') || 
+              if (title.includes('podcast') || title.includes('radio') ||
                   title.includes('tv show') || title.includes('episode')) {
                 return false;
               }
@@ -196,7 +197,7 @@ class DownloadService {
       }
 
       // Find the best match - prioritize exact title matches and proper movie archives
-      const exactMatches = bestResults.filter((doc: any) => 
+      const exactMatches = bestResults.filter((doc: any) =>
         doc.title && doc.title.toLowerCase().includes(cleanTitle.toLowerCase())
       );
 
@@ -277,13 +278,13 @@ class DownloadService {
       const videoFiles = data.files.filter((file: any) => {
         if (!file.name) return false;
         const fileName = file.name.toLowerCase();
-        return videoExtensions.some(ext => fileName.endsWith(ext)) && 
+        return videoExtensions.some(ext => fileName.endsWith(ext)) &&
                parseInt(file.size || '0', 10) > 1024 * 1024; // At least 1MB
       });
 
-      return { 
-        isValid: videoFiles.length > 0, 
-        videoFileCount: videoFiles.length 
+      return {
+        isValid: videoFiles.length > 0,
+        videoFileCount: videoFiles.length
       };
     } catch (error) {
       this.logNetwork('Validation error', identifier, error);
@@ -425,8 +426,8 @@ class DownloadService {
 
       // Sort by quality (highest first) and size
       const qualityOrder = [
-        '4K UHD', '4K Quality', '1440p QHD', '1080p Full HD', 'Full HD Quality', 
-        'HD', '720p HD', 'HD Quality', '480p SD', 'Standard Quality', 
+        '4K UHD', '4K Quality', '1440p QHD', '1080p Full HD', 'Full HD Quality',
+        'HD', '720p HD', 'HD Quality', '480p SD', 'Standard Quality',
         '360p', 'Low Quality', 'Unknown'
       ];
 
@@ -452,7 +453,7 @@ class DownloadService {
         return bFormatPriority - aFormatPriority;
       });
 
-      this.logNetwork('Files processed successfully', metadataUrl, { 
+      this.logNetwork('Files processed successfully', metadataUrl, {
         processedCount: processedFiles.length,
         qualities: processedFiles.map(f => f.quality)
       });
@@ -632,7 +633,15 @@ class DownloadService {
   // Storage methods (simplified)
   private async saveToStorage(): Promise<void> {
     try {
-      await AsyncStorage.setItem('rkswot-downloads', JSON.stringify({ downloads: this.downloads }));
+      const data = JSON.stringify(Array.from(this.downloads.entries()));
+
+      // Check if we're in a web environment without proper AsyncStorage
+      if (typeof window !== 'undefined' && !AsyncStorage.setItem) {
+        localStorage.setItem(this.STORAGE_KEY, data);
+        return;
+      }
+
+      await AsyncStorage.setItem(this.STORAGE_KEY, data);
     } catch (error) {
       console.error('Failed to save download data:', error);
     }
@@ -640,10 +649,19 @@ class DownloadService {
 
   private async loadFromStorage(): Promise<void> {
     try {
-      const stored = await AsyncStorage.getItem('rkswot-downloads');
-      if (stored) {
-        const downloadData = JSON.parse(stored);
-        this.downloads = downloadData.downloads || [];
+      // Check if we're in a web environment without proper AsyncStorage
+      if (typeof window !== 'undefined' && !AsyncStorage.getItem) {
+        console.log('AsyncStorage not available in web environment, using localStorage fallback');
+        const data = localStorage.getItem(this.STORAGE_KEY);
+        if (data) {
+          this.downloads = new Map(JSON.parse(data));
+        }
+        return;
+      }
+
+      const data = await AsyncStorage.getItem(this.STORAGE_KEY);
+      if (data) {
+        this.downloads = new Map(JSON.parse(data));
       }
     } catch (error) {
       console.error('Failed to load download data:', error);
