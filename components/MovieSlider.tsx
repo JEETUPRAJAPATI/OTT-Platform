@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
-import {
-  View,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  Text,
+
+import React, { useRef, useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  TouchableOpacity, 
+  Dimensions 
 } from 'react-native';
 import { TMDbContentCard } from './TMDbContentCard';
 import { TMDbMovie, TMDbTVShow } from '../services/tmdbApi';
@@ -35,15 +36,15 @@ const getRankingBadgeColor = (rank: number) => {
   }
 };
 
-const MovieSliderComponent = ({
-  title,
-  icon,
-  data,
-  onContentPress,
-  onViewAll,
+export function MovieSlider({ 
+  title, 
+  icon, 
+  data, 
+  onContentPress, 
+  onViewAll, 
   showRanking = false,
   autoSlide = true
-}: MovieSliderProps) => {
+}: MovieSliderProps) {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -56,24 +57,24 @@ const MovieSliderComponent = ({
         setCurrentIndex(prevIndex => {
           const nextIndex = prevIndex + 1;
           const maxIndex = Math.max(0, data.length - 3);
-
+          
           // If we've reached the end, go back to start
           const finalIndex = nextIndex > maxIndex ? 0 : nextIndex;
-
+          
           try {
-            flatListRef.current?.scrollToIndex({
-              index: finalIndex,
-              animated: true
+            flatListRef.current?.scrollToIndex({ 
+              index: finalIndex, 
+              animated: true 
             });
           } catch (error) {
             // Fallback to scrollToOffset if scrollToIndex fails
             const offset = finalIndex * (CARD_WIDTH + CARD_MARGIN);
-            flatListRef.current?.scrollToOffset({
-              offset,
-              animated: true
+            flatListRef.current?.scrollToOffset({ 
+              offset, 
+              animated: true 
             });
           }
-
+          
           return finalIndex;
         });
       }, 3000); // Auto-slide every 3 seconds
@@ -88,84 +89,50 @@ const MovieSliderComponent = ({
     setCanScrollRight(currentIndex < data.length - 3);
   }, [currentIndex, data.length]);
 
-  const scrollLeft = useCallback(() => {
+  const scrollLeft = () => {
     if (currentIndex > 0) {
       const newIndex = Math.max(0, currentIndex - 2);
       try {
-        flatListRef.current?.scrollToIndex({
-          index: newIndex,
-          animated: true
+        flatListRef.current?.scrollToIndex({ 
+          index: newIndex, 
+          animated: true 
         });
       } catch (error) {
         const offset = newIndex * (CARD_WIDTH + CARD_MARGIN);
-        flatListRef.current?.scrollToOffset({
-          offset,
-          animated: true
+        flatListRef.current?.scrollToOffset({ 
+          offset, 
+          animated: true 
         });
       }
       setCurrentIndex(newIndex);
     }
-  }, [currentIndex]);
+  };
 
-  const scrollRight = useCallback(() => {
+  const scrollRight = () => {
     const maxIndex = Math.max(0, data.length - 3);
     if (currentIndex < maxIndex) {
       const newIndex = Math.min(maxIndex, currentIndex + 2);
       try {
-        flatListRef.current?.scrollToIndex({
-          index: newIndex,
-          animated: true
+        flatListRef.current?.scrollToIndex({ 
+          index: newIndex, 
+          animated: true 
         });
       } catch (error) {
         const offset = newIndex * (CARD_WIDTH + CARD_MARGIN);
-        flatListRef.current?.scrollToOffset({
-          offset,
-          animated: true
+        flatListRef.current?.scrollToOffset({ 
+          offset, 
+          animated: true 
         });
       }
       setCurrentIndex(newIndex);
     }
-  }, [currentIndex, data.length]);
+  };
 
-  const handleScroll = useCallback((event: any) => {
+  const handleScroll = (event: any) => {
     const scrollX = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollX / (CARD_WIDTH + CARD_MARGIN));
     setCurrentIndex(index);
-  }, []);
-
-  const renderItem = useCallback(({ item, index }: { item: TMDbMovie | TMDbTVShow; index: number }) => {
-    const mediaType = (item as any).title ? 'movie' : 'tv';
-    return (
-      <View style={styles.itemWrapper}>
-        {showRanking && (
-          <View style={[
-            styles.rankingBadge,
-            { backgroundColor: getRankingBadgeColor(index + 1) }
-          ]}>
-            <Text style={styles.rankingNumber}>{index + 1}</Text>
-          </View>
-        )}
-        <TMDbContentCard
-          content={item}
-          type={mediaType}
-          onPress={() => onContentPress(item)}
-          style={[
-            styles.card,
-            showRanking && styles.cardWithRank
-          ]}
-        />
-      </View>
-    );
-  }, [onContentPress, showRanking]);
-
-  const keyExtractor = useCallback((item: TMDbMovie | TMDbTVShow) => `${title}-${item.id}`, []);
-
-  const getItemLayout = useCallback((_: any, index: number) => ({
-    length: CARD_WIDTH + CARD_MARGIN,
-    offset: (CARD_WIDTH + CARD_MARGIN) * index,
-    index,
-  }), []);
-
+  };
 
   if (!data || data.length === 0) return null;
 
@@ -181,37 +148,52 @@ const MovieSliderComponent = ({
           </TouchableOpacity>
         )}
       </View>
-
+      
       <View style={styles.sliderContainer}>
         {/* Left Arrow */}
         {canScrollLeft && (
-          <TouchableOpacity
-            style={[styles.arrow, styles.leftArrow]}
+          <TouchableOpacity 
+            style={[styles.arrow, styles.leftArrow]} 
             onPress={scrollLeft}
           >
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
         )}
-
+        
         {/* Movie Slider */}
         <FlatList
           ref={flatListRef}
           data={data}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          getItemLayout={getItemLayout}
+          renderItem={({ item, index }) => {
+            const mediaType = (item as any).title ? 'movie' : 'tv';
+            return (
+              <View style={styles.itemWrapper}>
+                {showRanking && (
+                  <View style={[
+                    styles.rankingBadge,
+                    { backgroundColor: getRankingBadgeColor(index + 1) }
+                  ]}>
+                    <Text style={styles.rankingNumber}>{index + 1}</Text>
+                  </View>
+                )}
+                <TMDbContentCard
+                  content={item}
+                  type={mediaType}
+                  onPress={() => onContentPress(item)}
+                  style={[
+                    styles.card,
+                    showRanking && styles.cardWithRank
+                  ]}
+                />
+              </View>
+            );
+          }}
+          keyExtractor={(item, index) => `${title}-${item.id}-${index}`}
           horizontal
           showsHorizontalScrollIndicator={false}
-          pagingEnabled={false}
-          snapToInterval={CARD_WIDTH + CARD_MARGIN}
-          snapToAlignment="start"
-          decelerationRate="fast"
           contentContainerStyle={styles.contentContainer}
-          style={styles.flatList}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          windowSize={10}
-          initialNumToRender={5}
+          snapToInterval={CARD_WIDTH + CARD_MARGIN}
+          decelerationRate="fast"
           onScroll={handleScroll}
           scrollEventThrottle={16}
           onScrollToIndexFailed={(info) => {
@@ -227,11 +209,11 @@ const MovieSliderComponent = ({
             });
           }}
         />
-
+        
         {/* Right Arrow */}
         {canScrollRight && (
-          <TouchableOpacity
-            style={[styles.arrow, styles.rightArrow]}
+          <TouchableOpacity 
+            style={[styles.arrow, styles.rightArrow]} 
             onPress={scrollRight}
           >
             <Ionicons name="chevron-forward" size={24} color="#fff" />
@@ -326,5 +308,3 @@ const styles = StyleSheet.create({
     right: 5,
   },
 });
-
-export const MovieSlider = memo(MovieSliderComponent);

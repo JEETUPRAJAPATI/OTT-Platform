@@ -553,43 +553,6 @@ class TMDbService {
     });
     return response.data.results;
   }
-
-  // TMDb Account API methods (requires session token)
-  async addToTMDbFavorites(accountId: string, sessionId: string, mediaType: 'movie' | 'tv', mediaId: number, favorite: boolean = true) {
-    const response = await tmdbApi.post(`/account/${accountId}/favorite`, {
-      media_type: mediaType,
-      media_id: mediaId,
-      favorite
-    }, {
-      params: { session_id: sessionId }
-    });
-    return response.data;
-  }
-
-  async addToTMDbWatchlist(accountId: string, sessionId: string, mediaType: 'movie' | 'tv', mediaId: number, watchlist: boolean = true) {
-    const response = await tmdbApi.post(`/account/${accountId}/watchlist`, {
-      media_type: mediaType,
-      media_id: mediaId,
-      watchlist
-    }, {
-      params: { session_id: sessionId }
-    });
-    return response.data;
-  }
-
-  async getTMDbFavorites(accountId: string, sessionId: string, mediaType: 'movies' | 'tv', page: number = 1) {
-    const response = await tmdbApi.get(`/account/${accountId}/favorite/${mediaType}`, {
-      params: { session_id: sessionId, page }
-    });
-    return response.data.results;
-  }
-
-  async getTMDbWatchlist(accountId: string, sessionId: string, mediaType: 'movies' | 'tv', page: number = 1) {
-    const response = await tmdbApi.get(`/account/${accountId}/watchlist/${mediaType}`, {
-      params: { session_id: sessionId, page }
-    });
-    return response.data.results;
-  }
 }
 
 export const tmdbService = new TMDbService();
