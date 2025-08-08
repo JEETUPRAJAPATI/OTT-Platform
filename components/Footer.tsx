@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   View,
@@ -28,12 +27,12 @@ interface FooterProps {
 export function Footer({ currentRoute }: FooterProps) {
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedSettingsTab, setSelectedSettingsTab] = useState<'favorites' | 'watchlist' | 'about' | 'privacy' | 'rating' | 'reviews'>('favorites');
+  const [selectedSettingsTab, setSelectedSettingsTab] = useState<'favorites' | 'watchlist' | 'about' | 'privacy' | 'rating' | 'reviews' | 'settings'>('favorites');
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [slideAnim] = useState(new Animated.Value(screenHeight));
-  
+
   // Review form state
   const [reviewForm, setReviewForm] = useState({
     contentId: '',
@@ -49,7 +48,7 @@ export function Footer({ currentRoute }: FooterProps) {
         apiService.getWatchlist(),
         apiService.getReviews(),
       ]);
-      
+
       setFavorites(favoritesData);
       setWatchlist(watchlistData);
       setReviews(reviewsData);
@@ -112,7 +111,7 @@ export function Footer({ currentRoute }: FooterProps) {
         reviewForm.rating,
         'movie'
       );
-      
+
       setReviewForm({ contentId: '', title: '', review: '', rating: 0 });
       loadData();
       Alert.alert('Success', 'Review submitted successfully');
@@ -237,11 +236,11 @@ export function Footer({ currentRoute }: FooterProps) {
   const renderReviews = () => (
     <View style={styles.tabContent}>
       <Text style={styles.tabTitle}>Reviews & Ratings</Text>
-      
+
       {/* Add Review Form */}
       <View style={styles.reviewForm}>
         <Text style={styles.formTitle}>Write a Review</Text>
-        
+
         <TextInput
           style={styles.input}
           placeholder="Movie/Show Title"
@@ -249,7 +248,7 @@ export function Footer({ currentRoute }: FooterProps) {
           value={reviewForm.title}
           onChangeText={(text) => setReviewForm(prev => ({ ...prev, title: text }))}
         />
-        
+
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Write your review..."
@@ -259,10 +258,10 @@ export function Footer({ currentRoute }: FooterProps) {
           value={reviewForm.review}
           onChangeText={(text) => setReviewForm(prev => ({ ...prev, review: text }))}
         />
-        
+
         <Text style={styles.ratingLabel}>Your Rating:</Text>
         {renderStars(reviewForm.rating, (rating) => setReviewForm(prev => ({ ...prev, rating })))}
-        
+
         <TouchableOpacity style={styles.submitButton} onPress={submitReview}>
           <Text style={styles.submitButtonText}>Submit Review</Text>
         </TouchableOpacity>
@@ -347,6 +346,8 @@ export function Footer({ currentRoute }: FooterProps) {
         return renderAbout();
       case 'privacy':
         return renderPrivacy();
+      case 'settings': // Added case for the new settings tab
+        return <View><Text style={styles.tabContent}>This is the new settings tab.</Text></View>;
       default:
         return renderFavorites();
     }
@@ -391,6 +392,18 @@ export function Footer({ currentRoute }: FooterProps) {
           <Ionicons name="settings" size={24} color="#666" />
           <Text style={styles.footerText}>Settings</Text>
         </TouchableOpacity>
+        
+        {/* New Settings Tab */}
+        <TouchableOpacity
+          style={[styles.footerButton, currentRoute === '/settings' && styles.activeButton]}
+          onPress={() => {
+            setSelectedSettingsTab('settings'); // Update state to show the new settings tab
+            openSettings(); // Open the modal
+          }}
+        >
+          <Ionicons name="settings" size={24} color={currentRoute === '/settings' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/settings' && styles.activeText]}>New Settings</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Settings Modal */}
@@ -426,6 +439,7 @@ export function Footer({ currentRoute }: FooterProps) {
                   { key: 'reviews', label: 'Reviews', icon: 'star' },
                   { key: 'about', label: 'About', icon: 'information-circle' },
                   { key: 'privacy', label: 'Privacy', icon: 'shield-checkmark' },
+                  { key: 'settings', label: 'New Settings', icon: 'settings' }, // Added new settings tab to the list
                 ].map((tab) => (
                   <TouchableOpacity
                     key={tab.key}
