@@ -206,8 +206,20 @@ class DownloadService {
     return selectedFile;
   }
 
-  // Search for movie and return download URL if found
-  async findMovieDownloadUrl(movieTitle: string, year?: number): Promise<string | null> {
+  // Search for movies and return available options with format selection
+  async findMovieDownloadOptions(movieTitle: string, year?: number): Promise<{
+    results: Array<{
+      title: string;
+      identifier: string;
+      description?: string;
+      files: Array<{
+        name: string;
+        format: string;
+        size?: string;
+        downloadUrl: string;
+      }>;
+    }>;
+  } | null> {
     try {
       console.log(`Starting search for: "${movieTitle}" (${year || 'unknown year'})`);
       
@@ -221,8 +233,10 @@ class DownloadService {
       
       console.log(`Found ${searchResults.length} search results, checking for video files...`);
       
-      // Try each search result until we find a downloadable video
-      for (let i = 0; i < Math.min(searchResults.length, 10); i++) { // Limit to top 10 results
+      const availableOptions = [];
+      
+      // Check each search result for available video files
+      for (let i = 0; i < Math.min(searchResults.length, 5); i++) { // Limit to top 5 results
         const result = searchResults[i];
         console.log(`Checking result ${i + 1}: ${result.title} (${result.identifier})`);
         
@@ -230,12 +244,24 @@ class DownloadService {
           const metadata = await this.getArchiveMetadata(result.identifier);
           if (metadata && metadata.files.length > 0) {
             console.log(`Found ${metadata.files.length} files in ${result.identifier}`);
-            const bestFile = this.findBestVideoFile(metadata.files);
-            if (bestFile) {
-              const downloadUrl = `https://archive.org/download/${metadata.identifier}/${encodeURIComponent(bestFile.name)}`;
-              console.log(`Found video file: ${bestFile.name}`);
-              console.log(`Download URL: ${downloadUrl}`);
-              return downloadUrl;
+            
+            // Get all video files, not just the best one
+            const videoFiles = this.getAllVideoFiles(metadata.files);
+            
+            if (videoFiles.length > 0) {
+              const fileOptions = videoFiles.map(file => ({
+                name: file.name,
+                format: file.format || 'mp4',
+                size: file.size || 'Unknown size',
+                downloadUrl: `https://archive.org/download/${metadata.identifier}/${encodeURIComponent(file.name)}`
+              }));
+              
+              availableOptions.push({
+                title: result.title,
+                identifier: result.identifier,
+                description: result.description,
+                files: fileOptions
+              });
             }
           }
         } catch (metadataError) {
@@ -244,12 +270,81 @@ class DownloadService {
         }
       }
       
+      if (availableOptions.length > 0) {
+        console.log(`Found ${availableOptions.length} movies with video files`);
+        return { results: availableOptions };
+      }
+      
       console.log('No video files found in any search results');
       return null;
     } catch (error) {
-      console.error('Error finding movie download URL:', error);
+      console.error('Error finding movie download options:', error);
       return null;
     }
+  }
+
+  // Get all video files from archive metadata
+  getAllVideoFiles(files: ArchiveFile[]): ArchiveFile[] {
+    if (!files || files.length === 0) return [];
+    
+    console.log('Available files:', files.map(f => `${f.name} (${f.format}) - ${f.size || 'unknown size'}`));
+    
+    // Filter for video files with common video formats
+    const videoFiles = files.filter(f => {
+      const format = f.format?.toLowerCase();
+      const name = f.name?.toLowerCase();
+      return (
+        format && 
+        ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v'].includes(format)
+      ) || (
+        name && 
+        /\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i.test(name)
+      );
+    });
+    
+    if (videoFiles.length === 0) {
+      console.log('No video files found');
+      return [];
+    }
+    
+    console.log(`Found ${videoFiles.length} video files`);
+    
+    // Sort by quality and format preference
+    return videoFiles.sort((a, b) => {
+      // Prefer MP4 and MKV formats
+      const formatPriority = { 'mp4': 3, 'mkv': 2, 'avi': 1 };
+      const aFormatScore = formatPriority[a.format?.toLowerCase()] || 0;
+      const bFormatScore = formatPriority[b.format?.toLowerCase()] || 0;
+      
+      if (aFormatScore !== bFormatScore) {
+        return bFormatScore - aFormatScore;
+      }
+      
+      // Then prioritize files with quality indicators in filename
+      const aHasQuality = /\b(1080p|720p|hd|high|quality)\b/i.test(a.name || '');
+      const bHasQuality = /\b(1080p|720p|hd|high|quality)\b/i.test(b.name || '');
+      
+      if (aHasQuality && !bHasQuality) return -1;
+      if (!aHasQuality && bHasQuality) return 1;
+      
+      // Finally sort by file size if available
+      if (a.size && b.size) {
+        const sizeA = parseInt(a.size) || 0;
+        const sizeB = parseInt(b.size) || 0;
+        return sizeB - sizeA; // Larger files first
+      }
+      
+      return b.name.length - a.name.length;
+    });
+  }
+
+  // Legacy method for backward compatibility
+  async findMovieDownloadUrl(movieTitle: string, year?: number): Promise<string | null> {
+    const options = await this.findMovieDownloadOptions(movieTitle, year);
+    if (options && options.results.length > 0 && options.results[0].files.length > 0) {
+      return options.results[0].files[0].downloadUrl;
+    }
+    return null;
   }
 
   // Get available quality options
