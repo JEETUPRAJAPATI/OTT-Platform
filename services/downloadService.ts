@@ -298,15 +298,18 @@ class DownloadService {
       throw new Error('No download URL provided');
     }
 
-    const fileName = `${item.title.replace(/[^a-zA-Z0-9]/g, '_')}_${item.id}.mp4`;
-    const downloadPath = `${FileSystem.documentDirectory}downloads/${fileName}`;
+    const fileName = `${item.title.replace(/[^a-zA-Z0-9\s]/g, '_').replace(/\s+/g, '_')}_${Date.now()}.mp4`;
+    const downloadDir = `${FileSystem.documentDirectory}downloads/`;
+    const downloadPath = `${downloadDir}${fileName}`;
+
+    console.log('Download path:', downloadPath);
 
     // Ensure downloads directory exists
-    const downloadDir = `${FileSystem.documentDirectory}downloads/`;
     try {
       const dirInfo = await FileSystem.getInfoAsync(downloadDir);
       if (!dirInfo.exists) {
         await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+        console.log('Created downloads directory:', downloadDir);
       }
     } catch (error) {
       console.error('Error creating downloads directory:', error);

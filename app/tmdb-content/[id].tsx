@@ -142,36 +142,21 @@ export default function TMDbContentDetails() {
       const year = content.release_date ? new Date(content.release_date).getFullYear() : 
                   (content as any).first_air_date ? new Date((content as any).first_air_date).getFullYear() : '';
 
-      // Common Internet Archive URL patterns
-      const searchQueries = [
-        `${title} ${year}`,
-        title.replace(/[^a-zA-Z0-9 ]/g, ''),
-        `${title} ${year} movie`,
-        title.toLowerCase().replace(/\s+/g, '-')
-      ];
-
-      // Try different archive.org patterns
-      const archivePatterns = [
-        `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '-')}-${year}/${title.toLowerCase().replace(/\s+/g, '-')}-${year}.mp4`,
-        `https://archive.org/download/${title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}-${year}/${title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}.mp4`,
-        `https://archive.org/download/${title.toLowerCase().replace(/\s+/g, '.')}.${year}/${title.toLowerCase().replace(/\s+/g, '.')}.${year}.mp4`,
-        `https://archive.org/download/movies-${year}/${title.toLowerCase().replace(/\s+/g, '-')}.mp4`
-      ];
-
-      // Check if any of these URLs exist
-      for (const url of archivePatterns) {
-        try {
-          const response = await fetch(url, { method: 'HEAD' });
-          if (response.ok && response.headers.get('content-type')?.includes('video')) {
-            setInternetArchiveUrl(url);
-            break;
-          }
-        } catch (error) {
-          // Continue to next URL
-        }
+      console.log(`Searching Internet Archive for: ${title} ${year}`);
+      
+      // Use Internet Archive API to search for the movie
+      const downloadUrl = await downloadService.findMovieDownloadUrl(title, year);
+      
+      if (downloadUrl) {
+        console.log('Found Internet Archive URL:', downloadUrl);
+        setInternetArchiveUrl(downloadUrl);
+      } else {
+        console.log('Movie not found on Internet Archive');
+        setInternetArchiveUrl(null);
       }
     } catch (error) {
       console.error('Error checking Internet Archive:', error);
+      setInternetArchiveUrl(null);
     } finally {
       setIsCheckingArchive(false);
     }
@@ -206,7 +191,7 @@ export default function TMDbContentDetails() {
 
     // Check if Internet Archive URL is available
     if (!internetArchiveUrl) {
-      Alert.alert('Not available', 'Movie not found on Internet Archive');
+      Alert.alert('Not Available', 'Movie not found on Internet Archive. Please try another movie.');
       return;
     }
 
@@ -214,51 +199,64 @@ export default function TMDbContentDetails() {
     const posterPath = content.poster_path || '';
 
     try {
-      const downloadId = downloadService.addToDownloadQueue(
-        Number(id),
-        type as 'movie' | 'tv',
-        title,
-        posterPath,
-        'high', // Default to high quality
-        internetArchiveUrl
-      );
+      Alert.alert(
+        'Start Download',
+        `Download "${title}" in HD quality?\n\nThis will be saved to your device's Downloads folder.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Download',
+            onPress: () => {
+              const downloadId = downloadService.addToDownloadQueue(
+                Number(id),
+                type as 'movie' | 'tv',
+                title,
+                posterPath,
+                'high', // Default to high quality
+                internetArchiveUrl
+              );
 
-      setActiveDownloadId(downloadId);
-      setDownloadError(''); // Clear any previous errors
+              setActiveDownloadId(downloadId);
+              setDownloadError(''); // Clear any previous errors
 
-      // Set up progress tracking with better error handling
-      downloadService.setProgressCallback(downloadId, (progress) => {
-        setDownloadProgress(progress);
-      });
+              // Set up progress tracking
+              downloadService.setProgressCallback(downloadId, (progress) => {
+                setDownloadProgress(progress);
+              });
 
-      // Check download status periodically
-      const checkDownloadStatus = setInterval(() => {
-        const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
+              // Show download started message
+              Alert.alert('Download Started', `${title} download has started. Check the Downloads tab to monitor progress.`);
 
-        if (downloadInfo) {
-          if (downloadInfo.status === 'completed') {
-            setIsDownloaded(true);
-            setActiveDownloadId(null);
-            setDownloadProgress(0);
-            downloadService.removeProgressCallback(downloadId);
-            clearInterval(checkDownloadStatus);
-            // Show success toast
-            Alert.alert('Download Complete', `${title} has been downloaded successfully.`);
-          } else if (downloadInfo.status === 'failed') {
-            setActiveDownloadId(null);
-            setDownloadProgress(0);
-            setDownloadError('Download failed. Please check your connection and try again.');
-            downloadService.removeProgressCallback(downloadId);
-            clearInterval(checkDownloadStatus);
-            // Show error toast
-            Alert.alert('Download Failed', `Failed to download ${title}. Please try again.`);
+              // Check download status periodically
+              const checkDownloadStatus = setInterval(() => {
+                const downloadInfo = downloadService.getDownloadInfo(Number(id), type as 'movie' | 'tv');
+
+                if (downloadInfo) {
+                  if (downloadInfo.status === 'completed') {
+                    setIsDownloaded(true);
+                    setActiveDownloadId(null);
+                    setDownloadProgress(0);
+                    downloadService.removeProgressCallback(downloadId);
+                    clearInterval(checkDownloadStatus);
+                    Alert.alert('Download Complete', `${title} has been downloaded successfully and saved to your Downloads folder.`);
+                  } else if (downloadInfo.status === 'failed') {
+                    setActiveDownloadId(null);
+                    setDownloadProgress(0);
+                    setDownloadError('Download failed. Please check your connection and try again.');
+                    downloadService.removeProgressCallback(downloadId);
+                    clearInterval(checkDownloadStatus);
+                    Alert.alert('Download Failed', `Failed to download ${title}. Please check your internet connection and try again.`);
+                  }
+                }
+              }, 1000);
+            }
           }
-        }
-      }, 1000);
+        ]
+      );
 
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Download Error', 'Failed to start download. Please try again.');
+      Alert.alert('Download Error', 'Failed to start download. Please check your internet connection and try again.');
       setDownloadError('Failed to start download. Please try again.');
     }
   };
@@ -476,9 +474,11 @@ export default function TMDbContentDetails() {
             style={[
               styles.secondaryButton, 
               isDownloaded && styles.downloadedButton,
-              activeDownloadId && styles.downloadingButton
+              activeDownloadId && styles.downloadingButton,
+              !internetArchiveUrl && !isDownloaded && !activeDownloadId && styles.disabledButton
             ]}
             onPress={handleDownload}
+            disabled={!internetArchiveUrl && !isDownloaded && !activeDownloadId}
           >
             {activeDownloadId ? (
               <>
@@ -492,15 +492,16 @@ export default function TMDbContentDetails() {
             ) : (
               <>
                 <Ionicons
-                  name={isDownloaded ? "checkmark-circle" : internetArchiveUrl ? "cloud-download" : "download"}
+                  name={isDownloaded ? "checkmark-circle" : internetArchiveUrl ? "cloud-download" : "download-outline"}
                   size={24}
-                  color={isDownloaded ? "#4CAF50" : "#fff"}
+                  color={isDownloaded ? "#4CAF50" : internetArchiveUrl ? "#fff" : "#666"}
                 />
                 <Text style={[
                   styles.secondaryButtonText,
-                  isDownloaded && styles.downloadedButtonText
+                  isDownloaded && styles.downloadedButtonText,
+                  !internetArchiveUrl && !isDownloaded && styles.disabledButtonText
                 ]}>
-                  {isDownloaded ? 'Downloaded' : internetArchiveUrl ? 'Download HD' : 'Download'}
+                  {isDownloaded ? 'Downloaded' : internetArchiveUrl ? 'Download HD' : 'Not Available'}
                 </Text>
               </>
             )}
@@ -516,6 +517,13 @@ export default function TMDbContentDetails() {
           {isCheckingArchive && (
             <View style={styles.checkingArchive}>
               <Text style={styles.checkingArchiveText}>Checking for HD version...</Text>
+            </View>
+          )}
+
+          {!internetArchiveUrl && !isCheckingArchive && !isDownloaded && (
+            <View style={styles.notAvailableNotice}>
+              <Ionicons name="information-circle" size={16} color="#F44336" />
+              <Text style={styles.notAvailableText}>Not available on Internet Archive</Text>
             </View>
           )}
 
@@ -1114,6 +1122,28 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  disabledButton: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  disabledButtonText: {
+    color: '#666',
+  },
+  notAvailableNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    borderRadius: 6,
+    alignSelf: 'center',
+  },
+  notAvailableText: {
+    color: '#F44336',
+    fontSize: 12,
+    marginLeft: 4,
   },
   retryContainer: {
     paddingHorizontal: 20,
