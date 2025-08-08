@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -48,6 +47,7 @@ export default function TMDbContentDetails() {
   const [loading, setLoading] = useState(true);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false); // Added state for favorite
 
   useEffect(() => {
     loadContent();
@@ -56,13 +56,13 @@ export default function TMDbContentDetails() {
   const loadContent = async () => {
     try {
       setLoading(true);
-      
+
       // Determine if it's a movie or TV show and fetch accordingly
       const isMovie = !id.toString().includes('tv-');
       let contentData;
       let creditsData;
       let videosData;
-      
+
       if (isMovie) {
         contentData = await tmdbService.getMovieDetails(Number(id));
         creditsData = await tmdbService.getMovieCredits(Number(id));
@@ -73,18 +73,23 @@ export default function TMDbContentDetails() {
         creditsData = await tmdbService.getTVCredits(Number(tvId));
         videosData = await tmdbService.getTVVideos(Number(tvId));
       }
-      
+
       console.log('Content loaded:', contentData);
       setContent(contentData);
       setCast(creditsData.cast.slice(0, 10));
       setVideos(videosData.results.filter((video: Video) => 
         video.site === 'YouTube' && (video.type === 'Trailer' || video.type === 'Teaser')
       ).slice(0, 3));
-      
+
       // Check if downloaded
       const downloaded = await downloadService.isDownloaded(Number(id));
       setIsDownloaded(downloaded);
-      
+
+      // Check if favorited and watchlisted (Placeholder - actual API calls would go here)
+      // For now, we'll just set them to false or default values
+      setIsFavorite(false); // Replace with actual check
+      setIsWatchlisted(false); // Replace with actual check
+
     } catch (error) {
       console.error('Error loading content:', error);
       Alert.alert('Error', 'Failed to load content details');
@@ -95,7 +100,7 @@ export default function TMDbContentDetails() {
 
   const handleDownload = async () => {
     if (!content) return;
-    
+
     try {
       if (isDownloaded) {
         await downloadService.removeDownload(content.id);
@@ -121,7 +126,7 @@ export default function TMDbContentDetails() {
 
   const handleShare = async () => {
     if (!content) return;
-    
+
     try {
       const title = 'title' in content ? content.title : content.name;
       await Share.share({
@@ -133,12 +138,54 @@ export default function TMDbContentDetails() {
     }
   };
 
-  const toggleWatchlist = () => {
-    setIsWatchlisted(!isWatchlisted);
-    Alert.alert(
-      'Watchlist',
-      isWatchlisted ? 'Removed from watchlist' : 'Added to watchlist'
-    );
+  const toggleFavorite = async () => {
+    if (!content) return;
+    
+    const accountId = 22206352; // Replace with actual account ID if available
+    const sessionId = 'YOUR_SESSION_ID'; // Replace with actual session ID if available
+    const isMovie = !id.toString().includes('tv-');
+
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        await tmdbService.removeFromFavorites(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
+        setIsFavorite(false);
+        Alert.alert('Success', 'Removed from favorites');
+      } else {
+        // Add to favorites
+        await tmdbService.addToFavorites(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
+        setIsFavorite(true);
+        Alert.alert('Success', 'Added to favorites');
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      Alert.alert('Error', 'Failed to update favorites');
+    }
+  };
+
+  const toggleWatchlist = async () => {
+    if (!content) return;
+
+    const accountId = 22206352; // Replace with actual account ID if available
+    const sessionId = 'YOUR_SESSION_ID'; // Replace with actual session ID if available
+    const isMovie = !id.toString().includes('tv-');
+
+    try {
+      if (isWatchlisted) {
+        // Remove from watchlist
+        await tmdbService.removeFromWatchlist(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
+        setIsWatchlisted(false);
+        Alert.alert('Success', 'Removed from watchlist');
+      } else {
+        // Add to watchlist
+        await tmdbService.addToWatchlist(accountId, sessionId, content.id, isMovie ? 'movie' : 'tv');
+        setIsWatchlisted(true);
+        Alert.alert('Success', 'Added to watchlist');
+      }
+    } catch (error) {
+      console.error('Error toggling watchlist:', error);
+      Alert.alert('Error', 'Failed to update watchlist');
+    }
   };
 
   const playTrailer = (videoKey: string) => {
@@ -178,7 +225,7 @@ export default function TMDbContentDetails() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <Stack.Screen options={{ headerShown: false }} />
-      
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -215,7 +262,7 @@ export default function TMDbContentDetails() {
 
                 <View style={styles.contentInfo}>
                   <Text style={styles.contentTitle} numberOfLines={2}>{title}</Text>
-                  
+
                   <View style={styles.metaInfo}>
                     <Text style={styles.year}>
                       {releaseDate ? new Date(releaseDate).getFullYear() : 'N/A'}
@@ -275,7 +322,7 @@ export default function TMDbContentDetails() {
             <Ionicons name="play" size={24} color="#fff" />
             <Text style={styles.primaryButtonText}>Play</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity 
             style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
             onPress={handleDownload}
@@ -292,9 +339,9 @@ export default function TMDbContentDetails() {
               {isDownloaded ? 'Downloaded' : 'Download'}
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity 
-            style={styles.secondaryButton}
+            style={[styles.secondaryButton, isWatchlisted && styles.watchlistButtonActive]} // Changed style to be conditional
             onPress={toggleWatchlist}
           >
             <Ionicons 
@@ -302,7 +349,9 @@ export default function TMDbContentDetails() {
               size={24} 
               color="#fff" 
             />
-            <Text style={styles.secondaryButtonText}>Watchlist</Text>
+            <Text style={[styles.secondaryButtonText, isWatchlisted && styles.watchlistButtonTextActive]}>
+              {isWatchlisted ? 'Watchlisted' : 'Watchlist'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -324,7 +373,7 @@ export default function TMDbContentDetails() {
                 </Text>
               </View>
             )}
-            
+
             {content.revenue && content.revenue > 0 && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Revenue</Text>
@@ -333,7 +382,7 @@ export default function TMDbContentDetails() {
                 </Text>
               </View>
             )}
-            
+
             {content.original_language && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Original Language</Text>
@@ -342,7 +391,7 @@ export default function TMDbContentDetails() {
                 </Text>
               </View>
             )}
-            
+
             {content.production_countries && content.production_countries.length > 0 && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Country</Text>
@@ -677,6 +726,24 @@ const styles = StyleSheet.create({
   },
   downloadedButtonText: {
     color: '#4CAF50',
+  },
+  favoriteButton: { // Added style for favorite button
+    backgroundColor: '#333', // Default background
+  },
+  favoriteButtonActive: { // Style when favorited
+    backgroundColor: '#E50914',
+  },
+  favoriteButtonTextActive: { // Style for text when favorited
+    color: '#fff',
+  },
+  watchlistButton: { // Added style for watchlist button
+    backgroundColor: '#333', // Default background
+  },
+  watchlistButtonActive: { // Style when watchlisted
+    backgroundColor: '#4ECDC4',
+  },
+  watchlistButtonTextActive: { // Style for text when watchlisted
+    color: '#fff',
   },
   section: {
     paddingHorizontal: 20,

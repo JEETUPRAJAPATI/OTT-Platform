@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, Alert, Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Sharing from 'expo-sharing';
@@ -184,6 +184,37 @@ export default function ContentDetailScreen() {
             </ThemedView>
           )}
         </ThemedView>
+      </ThemedView>
+
+      <ThemedView style={styles.footer}>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push(`/content/${id}/favorite`)}>
+          <Ionicons name="heart-outline" size={24} color="#fff" />
+          <ThemedText style={styles.footerButtonText}>Favorite</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push(`/content/${id}/watchlist`)}>
+          <Ionicons name="add-circle-outline" size={24} color="#fff" />
+          <ThemedText style={styles.footerButtonText}>Watchlist</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push(`/content/${id}/settings`)}>
+          <Ionicons name="settings-outline" size={24} color="#fff" />
+          <ThemedText style={styles.footerButtonText}>Settings</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push(`/content/${id}/about`)}>
+          <Ionicons name="information-circle-outline" size={24} color="#fff" />
+          <ThemedText style={styles.footerButtonText}>About</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push(`/content/${id}/privacy`)}>
+          <Ionicons name="shield-checkmark-outline" size={24} color="#fff" />
+          <ThemedText style={styles.footerButtonText}>Privacy Policy</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push(`/content/${id}/rating`)}>
+          <Ionicons name="star-half-outline" size={24} color="#fff" />
+          <ThemedText style={styles.footerButtonText}>Rating</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push(`/content/${id}/review`)}>
+          <Ionicons name="create-outline" size={24} color="#fff" />
+          <ThemedText style={styles.footerButtonText}>Review</ThemedText>
+        </TouchableOpacity>
       </ThemedView>
     </ScrollView>
   );
@@ -381,5 +412,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.6,
     fontStyle: 'italic',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: '#000',
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  footerButton: {
+    alignItems: 'center',
+    padding: 5,
+  },
+  footerButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
