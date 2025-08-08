@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 const TMDB_API_KEY = 'd0405b9f1383e118f9cfa86d7b74e2b9';

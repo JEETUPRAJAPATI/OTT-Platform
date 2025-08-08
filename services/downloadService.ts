@@ -56,9 +56,17 @@ class DownloadService {
       const searchQuery = encodeURIComponent(`title:(${movieTitle}) AND mediatype:(movies)`);
       const searchUrl = `https://archive.org/advancedsearch.php?q=${searchQuery}&fl=identifier,title&rows=1&page=1&output=json`;
       
-      const response = await fetch(searchUrl);
+      const response = await fetch(searchUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 second timeout
+      });
+      
       if (!response.ok) {
-        throw new Error(`Search failed: ${response.status}`);
+        throw new Error(`Search failed: ${response.status} - ${response.statusText}`);
       }
       
       const data = await response.json();
@@ -92,10 +100,17 @@ class DownloadService {
   }> {
     try {
       const metadataUrl = `https://archive.org/metadata/${identifier}`;
-      const response = await fetch(metadataUrl);
+      const response = await fetch(metadataUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 second timeout
+      });
       
       if (!response.ok) {
-        throw new Error(`Metadata fetch failed: ${response.status}`);
+        throw new Error(`Metadata fetch failed: ${response.status} - ${response.statusText}`);
       }
       
       const data = await response.json();
