@@ -12,10 +12,15 @@ interface TMDbContentCardProps {
 }
 
 export const TMDbContentCard = React.memo(function TMDbContentCard({ content, onPress, style }: TMDbContentCardProps) {
+  // Add error boundaries and null checks
+  if (!content) {
+    return null;
+  }
+
   const title = (content as any).title || (content as any).name || 'Unknown Title';
   const releaseDate = (content as any).release_date || (content as any).first_air_date;
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
-  const posterUrl = tmdbService.getImageUrl(content.poster_path);
+  const posterUrl = content.poster_path ? tmdbService.getImageUrl(content.poster_path) : null;
   const rating = content.vote_average || 0;
 
   // Determine content type based on TMDb data structure
