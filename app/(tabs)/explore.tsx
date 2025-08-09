@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, FlatList, TouchableOpacity, RefreshControl, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,7 +15,6 @@ export default function ExploreScreen() {
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [tmdbContent, setTmdbContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const genres = [
     { id: 'all', name: 'All Genres' },
@@ -27,54 +27,39 @@ export default function ExploreScreen() {
     { id: 'sci-fi', name: 'Sci-Fi' },
   ];
 
-  const fetchTmdbContent = async () => {
+  const loadTMDbContent = async () => {
     try {
-      setRefreshing(true);
-      setError(null);
-      
-      // Add individual error handling for each API call
-      const results = await Promise.allSettled([
+      const [popular, topRated] = await Promise.all([
         tmdbService.getPopularMovies(),
-        tmdbService.getPopularTVShows(),
-        tmdbService.getTrendingMovies?.() || Promise.resolve([]),
-        tmdbService.getTrendingTVShows?.() || Promise.resolve([]),
+        tmdbService.getTopRatedTVShows()
       ]);
-
-      const allContent = results
-        .filter(result => result.status === 'fulfilled' && result.value)
-        .flatMap(result => {
-          const data = (result as any).value;
-          return Array.isArray(data) ? data.slice(0, 10) : (data?.results || []).slice(0, 10);
-        })
-        .filter(item => item && item.id);
-
-      setTmdbContent(allContent);
+      
+      // Combine and shuffle the content
+      const combined = [...popular.slice(0, 10), ...topRated.slice(0, 10)];
+      const shuffled = combined.sort(() => 0.5 - Math.random());
+      setTmdbContent(shuffled);
     } catch (error) {
-      console.error('Failed to fetch TMDb content:', error);
-      setError('Failed to load content. Please try again.');
-      setTmdbContent([]);
-    } finally {
-      setRefreshing(false);
+      console.error('Error loading TMDb content:', error);
     }
   };
 
   useEffect(() => {
-    fetchTmdbContent();
+    loadTMDbContent();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchTmdbContent();
+    await loadTMDbContent();
     setRefreshing(false);
   };
 
-  const filteredContent = selectedPlatform === 'all'
-    ? contentData
+  const filteredContent = selectedPlatform === 'all' 
+    ? contentData 
     : contentData.filter(content => content.platform === selectedPlatform);
 
   const filteredByGenre = selectedGenre === 'all'
     ? filteredContent
-    : filteredContent.filter(content =>
+    : filteredContent.filter(content => 
         content.genre.toLowerCase().includes(selectedGenre.toLowerCase())
       );
 
@@ -96,7 +81,7 @@ export default function ExploreScreen() {
     .slice(0, 4);
 
   return (
-    <ScrollView
+    <ScrollView 
       style={styles.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -159,12 +144,6 @@ export default function ExploreScreen() {
           </ThemedView>
         )}
 
-        {error && (
-          <ThemedView style={styles.errorContainer}>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
-          </ThemedView>
-        )}
-
         {/* Top Rated Section */}
         <ThemedView style={styles.section}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
@@ -190,7 +169,7 @@ export default function ExploreScreen() {
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             🎯 Browse by Platform
           </ThemedText>
-
+          
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
             <TouchableOpacity
               style={[
@@ -206,7 +185,7 @@ export default function ExploreScreen() {
                 All Platforms
               </ThemedText>
             </TouchableOpacity>
-
+            
             {platforms.map((platform) => (
               <TouchableOpacity
                 key={platform.id}
@@ -233,7 +212,7 @@ export default function ExploreScreen() {
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             🎭 Browse by Genre
           </ThemedText>
-
+          
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
             {genres.map((genre) => (
               <TouchableOpacity
@@ -375,17 +354,5 @@ const styles = StyleSheet.create({
   },
   activeFilterChipText: {
     color: '#fff',
-  },
-  errorContainer: {
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#ffebee', // Light red background for error
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  errorText: {
-    color: '#c62828', // Dark red text
-    fontSize: 14,
-    textAlign: 'center',
   },
 });

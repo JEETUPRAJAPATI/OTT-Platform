@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -9,7 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { Video, ResizeMode, VideoFullscreenUpdate } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
@@ -55,7 +56,7 @@ export function VideoPlayer({
   subtitles = [],
   qualities = []
 }: VideoPlayerProps) {
-  const videoRef = useRef<VideoView>(null); // Changed to VideoView ref
+  const videoRef = useRef<Video>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -63,16 +64,7 @@ export function VideoPlayer({
   const [showSubtitleMenu, setShowSubtitleMenu] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]?.quality || 'auto');
   const [selectedSubtitle, setSelectedSubtitle] = useState<string | null>(null);
-
-  const player = useVideoPlayer(
-    typeof source === 'number' ? source.toString() : source.uri, // Use uri or number
-    player => {
-      player.loop = false; // Default to not looping
-      player.muted = false; // Default to not muted
-      // Add initial setup if needed, e.g., setting initial volume or playback rate
-    }
-  );
-
+  
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     isPlaying: false,
     position: 0,
@@ -88,20 +80,18 @@ export function VideoPlayer({
   useEffect(() => {
     // Load user's saved position
     const continueWatching = userService.getContinueWatching();
-    const savedItem = continueWatching.find(item =>
-      item.contentId === contentId &&
+    const savedItem = continueWatching.find(item => 
+      item.contentId === contentId && 
       item.contentType === contentType &&
       (episodeNumber ? item.episodeNumber === episodeNumber : true)
     );
-
+    
     if (savedItem && savedItem.progress > 5) {
       // Resume from saved position
       const resumeTime = (savedItem.progress / 100) * playbackState.duration;
-      // useVideoPlayer doesn't directly expose setPositionAsync, need to check if player.seek is available or use alternative
-      // For now, we'll assume a way to seek if needed, or rely on the player's internal handling
-      // player.seek(resumeTime); // This is a hypothetical call, needs to be confirmed with expo-video API
+      videoRef.current?.setPositionAsync(resumeTime * 1000);
     }
-  }, [playbackState.duration, player]); // Added player to dependency array
+  }, [playbackState.duration]);
 
   useEffect(() => {
     // Auto-hide controls
@@ -110,7 +100,7 @@ export function VideoPlayer({
         setShowControls(false);
       }, 4000);
     }
-
+    
     return () => {
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
@@ -121,9 +111,9 @@ export function VideoPlayer({
   useEffect(() => {
     // Save viewing progress periodically
     const interval = setInterval(() => {
-      if (player && player.isPlaying && playbackState.duration > 0) {
+      if (playbackState.isPlaying && playbackState.duration > 0) {
         const progress = (playbackState.position / playbackState.duration) * 100;
-
+        
         // Update continue watching
         userService.updateContinueWatching(
           contentId,
@@ -135,7 +125,7 @@ export function VideoPlayer({
           seasonNumber,
           episodeNumber
         );
-
+        
         // Add to viewing history
         userService.addToHistory(
           contentId,
@@ -149,55 +139,42 @@ export function VideoPlayer({
         );
       }
     }, 30000); // Save every 30 seconds
-
+    
     return () => clearInterval(interval);
-  }, [playbackState, contentId, contentType, title, seasonNumber, episodeNumber, player]); // Added player to dependency array
+  }, [playbackState, contentId, contentType, title, seasonNumber, episodeNumber]);
 
   const togglePlayPause = async () => {
-    if (player) {
-      if (player.isPlaying) {
-        await player.pause();
-      } else {
-        await player.play();
-      }
+    if (playbackState.isPlaying) {
+      await videoRef.current?.pauseAsync();
+    } else {
+      await videoRef.current?.playAsync();
     }
   };
 
   const toggleMute = async () => {
-    if (player) {
-      await player.setMutedAsync(!player.isMuted); // Use setMutedAsync
-      setPlaybackState(prev => ({ ...prev, isMuted: player.isMuted }));
-    }
+    await videoRef.current?.setIsMutedAsync(!playbackState.isMuted);
   };
 
   const handleSeek = async (value: number) => {
-    if (player && player.duration) {
-      const seekTime = value * player.duration;
-      await player.seek(seekTime); // Use seek
-      setPlaybackState(prev => ({ ...prev, position: seekTime }));
-    }
+    const seekTime = value * playbackState.duration;
+    await videoRef.current?.setPositionAsync(seekTime * 1000);
   };
 
   const handleVolumeChange = async (value: number) => {
-    if (player) {
-      await player.setVolumeAsync(value); // Use setVolumeAsync
-      setPlaybackState(prev => ({ ...prev, volume: value }));
-    }
+    await videoRef.current?.setVolumeAsync(value);
   };
 
   const handlePlaybackRateChange = async (rate: number) => {
-    if (player) {
-      await player.setRateAsync(rate, true); // Use setRateAsync
-      setPlaybackState(prev => ({ ...prev, playbackRate: rate }));
-    }
+    await videoRef.current?.setRateAsync(rate, true);
+    setPlaybackState(prev => ({ ...prev, playbackRate: rate }));
   };
 
   const toggleFullscreen = async () => {
-    // expo-video does not directly expose a toggleFullscreen method like expo-av
-    // This would need to be handled by the parent component or by a custom fullscreen button that changes layout
-    // For now, we'll keep the state but the action might not be directly implemented here.
-    setIsFullscreen(prev => !prev);
-    Alert.alert("Fullscreen", "Fullscreen functionality needs to be implemented based on your app's layout.");
+    if (isFullscreen) {
+      await videoRef.current?.dismissFullscreenPlayer();
+    } else {
+      await videoRef.current?.presentFullscreenPlayer();
+    }
   };
 
   const handleVideoTap = () => {
@@ -205,21 +182,15 @@ export function VideoPlayer({
   };
 
   const skip = async (seconds: number) => {
-    if (player && player.duration) {
-      const newPosition = Math.max(0, Math.min(player.duration, player.position + seconds));
-      await player.seek(newPosition);
-      setPlaybackState(prev => ({ ...prev, position: newPosition }));
-    }
+    const newPosition = Math.max(0, Math.min(playbackState.duration, playbackState.position + seconds));
+    await videoRef.current?.setPositionAsync(newPosition * 1000);
   };
 
   const formatTime = (timeInSeconds: number) => {
-    if (isNaN(timeInSeconds) || !isFinite(timeInSeconds)) {
-      return '0:00';
-    }
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = Math.floor(timeInSeconds % 60);
     const hours = Math.floor(minutes / 60);
-
+    
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
@@ -227,11 +198,10 @@ export function VideoPlayer({
   };
 
   const onPlaybackStatusUpdate = (status: any) => {
-    // Map expo-av status to playbackState, adjusting for new API if necessary
     setPlaybackState({
       isPlaying: status.isPlaying || false,
-      position: status.position || 0, // Assuming status.position is in seconds
-      duration: status.duration || 0, // Assuming status.duration is in seconds
+      position: (status.positionMillis || 0) / 1000,
+      duration: (status.durationMillis || 0) / 1000,
       isBuffering: status.isBuffering || false,
       isMuted: status.isMuted || false,
       volume: status.volume || 1.0,
@@ -240,8 +210,7 @@ export function VideoPlayer({
   };
 
   const onFullscreenUpdate = (event: any) => {
-    // expo-video handles fullscreen differently, this might not be directly applicable
-    // setIsFullscreen(event.fullscreenUpdate === VideoFullscreenUpdate.PLAYER_WILL_PRESENT);
+    setIsFullscreen(event.fullscreenUpdate === VideoFullscreenUpdate.PLAYER_WILL_PRESENT);
   };
 
   const renderQualityMenu = () => (
@@ -251,7 +220,7 @@ export function VideoPlayer({
       animationType="fade"
       onRequestClose={() => setShowQualityMenu(false)}
     >
-      <TouchableOpacity
+      <TouchableOpacity 
         style={styles.modalOverlay}
         onPress={() => setShowQualityMenu(false)}
       >
@@ -267,10 +236,7 @@ export function VideoPlayer({
               onPress={() => {
                 setSelectedQuality(quality.quality);
                 setShowQualityMenu(false);
-                // Here you would switch video source via player.replace
-                if (player) {
-                  player.replace({ uri: quality.url });
-                }
+                // Here you would switch video source
               }}
             >
               <Text style={[
@@ -296,7 +262,7 @@ export function VideoPlayer({
       animationType="fade"
       onRequestClose={() => setShowSubtitleMenu(false)}
     >
-      <TouchableOpacity
+      <TouchableOpacity 
         style={styles.modalOverlay}
         onPress={() => setShowSubtitleMenu(false)}
       >
@@ -310,10 +276,6 @@ export function VideoPlayer({
             onPress={() => {
               setSelectedSubtitle(null);
               setShowSubtitleMenu(false);
-              // Handle disabling subtitles
-              if (player) {
-                player.disableTextTracks();
-              }
             }}
           >
             <Text style={[
@@ -336,10 +298,6 @@ export function VideoPlayer({
               onPress={() => {
                 setSelectedSubtitle(subtitle.language);
                 setShowSubtitleMenu(false);
-                // Handle enabling subtitles
-                if (player) {
-                  player.enableTextTracks([subtitle.url]); // Assuming url is the correct parameter
-                }
               }}
             >
               <Text style={[
@@ -365,13 +323,13 @@ export function VideoPlayer({
       animationType="fade"
       onRequestClose={() => setShowSettings(false)}
     >
-      <TouchableOpacity
+      <TouchableOpacity 
         style={styles.modalOverlay}
         onPress={() => setShowSettings(false)}
       >
         <View style={styles.settingsContainer}>
           <Text style={styles.menuTitle}>Playback Settings</Text>
-
+          
           {/* Playback Speed */}
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>Playback Speed</Text>
@@ -425,7 +383,7 @@ export function VideoPlayer({
               <Text style={styles.settingButtonText}>Video Quality</Text>
               <Ionicons name="chevron-forward" size={16} color="#999" />
             </TouchableOpacity>
-
+            
             <TouchableOpacity
               style={styles.settingButton}
               onPress={() => setShowSubtitleMenu(true)}
@@ -443,24 +401,23 @@ export function VideoPlayer({
   return (
     <View style={styles.container}>
       <StatusBar hidden={isFullscreen} />
-
-      <TouchableOpacity
+      
+      <TouchableOpacity 
         style={styles.videoContainer}
         onPress={handleVideoTap}
         activeOpacity={1}
       >
-        <VideoView
+        <Video
           ref={videoRef}
-          player={player}
+          source={source}
           style={styles.video}
-          // resizeMode={ResizeMode.CONTAIN} // Not applicable for VideoView directly, handled by player or styles
-          // isLooping={false} // Handled by player.loop
-          // onPlaybackStatusUpdate={onPlaybackStatusUpdate} // expo-video uses callbacks differently
-          // useNativeControls={false} // Handled by VideoView rendering
-          allowsFullscreen={true} // Use component prop for fullscreen
-          allowsPictureInPicture={true} // Use component prop for picture-in-picture
+          resizeMode={ResizeMode.CONTAIN}
+          isLooping={false}
+          onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+          onFullscreenUpdate={onFullscreenUpdate}
+          useNativeControls={false}
         />
-
+        
         {/* Buffering Indicator */}
         {playbackState.isBuffering && (
           <View style={styles.bufferingContainer}>
@@ -480,7 +437,7 @@ export function VideoPlayer({
               <TouchableOpacity onPress={onClose} style={styles.controlButton}>
                 <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-
+              
               <View style={styles.titleContainer}>
                 <Text style={styles.videoTitle} numberOfLines={1}>{title}</Text>
                 {episodeNumber && (
@@ -489,9 +446,9 @@ export function VideoPlayer({
                   </Text>
                 )}
               </View>
-
-              <TouchableOpacity
-                onPress={() => setShowSettings(true)}
+              
+              <TouchableOpacity 
+                onPress={() => setShowSettings(true)} 
                 style={styles.controlButton}
               >
                 <Ionicons name="settings" size={24} color="#fff" />
@@ -505,25 +462,25 @@ export function VideoPlayer({
                   <Ionicons name="play-skip-back" size={32} color="#fff" />
                 </TouchableOpacity>
               )}
-
+              
               <TouchableOpacity onPress={() => skip(-10)} style={styles.controlButton}>
                 <Ionicons name="play-back" size={32} color="#fff" />
                 <Text style={styles.skipText}>10</Text>
               </TouchableOpacity>
-
+              
               <TouchableOpacity onPress={togglePlayPause} style={styles.playButton}>
-                <Ionicons
-                  name={playbackState.isPlaying ? "pause" : "play"}
-                  size={48}
-                  color="#fff"
+                <Ionicons 
+                  name={playbackState.isPlaying ? "pause" : "play"} 
+                  size={48} 
+                  color="#fff" 
                 />
               </TouchableOpacity>
-
+              
               <TouchableOpacity onPress={() => skip(10)} style={styles.controlButton}>
                 <Ionicons name="play-forward" size={32} color="#fff" />
                 <Text style={styles.skipText}>10</Text>
               </TouchableOpacity>
-
+              
               {onNext && (
                 <TouchableOpacity onPress={onNext} style={styles.controlButton}>
                   <Ionicons name="play-skip-forward" size={32} color="#fff" />
@@ -537,7 +494,7 @@ export function VideoPlayer({
                 <Text style={styles.timeText}>
                   {formatTime(playbackState.position)}
                 </Text>
-
+                
                 <Slider
                   style={styles.progressSlider}
                   minimumValue={0}
@@ -548,21 +505,21 @@ export function VideoPlayer({
                   maximumTrackTintColor="rgba(255,255,255,0.3)"
                   thumbStyle={styles.sliderThumb}
                 />
-
+                
                 <Text style={styles.timeText}>
                   {formatTime(playbackState.duration)}
                 </Text>
               </View>
-
+              
               <View style={styles.bottomRightControls}>
                 <TouchableOpacity onPress={toggleMute} style={styles.controlButton}>
-                  <Ionicons
-                    name={playbackState.isMuted ? "volume-mute" : "volume-high"}
-                    size={20}
-                    color="#fff"
+                  <Ionicons 
+                    name={playbackState.isMuted ? "volume-mute" : "volume-high"} 
+                    size={20} 
+                    color="#fff" 
                   />
                 </TouchableOpacity>
-
+                
                 <TouchableOpacity onPress={toggleFullscreen} style={styles.controlButton}>
                   <Ionicons name="expand" size={20} color="#fff" />
                 </TouchableOpacity>

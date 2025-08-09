@@ -1,31 +1,23 @@
+
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { TMDbMovie, TMDbTVShow, tmdbService } from '../services/tmdbApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 
 interface TMDbContentCardProps {
   content: TMDbMovie | TMDbTVShow;
+  type: 'movie' | 'tv';
   onPress: () => void;
   style?: any;
 }
 
-export const TMDbContentCard = React.memo(function TMDbContentCard({ content, onPress, style }: TMDbContentCardProps) {
-  // Add error boundaries and null checks
-  if (!content || !content.id) {
-    return null;
-  }
-
-  try {
-    const title = (content as any).title || (content as any).name || 'Unknown Title';
-    const releaseDate = (content as any).release_date || (content as any).first_air_date;
-    const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
-    const posterUrl = content.poster_path ? tmdbService.getImageUrl(content.poster_path) : null;
-    const rating = content.vote_average || 0;
-
-  // Determine content type based on TMDb data structure
-  const type = (content as any).title ? 'movie' : 'tv';
+export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCardProps) {
+  const title = (content as any).title || (content as any).name || 'Unknown Title';
+  const releaseDate = (content as any).release_date || (content as any).first_air_date;
+  const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
+  const posterUrl = tmdbService.getImageUrl(content.poster_path);
+  const rating = content.vote_average || 0;
 
   // Get rating color based on score
   const getRatingColor = (rating: number) => {
@@ -36,18 +28,12 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
     return '#F44336'; // Red for poor
   };
 
-  const handlePress = () => {
-    // Determine content type based on TMDb data structure
-    const contentType = (content as any).title ? 'movie' : 'tv';
-    router.push(`/tmdb-content/${content.id}?type=${contentType}`);
-  };
-
   return (
-      <TouchableOpacity 
-        style={[styles.container, style]} 
-        onPress={handlePress}
-        activeOpacity={0.8}
-      >
+    <TouchableOpacity 
+      style={[styles.container, style]} 
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       <View style={styles.imageContainer}>
         {posterUrl ? (
           <Image source={{ uri: posterUrl }} style={styles.poster} />
@@ -57,7 +43,7 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
             <Text style={styles.placeholderText}>No Image</Text>
           </View>
         )}
-
+        
         {/* Top badges */}
         <View style={styles.topBadges}>
           <View style={styles.qualityBadge}>
@@ -67,7 +53,7 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
             <Text style={styles.typeText}>{type === 'movie' ? 'MOVIE' : 'SERIES'}</Text>
           </View>
         </View>
-
+        
         {/* Bottom overlay with gradient */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.9)']}
@@ -85,7 +71,7 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
             </View>
           </View>
         </LinearGradient>
-
+        
         {/* Play button overlay */}
         <View style={styles.playButtonContainer}>
           <View style={styles.playButton}>
@@ -93,7 +79,7 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
           </View>
         </View>
       </View>
-
+      
       <View style={styles.infoContainer}>
         <Text style={styles.title} numberOfLines={2}>
           {title}
@@ -112,13 +98,9 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
           )}
         </View>
       </View>
-      </TouchableOpacity>
-    );
-  } catch (error) {
-    console.error('Error rendering TMDbContentCard:', error);
-    return null;
-  }
-});
+    </TouchableOpacity>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

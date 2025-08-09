@@ -1,32 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Web fallback for AsyncStorage
-const webStorage = {
-  async getItem(key: string) {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  async setItem(key: string, value: string) {
-    try {
-      localStorage.setItem(key, value);
-    } catch {
-      // Silent fail
-    }
-  },
-  async removeItem(key: string) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // Silent fail
-    }
-  }
-};
-
-const storage = typeof window !== 'undefined' && !window.AsyncStorage ? webStorage : AsyncStorage;
-
 
 export interface User {
   id: string;
@@ -156,11 +127,11 @@ class UserService {
 
   addToWatchlist(contentId: number, contentType: 'movie' | 'tv', title: string, posterPath: string): void {
     if (!this.currentUser) return;
-
+    
     const existingItem = this.watchlist.find(
       item => item.contentId === contentId && item.contentType === contentType
     );
-
+    
     if (!existingItem) {
       const item: WatchlistItem = {
         id: `watchlist-${Date.now()}`,
@@ -196,11 +167,11 @@ class UserService {
 
   addToFavorites(contentId: number, contentType: 'movie' | 'tv', title: string, posterPath: string): void {
     if (!this.currentUser) return;
-
+    
     const existingItem = this.favorites.find(
       item => item.contentId === contentId && item.contentType === contentType
     );
-
+    
     if (!existingItem) {
       const item: FavoriteItem = {
         id: `favorite-${Date.now()}`,
@@ -236,12 +207,12 @@ class UserService {
 
   addRating(contentId: number, contentType: 'movie' | 'tv', rating: number, review?: string): void {
     if (!this.currentUser) return;
-
+    
     // Remove existing rating if any
     this.ratings = this.ratings.filter(
       item => !(item.contentId === contentId && item.contentType === contentType)
     );
-
+    
     const ratingItem: Rating = {
       id: `rating-${Date.now()}`,
       userId: this.currentUser.id,
@@ -267,9 +238,9 @@ class UserService {
   }
 
   addToHistory(
-    contentId: number,
-    contentType: 'movie' | 'tv',
-    title: string,
+    contentId: number, 
+    contentType: 'movie' | 'tv', 
+    title: string, 
     posterPath: string,
     progress?: number,
     episodeId?: number,
@@ -277,12 +248,12 @@ class UserService {
     episodeNumber?: number
   ): void {
     if (!this.currentUser) return;
-
+    
     // Remove existing entry if any
     this.viewingHistory = this.viewingHistory.filter(
       item => !(item.contentId === contentId && item.contentType === contentType)
     );
-
+    
     const historyItem: ViewingHistory = {
       id: `history-${Date.now()}`,
       userId: this.currentUser.id,
@@ -297,7 +268,7 @@ class UserService {
       episodeNumber
     };
     this.viewingHistory.unshift(historyItem);
-
+    
     // Keep only recent 100 items
     this.viewingHistory = this.viewingHistory.slice(0, 100);
     this.saveToStorage();
@@ -319,12 +290,12 @@ class UserService {
     episodeNumber?: number
   ): void {
     if (!this.currentUser) return;
-
+    
     // Remove existing entry if any
     this.continueWatching = this.continueWatching.filter(
       item => !(item.contentId === contentId && item.contentType === contentType)
     );
-
+    
     // Only add if progress is between 5% and 95%
     if (progress >= 5 && progress <= 95) {
       const continueItem: ContinueWatching = {
@@ -341,11 +312,11 @@ class UserService {
         episodeNumber
       };
       this.continueWatching.unshift(continueItem);
-
+      
       // Keep only recent 20 items
       this.continueWatching = this.continueWatching.slice(0, 20);
     }
-
+    
     this.saveToStorage();
   }
 
@@ -367,7 +338,7 @@ class UserService {
         viewingHistory: this.viewingHistory,
         continueWatching: this.continueWatching
       };
-      storage.setItem('rkswot-user-data', JSON.stringify(userData));
+      localStorage.setItem('rkswot-user-data', JSON.stringify(userData));
     } catch (error) {
       console.error('Failed to save user data:', error);
     }
@@ -375,7 +346,7 @@ class UserService {
 
   loadFromStorage(): void {
     try {
-      const stored = storage.getItem('rkswot-user-data');
+      const stored = localStorage.getItem('rkswot-user-data');
       if (stored) {
         const userData = JSON.parse(stored);
         this.currentUser = userData.user || this.currentUser;

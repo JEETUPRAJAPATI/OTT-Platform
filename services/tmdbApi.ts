@@ -60,624 +60,355 @@ export interface TMDbVideo {
 class TMDbService {
   // Get trending movies and TV shows
   async getTrending(mediaType: 'movie' | 'tv' | 'all' = 'all', timeWindow: 'day' | 'week' = 'week') {
-    try {
-      const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching trending ${mediaType} for ${timeWindow}:`, error);
-      return { results: [] };
-    }
-  }
-
-  // Get trending movies
-  async getTrendingMovies(timeWindow: 'day' | 'week' = 'week') {
-    try {
-      const response = await tmdbApi.get(`/trending/movie/${timeWindow}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching trending movies for ${timeWindow}:`, error);
-      return { results: [] };
-    }
-  }
-
-  // Get trending TV shows
-  async getTrendingTVShows(timeWindow: 'day' | 'week' = 'week') {
-    try {
-      const response = await tmdbApi.get(`/trending/tv/${timeWindow}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching trending TV shows for ${timeWindow}:`, error);
-      return { results: [] };
-    }
+    const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`);
+    return response.data.results;
   }
 
   // Get popular movies
   async getPopularMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/movie/popular', { params: { page } });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching popular movies:', error);
-      return { results: [] };
-    }
+    const response = await tmdbApi.get('/movie/popular', { params: { page } });
+    return response.data.results;
   }
 
   // Get popular TV shows
   async getPopularTVShows(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/tv/popular', { params: { page } });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching popular TV shows:', error);
-      return { results: [] };
-    }
+    const response = await tmdbApi.get('/tv/popular', { params: { page } });
+    return response.data.results;
   }
 
   // Get top rated movies
   async getTopRatedMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/movie/top_rated', { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching top rated movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/movie/top_rated', { params: { page } });
+    return response.data.results;
   }
 
   // Get upcoming movies
   async getUpcomingMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/movie/upcoming', { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching upcoming movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/movie/upcoming', { params: { page } });
+    return response.data.results;
   }
 
   // Get movies by genre
   async getMoviesByGenre(genreId: number, page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: { with_genres: genreId, page }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching movies by genre ${genreId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { with_genres: genreId, page }
+    });
+    return response.data.results;
   }
 
   // Get Hindi movies (Bollywood)
   async getHindiMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: {
-          with_original_language: 'hi',
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching Hindi movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_original_language: 'hi',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get South Indian movies (Tamil, Telugu, Malayalam, Kannada)
   async getSouthIndianMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: {
-          with_original_language: 'ta|te|ml|kn',
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching South Indian movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_original_language: 'ta|te|ml|kn',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get Marvel movies
   async getMarvelMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: {
-          with_companies: '420',
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching Marvel movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_companies: '420',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get thriller movies for 2025
   async getThrillerMovies2025(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: {
-          with_genres: '53',
-          primary_release_year: '2025',
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching Thriller movies for 2025:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_genres: '53',
+        primary_release_year: '2025',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get family movies
   async getFamilyMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: {
-          with_genres: '10751',
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching Family movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_genres: '10751',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get romantic movies
   async getRomanticMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: {
-          with_genres: '10749',
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching Romantic movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        with_genres: '10749',
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get award winners (high rated movies)
   async getAwardWinners(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', {
-        params: {
-          'vote_average.gte': 8.0,
-          'vote_count.gte': 1000,
-          sort_by: 'vote_average.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching Award Winners movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', {
+      params: { 
+        'vote_average.gte': 8.0,
+        'vote_count.gte': 1000,
+        sort_by: 'vote_average.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Search movies and TV shows
   async searchMulti(query: string, page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/search/multi', {
-        params: { query, page }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error searching multi for query "${query}":`, error);
-      return [];
-    }
+    const response = await tmdbApi.get('/search/multi', {
+      params: { query, page }
+    });
+    return response.data.results;
   }
 
   // Get movie details
   async getMovieDetails(movieId: number) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}`, {
-        params: { append_to_response: 'credits,videos' }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching movie details for movie ID ${movieId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}`, {
+      params: { append_to_response: 'credits,videos' }
+    });
+    return response.data;
   }
 
   // Get movie credits
   async getMovieCredits(movieId: number) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}/credits`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching movie credits for movie ID ${movieId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}/credits`);
+    return response.data;
   }
 
   // Get movie videos
   async getMovieVideos(movieId: number) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}/videos`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching movie videos for movie ID ${movieId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}/videos`);
+    return response.data;
   }
 
   // Get TV show details
   async getTVShowDetails(tvId: number) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}`, {
-        params: { append_to_response: 'credits,videos' }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching TV show details for TV ID ${tvId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}`, {
+      params: { append_to_response: 'credits,videos' }
+    });
+    return response.data;
   }
 
   // Get TV show credits
   async getTVCredits(tvId: number) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/credits`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching TV show credits for TV ID ${tvId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/credits`);
+    return response.data;
   }
 
   // Get TV show videos
   async getTVVideos(tvId: number) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/videos`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching TV show videos for TV ID ${tvId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/videos`);
+    return response.data;
   }
 
   // Get genres
   async getMovieGenres() {
-    try {
-      const response = await tmdbApi.get('/genre/movie/list');
-      return response.data.genres;
-    } catch (error) {
-      console.error('Error fetching movie genres:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/genre/movie/list');
+    return response.data.genres;
   }
 
   async getTVGenres() {
-    try {
-      const response = await tmdbApi.get('/genre/tv/list');
-      return response.data.genres;
-    } catch (error) {
-      console.error('Error fetching TV genres:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/genre/tv/list');
+    return response.data.genres;
   }
 
   // Helper function to get full image URL
-  getImageUrl(path: string | null): string {
-    if (!path) return '';
-    try {
-      return `${IMAGE_BASE_URL}${path}`;
-    } catch (error) {
-      console.error('Error generating image URL:', error);
-      return '';
-    }
+  getImageUrl(path: string, size: string = 'w500') {
+    return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
   }
 
   // Helper function to get YouTube trailer URL
-  getYouTubeUrl(key: string): string {
-    if (!key) return '';
-    try {
-      return `https://www.youtube.com/watch?v=${key}`;
-    } catch (error) {
-      console.error('Error generating YouTube URL:', error);
-      return '';
-    }
+  getYouTubeUrl(key: string) {
+    return `https://www.youtube.com/watch?v=${key}`;
   }
 
   // ENHANCED OTT PLATFORM FEATURES
 
   // Get airing today TV shows
   async getAiringTodayTVShows(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/tv/airing_today', { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching airing today TV shows:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/tv/airing_today', { params: { page } });
+    return response.data.results;
   }
 
   // Get on air TV shows
   async getOnAirTVShows(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/tv/on_the_air', { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching on air TV shows:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/tv/on_the_air', { params: { page } });
+    return response.data.results;
   }
 
   // Get top rated TV shows
   async getTopRatedTVShows(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/tv/top_rated', { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching top rated TV shows:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/tv/top_rated', { params: { page } });
+    return response.data.results;
   }
 
   // Get now playing movies
   async getNowPlayingMovies(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/movie/now_playing', { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching now playing movies:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/movie/now_playing', { params: { page } });
+    return response.data.results;
   }
 
   // Get similar movies
   async getSimilarMovies(movieId: number, page: number = 1) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}/similar`, { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching similar movies for movie ID ${movieId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}/similar`, { params: { page } });
+    return response.data.results;
   }
 
   // Get similar TV shows
   async getSimilarTVShows(tvId: number, page: number = 1) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/similar`, { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching similar TV shows for TV ID ${tvId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/similar`, { params: { page } });
+    return response.data.results;
   }
 
   // Get movie recommendations
   async getMovieRecommendations(movieId: number, page: number = 1) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}/recommendations`, { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching movie recommendations for movie ID ${movieId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}/recommendations`, { params: { page } });
+    return response.data.results;
   }
 
   // Get TV show recommendations
   async getTVRecommendations(tvId: number, page: number = 1) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/recommendations`, { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching TV show recommendations for TV ID ${tvId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/recommendations`, { params: { page } });
+    return response.data.results;
   }
 
   // Get movie reviews
   async getMovieReviews(movieId: number, page: number = 1) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}/reviews`, { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching movie reviews for movie ID ${movieId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}/reviews`, { params: { page } });
+    return response.data.results;
   }
 
   // Get TV show reviews
   async getTVReviews(tvId: number, page: number = 1) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/reviews`, { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching TV show reviews for TV ID ${tvId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/reviews`, { params: { page } });
+    return response.data.results;
   }
 
   // Get movie watch providers
   async getMovieWatchProviders(movieId: number) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}/watch/providers`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching movie watch providers for movie ID ${movieId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}/watch/providers`);
+    return response.data;
   }
 
   // Get TV watch providers
   async getTVWatchProviders(tvId: number) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/watch/providers`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching TV watch providers for TV ID ${tvId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/watch/providers`);
+    return response.data;
   }
 
   // Get person details
   async getPersonDetails(personId: number) {
-    try {
-      const response = await tmdbApi.get(`/person/${personId}`, {
-        params: { append_to_response: 'movie_credits,tv_credits,combined_credits,images' }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching person details for person ID ${personId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/person/${personId}`, {
+      params: { append_to_response: 'movie_credits,tv_credits,combined_credits,images' }
+    });
+    return response.data;
   }
 
   // Get popular people
   async getPopularPeople(page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/person/popular', { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching popular people:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/person/popular', { params: { page } });
+    return response.data.results;
   }
 
   // Get TV season details
   async getTVSeasonDetails(tvId: number, seasonNumber: number) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/season/${seasonNumber}`, {
-        params: { append_to_response: 'credits,videos,images' }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching TV season details for TV ID ${tvId}, Season ${seasonNumber}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/season/${seasonNumber}`, {
+      params: { append_to_response: 'credits,videos,images' }
+    });
+    return response.data;
   }
 
   // Get TV episode details
   async getTVEpisodeDetails(tvId: number, seasonNumber: number, episodeNumber: number) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`, {
-        params: { append_to_response: 'credits,videos,images' }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching TV episode details for TV ID ${tvId}, Season ${seasonNumber}, Episode ${episodeNumber}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`, {
+      params: { append_to_response: 'credits,videos,images' }
+    });
+    return response.data;
   }
 
   // Get collection details
   async getCollectionDetails(collectionId: number) {
-    try {
-      const response = await tmdbApi.get(`/collection/${collectionId}`, {
-        params: { append_to_response: 'images' }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching collection details for collection ID ${collectionId}:`, error);
-      return null;
-    }
+    const response = await tmdbApi.get(`/collection/${collectionId}`, {
+      params: { append_to_response: 'images' }
+    });
+    return response.data;
   }
 
   // Get movie keywords
   async getMovieKeywords(movieId: number) {
-    try {
-      const response = await tmdbApi.get(`/movie/${movieId}/keywords`);
-      return response.data.keywords;
-    } catch (error) {
-      console.error(`Error fetching movie keywords for movie ID ${movieId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/movie/${movieId}/keywords`);
+    return response.data.keywords;
   }
 
   // Get TV keywords
   async getTVKeywords(tvId: number) {
-    try {
-      const response = await tmdbApi.get(`/tv/${tvId}/keywords`);
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching TV keywords for TV ID ${tvId}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/tv/${tvId}/keywords`);
+    return response.data.results;
   }
 
   // Get available watch provider regions
   async getWatchProviderRegions() {
-    try {
-      const response = await tmdbApi.get('/watch/providers/regions');
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching watch provider regions:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/watch/providers/regions');
+    return response.data.results;
   }
 
   // Get movie watch providers list
   async getMovieWatchProvidersList() {
-    try {
-      const response = await tmdbApi.get('/watch/providers/movie');
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching movie watch providers list:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/watch/providers/movie');
+    return response.data.results;
   }
 
   // Get TV watch providers list
   async getTVWatchProvidersList() {
-    try {
-      const response = await tmdbApi.get('/watch/providers/tv');
-      return response.data.results;
-    } catch (error) {
-      console.error('Error fetching TV watch providers list:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/watch/providers/tv');
+    return response.data.results;
   }
 
   // Get configuration
   async getConfiguration() {
-    try {
-      const response = await tmdbApi.get('/configuration');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching configuration:', error);
-      return null;
-    }
+    const response = await tmdbApi.get('/configuration');
+    return response.data;
   }
 
   // Get countries
   async getCountries() {
-    try {
-      const response = await tmdbApi.get('/configuration/countries');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching countries:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/configuration/countries');
+    return response.data;
   }
 
   // Get languages
   async getLanguages() {
-    try {
-      const response = await tmdbApi.get('/configuration/languages');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching languages:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/configuration/languages');
+    return response.data;
   }
 
   // Advanced search with filters
@@ -691,13 +422,8 @@ class TMDbService {
     sort_by?: string;
     page?: number;
   }) {
-    try {
-      const response = await tmdbApi.get('/discover/movie', { params: filters });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error performing advanced movie search:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/movie', { params: filters });
+    return response.data.results;
   }
 
   // Advanced TV search with filters
@@ -711,185 +437,120 @@ class TMDbService {
     sort_by?: string;
     page?: number;
   }) {
-    try {
-      const response = await tmdbApi.get('/discover/tv', { params: filters });
-      return response.data.results;
-    } catch (error) {
-      console.error('Error performing advanced TV search:', error);
-      return [];
-    }
+    const response = await tmdbApi.get('/discover/tv', { params: filters });
+    return response.data.results;
   }
 
   // Get content by multiple genres
   async getContentByGenres(genreIds: number[], mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
-    try {
-      const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
-      const response = await tmdbApi.get(endpoint, {
-        params: {
-          with_genres: genreIds.join(','),
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching ${mediaType} content by genres ${genreIds.join(',')}:`, error);
-      return [];
-    }
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        with_genres: genreIds.join(','),
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get regional content (by country)
   async getRegionalContent(country: string, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
-    try {
-      const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
-      const response = await tmdbApi.get(endpoint, {
-        params: {
-          with_origin_country: country,
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching ${mediaType} content for country ${country}:`, error);
-      return [];
-    }
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        with_origin_country: country,
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get content by release year
   async getContentByYear(year: number, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
-    try {
-      const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
-      const yearParam = mediaType === 'movie' ? 'primary_release_year' : 'first_air_date_year';
-      const response = await tmdbApi.get(endpoint, {
-        params: {
-          [yearParam]: year,
-          sort_by: 'popularity.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching ${mediaType} content for year ${year}:`, error);
-      return [];
-    }
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const yearParam = mediaType === 'movie' ? 'primary_release_year' : 'first_air_date_year';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        [yearParam]: year,
+        sort_by: 'popularity.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get content by rating range
   async getContentByRating(minRating: number, maxRating: number, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
-    try {
-      const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
-      const response = await tmdbApi.get(endpoint, {
-        params: {
-          'vote_average.gte': minRating,
-          'vote_average.lte': maxRating,
-          'vote_count.gte': 100, // Ensure enough votes for reliability
-          sort_by: 'vote_average.desc',
-          page
-        }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching ${mediaType} content with rating range ${minRating}-${maxRating}:`, error);
-      return [];
-    }
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const response = await tmdbApi.get(endpoint, {
+      params: { 
+        'vote_average.gte': minRating,
+        'vote_average.lte': maxRating,
+        'vote_count.gte': 100, // Ensure enough votes for reliability
+        sort_by: 'vote_average.desc',
+        page 
+      }
+    });
+    return response.data.results;
   }
 
   // Get trending content by time window
   async getTrendingByTimeWindow(mediaType: 'movie' | 'tv' | 'person' = 'movie', timeWindow: 'day' | 'week' = 'week', page: number = 1) {
-    try {
-      const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`, { params: { page } });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error fetching trending ${mediaType} for ${timeWindow}:`, error);
-      return [];
-    }
+    const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`, { params: { page } });
+    return response.data.results;
   }
 
   // Get latest content
   async getLatestMovie() {
-    try {
-      const response = await tmdbApi.get('/movie/latest');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching latest movie:', error);
-      return null;
-    }
+    const response = await tmdbApi.get('/movie/latest');
+    return response.data;
   }
 
   async getLatestTV() {
-    try {
-      const response = await tmdbApi.get('/tv/latest');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching latest TV show:', error);
-      return null;
-    }
+    const response = await tmdbApi.get('/tv/latest');
+    return response.data;
   }
 
   // Multi-search (movies, TV, people)
   async multiSearch(query: string, page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/search/multi', {
-        params: { query, page }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error performing multi search for query "${query}":`, error);
-      return [];
-    }
+    const response = await tmdbApi.get('/search/multi', {
+      params: { query, page }
+    });
+    return response.data.results;
   }
 
   // Search by person
   async searchPerson(query: string, page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/search/person', {
-        params: { query, page }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error searching for person "${query}":`, error);
-      return [];
-    }
+    const response = await tmdbApi.get('/search/person', {
+      params: { query, page }
+    });
+    return response.data.results;
   }
 
   // Search by company
   async searchCompany(query: string, page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/search/company', {
-        params: { query, page }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error searching for company "${query}":`, error);
-      return [];
-    }
+    const response = await tmdbApi.get('/search/company', {
+      params: { query, page }
+    });
+    return response.data.results;
   }
 
   // Search by keyword
   async searchKeyword(query: string, page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/search/keyword', {
-        params: { query, page }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error searching for keyword "${query}":`, error);
-      return [];
-    }
+    const response = await tmdbApi.get('/search/keyword', {
+      params: { query, page }
+    });
+    return response.data.results;
   }
 
   // Search by collection
   async searchCollection(query: string, page: number = 1) {
-    try {
-      const response = await tmdbApi.get('/search/collection', {
-        params: { query, page }
-      });
-      return response.data.results;
-    } catch (error) {
-      console.error(`Error searching for collection "${query}":`, error);
-      return [];
-    }
+    const response = await tmdbApi.get('/search/collection', {
+      params: { query, page }
+    });
+    return response.data.results;
   }
 }
 

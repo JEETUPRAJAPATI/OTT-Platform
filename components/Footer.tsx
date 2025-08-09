@@ -27,7 +27,7 @@ interface FooterProps {
 export function Footer({ currentRoute }: FooterProps) {
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedSettingsTab, setSelectedSettingsTab] = useState<'main' | 'favorites' | 'watchlist' | 'about' | 'privacy' | 'rating' | 'reviews' | 'settings'>('main');
+  const [selectedSettingsTab, setSelectedSettingsTab] = useState<'favorites' | 'watchlist' | 'about' | 'privacy' | 'rating' | 'reviews' | 'settings'>('favorites');
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -58,7 +58,6 @@ export function Footer({ currentRoute }: FooterProps) {
   };
 
   const openSettings = () => {
-    setSelectedSettingsTab('main');
     setShowSettings(true);
     loadData();
     Animated.timing(slideAnim, {
@@ -335,84 +334,6 @@ export function Footer({ currentRoute }: FooterProps) {
     </View>
   );
 
-  const renderMainSettings = () => (
-    <View style={styles.settingsMainContent}>
-      <Text style={styles.settingsTitle}>Settings</Text>
-      
-      <TouchableOpacity style={styles.settingsOption} onPress={() => setSelectedSettingsTab('favorites')}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="heart" size={24} color="#E50914" />
-          <Text style={styles.settingsOptionText}>Saved Users</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption} onPress={() => setSelectedSettingsTab('about')}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="information-circle" size={24} color="#4A90E2" />
-          <Text style={styles.settingsOptionText}>About Us</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="document-text" size={24} color="#5BC0DE" />
-          <Text style={styles.settingsOptionText}>Terms of Use</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption} onPress={() => setSelectedSettingsTab('privacy')}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="shield-checkmark" size={24} color="#5CB85C" />
-          <Text style={styles.settingsOptionText}>Privacy Policy</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="trash" size={24} color="#D9534F" />
-          <Text style={styles.settingsOptionText}>Delete Account</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption} onPress={() => setSelectedSettingsTab('reviews')}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="star" size={24} color="#F0AD4E" />
-          <Text style={styles.settingsOptionText}>Rate App</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="help-circle" size={24} color="#17A2B8" />
-          <Text style={styles.settingsOptionText}>Support</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="card" size={24} color="#6F42C1" />
-          <Text style={styles.settingsOptionText}>Subscriptions</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingsOption} onPress={closeSettings}>
-        <View style={styles.settingsOptionLeft}>
-          <Ionicons name="log-out" size={24} color="#DC3545" />
-          <Text style={styles.settingsOptionText}>Logout</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderSettingsContent = () => {
     switch (selectedSettingsTab) {
       case 'favorites':
@@ -425,8 +346,10 @@ export function Footer({ currentRoute }: FooterProps) {
         return renderAbout();
       case 'privacy':
         return renderPrivacy();
+      case 'settings': // Added case for the new settings tab
+        return <View><Text style={styles.tabContent}>This is the new settings tab.</Text></View>;
       default:
-        return renderMainSettings();
+        return renderFavorites();
     }
   };
 
@@ -469,6 +392,18 @@ export function Footer({ currentRoute }: FooterProps) {
           <Ionicons name="settings" size={24} color="#666" />
           <Text style={styles.footerText}>Settings</Text>
         </TouchableOpacity>
+        
+        {/* New Settings Tab */}
+        <TouchableOpacity
+          style={[styles.footerButton, currentRoute === '/settings' && styles.activeButton]}
+          onPress={() => {
+            setSelectedSettingsTab('settings'); // Update state to show the new settings tab
+            openSettings(); // Open the modal
+          }}
+        >
+          <Ionicons name="settings" size={24} color={currentRoute === '/settings' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/settings' && styles.activeText]}>New Settings</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Settings Modal */}
@@ -490,25 +425,44 @@ export function Footer({ currentRoute }: FooterProps) {
             <SafeAreaView style={styles.modalContent}>
               {/* Modal Header */}
               <View style={styles.modalHeader}>
-                {selectedSettingsTab !== 'main' && (
-                  <TouchableOpacity onPress={() => setSelectedSettingsTab('main')}>
-                    <Ionicons name="arrow-back" size={28} color="#E50914" />
-                  </TouchableOpacity>
-                )}
-                <Text style={styles.modalTitle}>
-                  {selectedSettingsTab === 'main' ? 'Settings' : 
-                   selectedSettingsTab === 'favorites' ? 'Saved Users' :
-                   selectedSettingsTab === 'watchlist' ? 'Watchlist' :
-                   selectedSettingsTab === 'reviews' ? 'Reviews' :
-                   selectedSettingsTab === 'about' ? 'About Us' :
-                   selectedSettingsTab === 'privacy' ? 'Privacy Policy' : 'Settings'}
-                </Text>
+                <Text style={styles.modalTitle}>Settings</Text>
                 <TouchableOpacity onPress={closeSettings}>
                   <Ionicons name="close" size={28} color="#fff" />
                 </TouchableOpacity>
               </View>
 
-              
+              {/* Settings Tabs */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer}>
+                {[
+                  { key: 'favorites', label: 'Favorites', icon: 'heart' },
+                  { key: 'watchlist', label: 'Watchlist', icon: 'bookmark' },
+                  { key: 'reviews', label: 'Reviews', icon: 'star' },
+                  { key: 'about', label: 'About', icon: 'information-circle' },
+                  { key: 'privacy', label: 'Privacy', icon: 'shield-checkmark' },
+                  { key: 'settings', label: 'New Settings', icon: 'settings' }, // Added new settings tab to the list
+                ].map((tab) => (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[
+                      styles.tab,
+                      selectedSettingsTab === tab.key && styles.activeTab
+                    ]}
+                    onPress={() => setSelectedSettingsTab(tab.key as any)}
+                  >
+                    <Ionicons 
+                      name={tab.icon as any} 
+                      size={20} 
+                      color={selectedSettingsTab === tab.key ? '#E50914' : '#666'} 
+                    />
+                    <Text style={[
+                      styles.tabText,
+                      selectedSettingsTab === tab.key && styles.activeTabText
+                    ]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
               {/* Settings Content */}
               {renderSettingsContent()}
@@ -742,38 +696,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
-  },
-  settingsMainContent: {
-    flex: 1,
-    padding: 20,
-  },
-  settingsTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#E50914',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  settingsOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#111',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  settingsOptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingsOptionText: {
-    fontSize: 16,
-    color: '#fff',
-    marginLeft: 16,
-    fontWeight: '500',
   },
 });
