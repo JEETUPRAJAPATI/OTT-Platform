@@ -16,6 +16,9 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
   const posterUrl = tmdbService.getImageUrl(content.poster_path);
   const rating = content.vote_average || 0;
+  
+  // Determine content type based on TMDb data structure
+  const type = (content as any).title ? 'movie' : 'tv';
 
   // Get rating color based on score
   const getRatingColor = (rating: number) => {
