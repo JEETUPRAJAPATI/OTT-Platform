@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 
 export interface DownloadItem {
   id: string;
@@ -638,35 +638,29 @@ class DownloadService {
   // Storage methods (simplified)
   private async saveToStorage(): Promise<void> {
     try {
-      const data = JSON.stringify(Array.from(this.downloads.entries()));
-
-      // Check if we're in a web environment without proper AsyncStorage
-      if (typeof window !== 'undefined' && !AsyncStorage.setItem) {
-        localStorage.setItem(this.STORAGE_KEY, data);
+      // Skip AsyncStorage on web platform
+      if (Platform.OS === 'web') {
+        console.log('AsyncStorage not available on web platform');
         return;
       }
 
-      await AsyncStorage.setItem(this.STORAGE_KEY, data);
+      await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.downloads));
     } catch (error) {
       console.error('Failed to save download data:', error);
     }
   }
 
-  private async loadFromStorage(): Promise<void> {
+  private async loadFromStorage() {
     try {
-      // Check if we're in a web environment without proper AsyncStorage
-      if (typeof window !== 'undefined' && !AsyncStorage.getItem) {
-        console.log('AsyncStorage not available in web environment, using localStorage fallback');
-        const data = localStorage.getItem(this.STORAGE_KEY);
-        if (data) {
-          this.downloads = new Map(JSON.parse(data));
-        }
+      // Skip AsyncStorage on web platform
+      if (Platform.OS === 'web') {
+        console.log('AsyncStorage not available on web platform');
         return;
       }
 
       const data = await AsyncStorage.getItem(this.STORAGE_KEY);
       if (data) {
-        this.downloads = new Map(JSON.parse(data));
+        this.downloads = JSON.parse(data);
       }
     } catch (error) {
       console.error('Failed to load download data:', error);

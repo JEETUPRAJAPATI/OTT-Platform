@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Content } from '../data/ottPlatforms';
@@ -10,7 +9,7 @@ interface ContentCardProps {
   onPress: () => void;
 }
 
-export function ContentCard({ content, onPress }: ContentCardProps) {
+export const ContentCard = React.memo(function ContentCard({ content, onPress }: ContentCardProps) {
   return (
     <TouchableOpacity onPress={onPress} style={styles.container}>
       <ThemedView style={styles.card}>
@@ -30,7 +29,7 @@ export function ContentCard({ content, onPress }: ContentCardProps) {
       </ThemedView>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
