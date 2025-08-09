@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -29,117 +29,65 @@ interface VideoPlayerModalProps {
   visible: boolean;
   onClose: () => void;
   videoFiles: VideoFile[];
-  movieTitle: string;
+  title: string;
 }
 
 export function VideoPlayerModal({
   visible,
   onClose,
   videoFiles,
-  movieTitle
+  title
 }: VideoPlayerModalProps) {
-  const videoRef = useRef<Video>(null);
-  const [selectedFile, setSelectedFile] = useState<VideoFile | null>(null);
-  const [showQualitySelector, setShowQualitySelector] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const player = useVideoPlayer(
+    selectedVideo?.downloadUrl || '',
+    player => {
+      player.loop = false;
+      player.muted = false;
+    }
+  );
 
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    if (visible && videoFiles.length > 0) {
-      if (videoFiles.length === 1) {
-        setSelectedFile(videoFiles[0]);
-        setShowQualitySelector(false);
-      } else {
-        setShowQualitySelector(true);
-      }
-    }
-  }, [visible, videoFiles]);
-
-  useEffect(() => {
-    // Auto-hide controls
-    if (showControls && selectedFile) {
+    if (showControls) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
       }, 4000);
     }
-    
+
     return () => {
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }
     };
-  }, [showControls, selectedFile]);
+  }, [showControls]);
 
-  const handlePlayPress = async (file: VideoFile) => {
-    setSelectedFile(file);
-    setShowQualitySelector(false);
+  const handleVideoSelection = async (videoFile: VideoFile) => {
     setIsLoading(true);
-    setError(null);
-
     try {
-      console.log('Starting playback for:', file.name);
-      console.log('Video URL:', file.downloadUrl);
-      
-      // Check if it's a direct Internet Archive URL and modify if needed
-      let playbackUrl = file.downloadUrl;
-      
-      // For Internet Archive URLs, ensure proper format for streaming
-      if (playbackUrl.includes('archive.org/download/')) {
-        // Remove the ?download=1 parameter if present for streaming
-        playbackUrl = playbackUrl.replace('?download=1', '');
-        console.log('Modified URL for streaming:', playbackUrl);
-      }
-      
-      // Load and play the video
-      if (videoRef.current) {
-        const videoSource = {
-          uri: playbackUrl,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://archive.org/'
-          }
-        };
-        
-        console.log('Loading video with source:', videoSource);
-        await videoRef.current.loadAsync(videoSource);
-        console.log('Video loaded successfully, starting playback...');
-        await videoRef.current.playAsync();
-        setIsPlaying(true);
-        console.log('Video playback started');
+      setSelectedVideo(videoFile);
+      if (player) {
+        player.replace({ uri: videoFile.downloadUrl });
       }
     } catch (error) {
-      console.error('Playback error:', error);
-      setError(`Failed to load video: ${error.message || 'Unknown error'}. This video may not support streaming playback.`);
-      Alert.alert(
-        'Playback Error',
-        'This video cannot be streamed directly. You can try:\n\n• Download the video first\n• Try a different quality\n• Check your internet connection\n\nSome Internet Archive videos only support download, not streaming.',
-        [
-          { text: 'Try Different Quality', onPress: () => setShowQualitySelector(true) },
-          { text: 'OK' }
-        ]
-      );
+      Alert.alert('Error', 'Failed to load video');
+      console.error('Video loading error:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const togglePlayPause = async () => {
-    try {
-      if (videoRef.current) {
-        if (isPlaying) {
-          await videoRef.current.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          await videoRef.current.playAsync();
-          setIsPlaying(true);
-        }
+    if (player) {
+      if (player.playing) {
+        await player.pause();
+      } else {
+        await player.play();
       }
-    } catch (error) {
-      console.error('Play/pause error:', error);
     }
   };
 
@@ -147,22 +95,17 @@ export function VideoPlayerModal({
     setShowControls(!showControls);
   };
 
-  const handleClose = async () => {
-    try {
-      if (videoRef.current) {
-        await videoRef.current.stopAsync();
-        await videoRef.current.unloadAsync();
-      }
-    } catch (error) {
-      console.error('Error stopping video:', error);
+  const formatFileSize = (bytes: number) => {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
     }
     
-    setSelectedFile(null);
-    setIsPlaying(false);
-    setIsLoading(false);
-    setError(null);
-    setShowQualitySelector(false);
-    onClose();
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
   const renderQualitySelector = () => (
@@ -172,17 +115,15 @@ export function VideoPlayerModal({
         <TouchableOpacity
           key={index}
           style={styles.qualityOption}
-          onPress={() => handlePlayPress(file)}
+          onPress={() => handleVideoSelection(file)}
         >
           <View style={styles.qualityInfo}>
-            <Text style={styles.qualityText}>
-              {file.quality} - {Math.round(file.size)}MB - {file.format}
-            </Text>
-            <Text style={styles.fileName} numberOfLines={2}>
-              {file.name}
+            <Text style={styles.qualityText}>{file.quality}</Text>
+            <Text style={styles.fileName}>
+              {file.format} • {formatFileSize(file.size)}
             </Text>
           </View>
-          <Ionicons name="play" size={24} color="#FF9800" />
+          <Ionicons name="play-circle" size={24} color="#E50914" />
         </TouchableOpacity>
       ))}
     </View>
@@ -190,146 +131,52 @@ export function VideoPlayerModal({
 
   const renderVideoPlayer = () => (
     <View style={styles.videoContainer}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.videoTouchArea}
         onPress={handleVideoTap}
         activeOpacity={1}
       >
-        <Video
-          ref={videoRef}
+        <VideoView
           style={styles.video}
-          resizeMode={ResizeMode.CONTAIN}
-          useNativeControls={false}
-          shouldPlay={false}
-          onPlaybackStatusUpdate={(status) => {
-            if (status.isLoaded) {
-              setIsPlaying(status.isPlaying || false);
-              if (status.error) {
-                console.error('Video playback status error:', status.error);
-                setError(`Playback error: ${status.error}`);
-              }
-            }
-          }}
-          onError={(error) => {
-            console.error('Video component error:', error);
-            setError(`Video loading failed: ${error.message || 'Unknown error'}. This video may not support streaming.`);
-            setIsLoading(false);
-          }}
-          onLoad={(status) => {
-            console.log('Video loaded successfully:', status);
-            setIsLoading(false);
-          }}
-          onLoadStart={() => {
-            console.log('Video loading started...');
-            setIsLoading(true);
-          }}
+          player={player}
+          allowsFullscreen
+          allowsPictureInPicture
         />
 
-        {/* Loading Indicator */}
         {isLoading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF9800" />
+            <ActivityIndicator size="large" color="#E50914" />
             <Text style={styles.loadingText}>Loading video...</Text>
           </View>
         )}
 
-        {/* Error Display */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={48} color="#F44336" />
-            <Text style={styles.errorText}>{error}</Text>
-            <View style={styles.errorActions}>
-              <TouchableOpacity 
-                style={styles.retryButton}
-                onPress={() => setShowQualitySelector(true)}
-              >
-                <Ionicons name="refresh" size={20} color="#fff" />
-                <Text style={styles.retryButtonText}>Try Different Quality</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.retryButton, { backgroundColor: '#4CAF50' }]}
-                onPress={() => {
-                  if (selectedFile) {
-                    Alert.alert(
-                      'Download Video',
-                      'This video may work better if downloaded first. Would you like to download it?',
-                      [
-                        { text: 'Cancel' },
-                        { 
-                          text: 'Download', 
-                          onPress: () => {
-                            // Use the download service to open download URL
-                            const downloadUrl = selectedFile.downloadUrl.includes('?download=1') 
-                              ? selectedFile.downloadUrl 
-                              : `${selectedFile.downloadUrl}?download=1`;
-                            
-                            import('../services/downloadService').then(({ downloadService }) => {
-                              downloadService.downloadFile(downloadUrl, selectedFile.name);
-                              handleClose();
-                            });
-                          }
-                        }
-                      ]
-                    );
-                  }
-                }}
-              >
-                <Ionicons name="download" size={20} color="#fff" />
-                <Text style={styles.retryButtonText}>Download Instead</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.errorHint}>
-              💡 Some Internet Archive videos only support download, not direct streaming
-            </Text>
-          </View>
-        )}
-
-        {/* Controls Overlay */}
-        {showControls && selectedFile && !isLoading && !error && (
+        {showControls && (
           <LinearGradient
             colors={['rgba(0,0,0,0.8)', 'transparent', 'rgba(0,0,0,0.8)']}
             style={styles.controlsOverlay}
             pointerEvents="box-none"
           >
-            {/* Top Controls */}
             <View style={styles.topControls}>
-              <TouchableOpacity onPress={handleClose} style={styles.controlButton}>
+              <TouchableOpacity onPress={onClose} style={styles.controlButton}>
                 <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-              
-              <View style={styles.titleContainer}>
-                <Text style={styles.videoTitle} numberOfLines={1}>{movieTitle}</Text>
-                <Text style={styles.qualityInfo} numberOfLines={1}>
-                  {selectedFile.quality} • {selectedFile.format}
-                </Text>
-              </View>
-              
-              <TouchableOpacity 
-                onPress={() => setShowQualitySelector(true)} 
+              <Text style={styles.videoTitle} numberOfLines={1}>{title}</Text>
+              <TouchableOpacity
+                onPress={() => setSelectedVideo(null)}
                 style={styles.controlButton}
               >
                 <Ionicons name="settings" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
 
-            {/* Center Play/Pause Button */}
             <View style={styles.centerControls}>
               <TouchableOpacity onPress={togglePlayPause} style={styles.playButton}>
-                <Ionicons 
-                  name={isPlaying ? "pause" : "play"} 
-                  size={48} 
-                  color="#fff" 
+                <Ionicons
+                  name={player?.playing ? "pause" : "play"}
+                  size={48}
+                  color="#fff"
                 />
               </TouchableOpacity>
-            </View>
-
-            {/* Bottom Controls */}
-            <View style={styles.bottomControls}>
-              <Text style={styles.fileInfo}>
-                Playing: {selectedFile.name}
-              </Text>
             </View>
           </LinearGradient>
         )}
@@ -340,21 +187,21 @@ export function VideoPlayerModal({
   return (
     <Modal
       visible={visible}
-      transparent={true}
       animationType="slide"
-      onRequestClose={handleClose}
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
+            <Ionicons name="close" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Video Player</Text>
+          <Text style={styles.headerTitle}>{title}</Text>
           <View style={styles.headerButton} />
         </View>
 
         <View style={styles.content}>
-          {showQualitySelector ? renderQualitySelector() : renderVideoPlayer()}
+          {selectedVideo ? renderVideoPlayer() : renderQualitySelector()}
         </View>
       </SafeAreaView>
     </Modal>
@@ -445,57 +292,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   loadingText: {
     color: '#fff',
     fontSize: 16,
-    marginTop: 16,
-  },
-  errorContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    padding: 20,
-  },
-  errorText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  errorActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#FF9800',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 14,
     fontWeight: '600',
-    marginLeft: 6,
-  },
-  errorHint: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 8,
+    marginTop: 12,
   },
   controlsOverlay: {
     position: 'absolute',
@@ -512,36 +315,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  titleContainer: {
-    flex: 1,
-    marginHorizontal: 16,
-  },
-  videoTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   centerControls: {
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlButton: {
+    padding: 8,
   },
   playButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255, 152, 0, 0.8)',
+    backgroundColor: 'rgba(229,9,20,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bottomControls: {
-    alignItems: 'center',
-  },
-  controlButton: {
-    padding: 8,
-  },
-  fileInfo: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
+  videoTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    flex: 1,
     textAlign: 'center',
+    marginHorizontal: 16,
   },
 });
