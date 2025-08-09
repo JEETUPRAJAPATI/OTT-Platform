@@ -30,26 +30,29 @@ export default function ExploreScreen() {
   const fetchTmdbContent = async () => {
     try {
       setRefreshing(true);
-      setError(null); // Clear previous errors
-      const [popularMovies, popularTVShows, trendingMovies, trendingTVShows] = await Promise.all([
+      setError(null);
+      
+      // Add individual error handling for each API call
+      const results = await Promise.allSettled([
         tmdbService.getPopularMovies(),
         tmdbService.getPopularTVShows(),
-        tmdbService.getTrendingMovies(),
-        tmdbService.getTrendingTVShows(),
+        tmdbService.getTrendingMovies?.() || Promise.resolve([]),
+        tmdbService.getTrendingTVShows?.() || Promise.resolve([]),
       ]);
 
-      const allContent = [
-        ...(popularMovies?.results || []).slice(0, 10),
-        ...(popularTVShows?.results || []).slice(0, 10),
-        ...(trendingMovies?.results || []).slice(0, 10),
-        ...(trendingTVShows?.results || []).slice(0, 10),
-      ].filter(item => item && item.id); // Filter out null/undefined items
+      const allContent = results
+        .filter(result => result.status === 'fulfilled' && result.value)
+        .flatMap(result => {
+          const data = (result as any).value;
+          return Array.isArray(data) ? data.slice(0, 10) : (data?.results || []).slice(0, 10);
+        })
+        .filter(item => item && item.id);
 
       setTmdbContent(allContent);
     } catch (error) {
       console.error('Failed to fetch TMDb content:', error);
-      setError('Failed to load content. Please try again.'); // Set error message
-      setTmdbContent([]); // Set empty array on error
+      setError('Failed to load content. Please try again.');
+      setTmdbContent([]);
     } finally {
       setRefreshing(false);
     }

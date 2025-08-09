@@ -13,15 +13,16 @@ interface TMDbContentCardProps {
 
 export const TMDbContentCard = React.memo(function TMDbContentCard({ content, onPress, style }: TMDbContentCardProps) {
   // Add error boundaries and null checks
-  if (!content) {
+  if (!content || !content.id) {
     return null;
   }
 
-  const title = (content as any).title || (content as any).name || 'Unknown Title';
-  const releaseDate = (content as any).release_date || (content as any).first_air_date;
-  const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
-  const posterUrl = content.poster_path ? tmdbService.getImageUrl(content.poster_path) : null;
-  const rating = content.vote_average || 0;
+  try {
+    const title = (content as any).title || (content as any).name || 'Unknown Title';
+    const releaseDate = (content as any).release_date || (content as any).first_air_date;
+    const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
+    const posterUrl = content.poster_path ? tmdbService.getImageUrl(content.poster_path) : null;
+    const rating = content.vote_average || 0;
 
   // Determine content type based on TMDb data structure
   const type = (content as any).title ? 'movie' : 'tv';
@@ -42,11 +43,11 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
   };
 
   return (
-    <TouchableOpacity 
-      style={[styles.container, style]} 
-      onPress={handlePress}
-      activeOpacity={0.8}
-    >
+      <TouchableOpacity 
+        style={[styles.container, style]} 
+        onPress={handlePress}
+        activeOpacity={0.8}
+      >
       <View style={styles.imageContainer}>
         {posterUrl ? (
           <Image source={{ uri: posterUrl }} style={styles.poster} />
@@ -111,8 +112,12 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
           )}
         </View>
       </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  } catch (error) {
+    console.error('Error rendering TMDbContentCard:', error);
+    return null;
+  }
 });
 
 const styles = StyleSheet.create({

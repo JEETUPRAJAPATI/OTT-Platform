@@ -62,10 +62,32 @@ class TMDbService {
   async getTrending(mediaType: 'movie' | 'tv' | 'all' = 'all', timeWindow: 'day' | 'week' = 'week') {
     try {
       const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`);
-      return response.data.results;
+      return response.data;
     } catch (error) {
       console.error(`Error fetching trending ${mediaType} for ${timeWindow}:`, error);
-      return [];
+      return { results: [] };
+    }
+  }
+
+  // Get trending movies
+  async getTrendingMovies(timeWindow: 'day' | 'week' = 'week') {
+    try {
+      const response = await tmdbApi.get(`/trending/movie/${timeWindow}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching trending movies for ${timeWindow}:`, error);
+      return { results: [] };
+    }
+  }
+
+  // Get trending TV shows
+  async getTrendingTVShows(timeWindow: 'day' | 'week' = 'week') {
+    try {
+      const response = await tmdbApi.get(`/trending/tv/${timeWindow}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching trending TV shows for ${timeWindow}:`, error);
+      return { results: [] };
     }
   }
 
@@ -73,10 +95,10 @@ class TMDbService {
   async getPopularMovies(page: number = 1) {
     try {
       const response = await tmdbApi.get('/movie/popular', { params: { page } });
-      return response.data.results;
+      return response.data;
     } catch (error) {
       console.error('Error fetching popular movies:', error);
-      return [];
+      return { results: [] };
     }
   }
 
@@ -84,10 +106,10 @@ class TMDbService {
   async getPopularTVShows(page: number = 1) {
     try {
       const response = await tmdbApi.get('/tv/popular', { params: { page } });
-      return response.data.results;
+      return response.data;
     } catch (error) {
       console.error('Error fetching popular TV shows:', error);
-      return [];
+      return { results: [] };
     }
   }
 
