@@ -352,7 +352,7 @@ class TMDbService {
   }
 
   // Helper function to get full image URL
-  getImageUrl: (path: string | null): string => {
+  getImageUrl(path: string | null): string {
     if (!path) return '';
     try {
       return `${IMAGE_BASE_URL}${path}`;
@@ -360,10 +360,10 @@ class TMDbService {
       console.error('Error generating image URL:', error);
       return '';
     }
-  },
+  }
 
   // Helper function to get YouTube trailer URL
-  getYouTubeUrl: (key: string): string => {
+  getYouTubeUrl(key: string): string {
     if (!key) return '';
     try {
       return `https://www.youtube.com/watch?v=${key}`;
@@ -371,7 +371,7 @@ class TMDbService {
       console.error('Error generating YouTube URL:', error);
       return '';
     }
-  },
+  }
 
   // ENHANCED OTT PLATFORM FEATURES
 
