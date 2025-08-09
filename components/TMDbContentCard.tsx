@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { TMDbMovie, TMDbTVShow, tmdbService } from '../services/tmdbApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 interface TMDbContentCardProps {
   content: TMDbMovie | TMDbTVShow;
@@ -16,7 +17,7 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
   const posterUrl = tmdbService.getImageUrl(content.poster_path);
   const rating = content.vote_average || 0;
-  
+
   // Determine content type based on TMDb data structure
   const type = (content as any).title ? 'movie' : 'tv';
 
@@ -29,10 +30,16 @@ export const TMDbContentCard = React.memo(function TMDbContentCard({ content, on
     return '#F44336'; // Red for poor
   };
 
+  const handlePress = () => {
+    // Determine content type based on TMDb data structure
+    const contentType = (content as any).title ? 'movie' : 'tv';
+    router.push(`/tmdb-content/${content.id}?type=${contentType}`);
+  };
+
   return (
     <TouchableOpacity 
       style={[styles.container, style]} 
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.8}
     >
       <View style={styles.imageContainer}>
