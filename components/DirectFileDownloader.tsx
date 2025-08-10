@@ -9,9 +9,19 @@ import {
   ActivityIndicator,
   Platform,
   PermissionsAndroid,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import RNFS from 'react-native-fs';
+
+// Conditional import for react-native-fs
+let RNFS: any = null;
+try {
+  if (Platform.OS !== 'web') {
+    RNFS = require('react-native-fs');
+  }
+} catch (error) {
+  console.warn('react-native-fs not available:', error);
+}
 
 interface DirectFileDownloaderProps {
   downloadUrl: string;
@@ -41,6 +51,9 @@ export function DirectFileDownloader({
   const downloadJobRef = useRef<any>(null);
   const lastProgressTimeRef = useRef<number>(Date.now());
   const lastBytesWrittenRef = useRef<number>(0);
+
+  // Check if native downloads are supported
+  const isNativeSupported = Platform.OS !== 'web' && RNFS !== null;
 
   // Request storage permissions for Android
   const requestStoragePermission = async (): Promise<boolean> => {
@@ -197,9 +210,76 @@ export function DirectFileDownloader({
     }
   };
 
+  // Handle web download using browser's download
+  const handleWebDownload = async () => {
+    try {
+      setDownloading(true);
+      setProgress(50); // Show some progress
+
+      // Create a temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      // Add to DOM temporarily
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Simulate progress completion
+      setTimeout(() => {
+        setProgress(100);
+        setDownloading(false);
+        
+        Alert.alert(
+          'Download Started',
+          `Your browser will download: ${fileName}\n\nCheck your Downloads folder once the download completes.`,
+          [{ text: 'OK' }]
+        );
+
+        if (onDownloadComplete) {
+          onDownloadComplete('Browser Download');
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('Web download error:', error);
+      setDownloading(false);
+      setProgress(0);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Browser download failed';
+      
+      Alert.alert(
+        'Download Failed',
+        `Failed to start download: ${errorMessage}`,
+        [{ text: 'OK' }]
+      );
+
+      if (onDownloadError) {
+        onDownloadError(errorMessage);
+      }
+    }
+  };
+
   // Start the download
   const startDownload = async () => {
     if (downloading) return;
+
+    // Check platform support
+    if (!isNativeSupported) {
+      if (Platform.OS === 'web') {
+        return await handleWebDownload();
+      } else {
+        Alert.alert(
+          'Download Not Supported',
+          'Native file downloads are not available on this platform. Please use a mobile device with the native app.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
 
     try {
       setDownloading(true);
@@ -363,9 +443,20 @@ export function DirectFileDownloader({
           <Ionicons name="download" size={24} color="#fff" />
         )}
         <Text style={styles.downloadButtonText}>
-          {downloading ? 'Cancel Download' : 'Download File'}
+          {downloading 
+            ? (Platform.OS === 'web' ? 'Downloading...' : 'Cancel Download')
+            : (Platform.OS === 'web' ? 'Download in Browser' : 'Download File')
+          }
         </Text>
       </TouchableOpacity>
+
+      {!isNativeSupported && Platform.OS === 'web' && (
+        <View style={styles.webNotice}>
+          <Text style={styles.webNoticeText}>
+            🌐 Web Version: Files will be downloaded using your browser
+          </Text>
+        </View>
+      )}
 
       {downloading && (
         <View style={styles.progressSection}>
@@ -458,5 +549,18 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     marginBottom: 2,
+  },
+  webNotice: {
+    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(33, 150, 243, 0.3)',
+  },
+  webNoticeText: {
+    color: '#2196F3',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

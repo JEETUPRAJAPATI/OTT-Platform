@@ -28,7 +28,17 @@ export function ExampleUsage() {
       <Text style={styles.subtitle}>Using react-native-fs for native downloads</Text>
       
       <View style={styles.exampleSection}>
-        <Text style={styles.exampleTitle}>Example 1: Movie Download</Text>
+        <Text style={styles.exampleTitle}>Example 1: CSPAN Ukrainian Presidents Video</Text>
+        <DirectFileDownloader
+          downloadUrl="https://archive.org/download/CSPAN2_20231114_080600_Ukrainian_Presidents_Chief_of_Staff_on_War_with_Russia/CSPAN2_20231114_080600_Ukrainian_Presidents_Chief_of_Staff_on_War_with_Russia.mp4?download=1"
+          fileName="Ukrainian_Presidents_Chief_of_Staff_on_War_with_Russia.mp4"
+          onDownloadComplete={handleDownloadComplete}
+          onDownloadError={handleDownloadError}
+        />
+      </View>
+
+      <View style={styles.exampleSection}>
+        <Text style={styles.exampleTitle}>Example 2: Movie Download</Text>
         <DirectFileDownloader
           downloadUrl="https://ia600100.us.archive.org/4/items/DrawnTogetherComplete/s04%2FThe%20Drawn%20Together%20Movie%20The%20Movie!%20(2010).ia.mp4?download=1"
           fileName="Drawn_Together_Movie_2010.mp4"
@@ -37,26 +47,17 @@ export function ExampleUsage() {
         />
       </View>
 
-      <View style={styles.exampleSection}>
-        <Text style={styles.exampleTitle}>Example 2: Sample Video</Text>
-        <DirectFileDownloader
-          downloadUrl="https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
-          fileName="Sample_Video_720p.mp4"
-          onDownloadComplete={handleDownloadComplete}
-          onDownloadError={handleDownloadError}
-        />
-      </View>
-
       <View style={styles.noteSection}>
-        <Text style={styles.noteTitle}>📱 Native Features:</Text>
-        <Text style={styles.noteText}>• Downloads to device Downloads folder (Android) or Documents folder (iOS)</Text>
-        <Text style={styles.noteText}>• Real-time progress tracking with speed calculation</Text>
-        <Text style={styles.noteText}>• Background download support</Text>
-        <Text style={styles.noteText}>• Automatic permission handling</Text>
-        <Text style={styles.noteText}>• File conflict resolution (overwrite/rename/skip)</Text>
-        <Text style={styles.noteText}>• Storage space checking before download</Text>
-        <Text style={styles.noteText}>• Supports large files (2GB+)</Text>
-        <Text style={styles.noteText}>• Cancel download functionality</Text>
+        <Text style={styles.noteTitle}>📱 Platform Features:</Text>
+        <Text style={styles.noteText}>• 🌐 Web: Browser-based downloads to default folder</Text>
+        <Text style={styles.noteText}>• 📱 Mobile: Native downloads to Downloads/Documents folder</Text>
+        <Text style={styles.noteText}>• 📊 Real-time progress tracking (mobile only)</Text>
+        <Text style={styles.noteText}>• 🔄 Background download support (mobile only)</Text>
+        <Text style={styles.noteText}>• 🔒 Automatic permission handling (mobile only)</Text>
+        <Text style={styles.noteText}>• ⚡ File conflict resolution (mobile only)</Text>
+        <Text style={styles.noteText}>• 💾 Storage space checking (mobile only)</Text>
+        <Text style={styles.noteText}>• 📁 Supports large files (2GB+)</Text>
+        <Text style={styles.noteText}>• ❌ Cancel download functionality (mobile only)</Text>
       </View>
     </ScrollView>
   );
