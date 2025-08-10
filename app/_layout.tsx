@@ -56,6 +56,14 @@ export default function RootLayout() {
             presentation: 'modal'
           }} 
         />
+        <Stack.Screen 
+          name="provider/[id]" 
+          options={{ 
+            title: 'Provider Content',
+            headerShown: true,
+            presentation: 'modal'
+          }} 
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

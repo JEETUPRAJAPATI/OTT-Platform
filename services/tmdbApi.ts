@@ -496,6 +496,91 @@ class TMDbService {
     return response.data.results;
   }
 
+  // WATCH PROVIDERS API METHODS
+
+  // Get available watch providers by region
+  async getWatchProviders(region: string = 'US') {
+    try {
+      const [movieProviders, tvProviders] = await Promise.all([
+        tmdbApi.get('/watch/providers/movie', { params: { watch_region: region } }),
+        tmdbApi.get('/watch/providers/tv', { params: { watch_region: region } })
+      ]);
+      
+      // Combine and deduplicate providers
+      const allProviders = [...movieProviders.data.results, ...tvProviders.data.results];
+      const uniqueProviders = allProviders.reduce((acc, provider) => {
+        if (!acc.find(p => p.provider_id === provider.provider_id)) {
+          acc.push(provider);
+        }
+        return acc;
+      }, []);
+      
+      return uniqueProviders.sort((a, b) => b.display_priority - a.display_priority);
+    } catch (error) {
+      console.error('Error fetching watch providers:', error);
+      return [];
+    }
+  }
+
+  // Get content by watch provider
+  async getContentByProvider(providerId: number, mediaType: 'movie' | 'tv' = 'movie', region: string = 'US', page: number = 1) {
+    try {
+      const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+      const response = await tmdbApi.get(endpoint, {
+        params: {
+          with_watch_providers: providerId,
+          watch_region: region,
+          sort_by: 'popularity.desc',
+          page
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching content for provider ${providerId}:`, error);
+      return { results: [], total_pages: 0, total_results: 0 };
+    }
+  }
+
+  // Get popular content from specific providers
+  async getPopularByProviders(providerIds: number[], mediaType: 'movie' | 'tv' = 'movie', region: string = 'US', page: number = 1) {
+    try {
+      const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+      const response = await tmdbApi.get(endpoint, {
+        params: {
+          with_watch_providers: providerIds.join('|'),
+          watch_region: region,
+          sort_by: 'popularity.desc',
+          'vote_count.gte': 100,
+          page
+        }
+      });
+      return response.data.results;
+    } catch (error) {
+      console.error('Error fetching popular content by providers:', error);
+      return [];
+    }
+  }
+
+  // Get trending content from specific providers
+  async getTrendingByProviders(providerIds: number[], mediaType: 'movie' | 'tv' = 'movie', region: string = 'US') {
+    try {
+      const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+      const response = await tmdbApi.get(endpoint, {
+        params: {
+          with_watch_providers: providerIds.join('|'),
+          watch_region: region,
+          sort_by: 'popularity.desc',
+          'release_date.gte': new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Last 30 days
+          page: 1
+        }
+      });
+      return response.data.results;
+    } catch (error) {
+      console.error('Error fetching trending content by providers:', error);
+      return [];
+    }
+  }
+
   // Get trending content by time window
   async getTrendingByTimeWindow(mediaType: 'movie' | 'tv' | 'person' = 'movie', timeWindow: 'day' | 'week' = 'week', page: number = 1) {
     const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`, { params: { page } });

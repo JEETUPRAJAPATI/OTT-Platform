@@ -22,6 +22,7 @@ import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { MovieSlider } from '@/components/MovieSlider';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 import { userService } from '@/services/userService';
+import { OTTPlatformSlider } from '@/components/OTTPlatformSlider';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -39,11 +40,17 @@ export default function HomeScreen() {
   const [currentHero, setCurrentHero] = useState(0);
   const [contentSections, setContentSections] = useState<ContentSection[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [watchProviders, setWatchProviders] = useState<any[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(true);
   const router = useRouter();
 
   const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
     const type = (content as any).title ? 'movie' : 'tv';
     router.push(`/tmdb-content/${content.id}?type=${type}`);
+  };
+
+  const handleProviderPress = (provider: any) => {
+    router.push(`/provider/${provider.provider_id}?name=${encodeURIComponent(provider.provider_name)}&type=movie`);
   };
 
   const shuffleArray = (array: any[]) => {
@@ -61,6 +68,12 @@ export default function HomeScreen() {
       userService.loadFromStorage();
       const continueWatching = userService.getContinueWatching();
       const userFavoriteGenres = userService.getRecommendedGenres();
+
+      // Load watch providers
+      setLoadingProviders(true);
+      const providers = await tmdbService.getWatchProviders('US');
+      setWatchProviders(providers.slice(0, 15)); // Show top 15 providers
+      setLoadingProviders(false);
 
       const [
         trending,
@@ -394,10 +407,25 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       <FlatList
-        data={[{ type: 'hero' }, ...contentSections.map(section => ({ type: 'section', section }))]}
+        data={[
+          { type: 'hero' }, 
+          { type: 'providers' },
+          ...contentSections.map(section => ({ type: 'section', section }))
+        ]}
         renderItem={({ item }) => {
           if (item.type === 'hero') {
             return renderHeroSection();
+          }
+          if (item.type === 'providers') {
+            return (
+              <OTTPlatformSlider
+                title="Watch on Your Favorite Platforms"
+                providers={watchProviders}
+                loading={loadingProviders}
+                onProviderPress={handleProviderPress}
+                autoSlide={true}
+              />
+            );
           }
           return (
             <MovieSlider
@@ -411,9 +439,11 @@ export default function HomeScreen() {
             />
           );
         }}
-        keyExtractor={(item, index) => 
-          item.type === 'hero' ? 'hero' : `section-${item.section.id}-${index}`
-        }
+        keyExtractor={(item, index) => {
+          if (item.type === 'hero') return 'hero';
+          if (item.type === 'providers') return 'providers';
+          return `section-${item.section.id}-${index}`;
+        }}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
