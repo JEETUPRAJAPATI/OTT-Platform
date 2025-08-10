@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 
 export interface DownloadItem {
   id: string;
@@ -58,6 +58,10 @@ class DownloadService {
 
   // Singleton instance
   private static instance: DownloadService | null = null;
+
+  // Placeholder for download history and queue as they are mentioned in changes but not in original code
+  private downloadHistory: any[] = [];
+  private downloadQueue: any[] = [];
 
   constructor() {
     this.loadFromStorage();
@@ -638,15 +642,17 @@ class DownloadService {
   // Storage methods (simplified)
   private async saveToStorage(): Promise<void> {
     try {
-      const data = JSON.stringify(Array.from(this.downloads.entries()));
+      const data = {
+        downloads: this.downloads,
+        history: this.downloadHistory,
+        queue: this.downloadQueue,
+      };
 
-      // Check if we're in a web environment without proper AsyncStorage
-      if (typeof window !== 'undefined' && !AsyncStorage.setItem) {
-        localStorage.setItem(this.STORAGE_KEY, data);
-        return;
+      if (Platform.OS === 'web') {
+        localStorage.setItem('downloadData', JSON.stringify(data));
+      } else {
+        await AsyncStorage.setItem('downloadData', JSON.stringify(data));
       }
-
-      await AsyncStorage.setItem(this.STORAGE_KEY, data);
     } catch (error) {
       console.error('Failed to save download data:', error);
     }
@@ -654,19 +660,24 @@ class DownloadService {
 
   private async loadFromStorage(): Promise<void> {
     try {
-      // Check if we're in a web environment without proper AsyncStorage
-      if (typeof window !== 'undefined' && !AsyncStorage.getItem) {
-        console.log('AsyncStorage not available in web environment, using localStorage fallback');
-        const data = localStorage.getItem(this.STORAGE_KEY);
-        if (data) {
-          this.downloads = new Map(JSON.parse(data));
+      if (Platform.OS === 'web') {
+        // Use localStorage for web
+        const stored = localStorage.getItem('downloadData');
+        if (stored) {
+          const data = JSON.parse(stored);
+          this.downloads = data.downloads || [];
+          this.downloadHistory = data.history || [];
+          this.downloadQueue = data.queue || [];
         }
-        return;
-      }
-
-      const data = await AsyncStorage.getItem(this.STORAGE_KEY);
-      if (data) {
-        this.downloads = new Map(JSON.parse(data));
+      } else {
+        // Use AsyncStorage for mobile
+        const stored = await AsyncStorage.getItem('downloadData');
+        if (stored) {
+          const data = JSON.parse(stored);
+          this.downloads = data.downloads || [];
+          this.downloadHistory = data.history || [];
+          this.downloadQueue = data.queue || [];
+        }
       }
     } catch (error) {
       console.error('Failed to load download data:', error);
@@ -688,7 +699,7 @@ class DownloadService {
 
       const metadataResponse = await fetch(metadataUrl);
       if (!metadataResponse.ok) {
-        throw new Error(`Failed to fetch metadata: ${metadataResponse.status}`);
+        throw new Error(`Failed to fetch metadata: ${response.status}`);
       }
 
       const metadata = await metadataResponse.json();

@@ -44,7 +44,8 @@ class ApiService {
   async getFavorites(): Promise<FavoriteItem[]> {
     try {
       // Mock data for now - replace with actual API call
-      const stored = localStorage.getItem('favorites');
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      const stored = await AsyncStorage.default.getItem('favorites');
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
       console.error('Error fetching favorites:', error);
@@ -65,7 +66,8 @@ class ApiService {
       };
       
       const updatedFavorites = [...favorites, newFavorite];
-      localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem('favorites', JSON.stringify(updatedFavorites));
       return true;
     } catch (error) {
       console.error('Error adding to favorites:', error);
@@ -77,7 +79,8 @@ class ApiService {
     try {
       const favorites = await this.getFavorites();
       const updatedFavorites = favorites.filter(item => item.contentId !== contentId);
-      localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem('favorites', JSON.stringify(updatedFavorites));
       return true;
     } catch (error) {
       console.error('Error removing from favorites:', error);
@@ -93,7 +96,8 @@ class ApiService {
   // Watchlist API
   async getWatchlist(): Promise<WatchlistItem[]> {
     try {
-      const stored = localStorage.getItem('watchlist');
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      const stored = await AsyncStorage.default.getItem('watchlist');
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
       console.error('Error fetching watchlist:', error);
@@ -114,7 +118,8 @@ class ApiService {
       };
       
       const updatedWatchlist = [...watchlist, newWatchlistItem];
-      localStorage.setItem('watchlist', JSON.stringify(updatedWatchlist));
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem('watchlist', JSON.stringify(updatedWatchlist));
       return true;
     } catch (error) {
       console.error('Error adding to watchlist:', error);
@@ -126,7 +131,8 @@ class ApiService {
     try {
       const watchlist = await this.getWatchlist();
       const updatedWatchlist = watchlist.filter(item => item.contentId !== contentId);
-      localStorage.setItem('watchlist', JSON.stringify(updatedWatchlist));
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem('watchlist', JSON.stringify(updatedWatchlist));
       return true;
     } catch (error) {
       console.error('Error removing from watchlist:', error);
@@ -142,7 +148,8 @@ class ApiService {
   // Ratings API
   async getRatings(): Promise<Rating[]> {
     try {
-      const stored = localStorage.getItem('ratings');
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      const stored = await AsyncStorage.default.getItem('ratings');
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
       console.error('Error fetching ratings:', error);
@@ -169,7 +176,8 @@ class ApiService {
         ratings.push(newRating);
       }
       
-      localStorage.setItem('ratings', JSON.stringify(ratings));
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem('ratings', JSON.stringify(ratings));
       return true;
     } catch (error) {
       console.error('Error adding rating:', error);
@@ -186,7 +194,8 @@ class ApiService {
   // Reviews API
   async getReviews(): Promise<Review[]> {
     try {
-      const stored = localStorage.getItem('reviews');
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      const stored = await AsyncStorage.default.getItem('reviews');
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -209,7 +218,8 @@ class ApiService {
       };
       
       const updatedReviews = [newReview, ...reviews];
-      localStorage.setItem('reviews', JSON.stringify(updatedReviews));
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem('reviews', JSON.stringify(updatedReviews));
       return true;
     } catch (error) {
       console.error('Error adding review:', error);

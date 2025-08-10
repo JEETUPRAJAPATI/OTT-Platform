@@ -17,7 +17,7 @@ localPort = 8082
 externalPort = 3000
 
 [workflows]
-runButton = "Web Development"
+runButton = "Mobile Development"
 
 [[workflows.workflow]]
 name = "Dev Server"
@@ -119,3 +119,12 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx expo start --web"
+
+[[workflows.workflow]]
+name = "Mobile Development"
+author = 42947032
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel"
