@@ -13,8 +13,8 @@ import { OTTPlatformCard } from './OTTPlatformCard';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = screenWidth * 0.25;
-const CARD_MARGIN = 16;
+const CARD_WIDTH = screenWidth * 0.22;
+const CARD_MARGIN = 15;
 
 interface WatchProvider {
   provider_id: number;
@@ -215,24 +215,30 @@ export function OTTPlatformSlider({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 25,
+    marginBottom: 30,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   title: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: 'bold',
     color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   viewAll: {
     color: '#E50914',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   sliderContainer: {
     position: 'relative',
@@ -240,6 +246,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingLeft: 20,
     paddingRight: 20,
+    paddingVertical: 5,
   },
   loadingContainer: {
     alignItems: 'center',

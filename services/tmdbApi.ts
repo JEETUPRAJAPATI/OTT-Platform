@@ -57,6 +57,16 @@ export interface TMDbVideo {
   type: string;
 }
 
+// Interface for watch provider data (example, adjust as needed based on API response)
+interface WatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority: number;
+  // Add other properties as necessary
+}
+
+
 class TMDbService {
   // Get trending movies and TV shows
   async getTrending(mediaType: 'movie' | 'tv' | 'all' = 'all', timeWindow: 'day' | 'week' = 'week') {
@@ -242,8 +252,9 @@ class TMDbService {
   }
 
   // Helper function to get full image URL
-  getImageUrl(path: string, size: string = 'w500') {
-    return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+  getImageUrl(path: string | null, size: string = 'w500'): string | null {
+    if (!path) return null;
+    return `${IMAGE_BASE_URL}${path}`;
   }
 
   // Helper function to get YouTube trailer URL
@@ -499,23 +510,48 @@ class TMDbService {
   // WATCH PROVIDERS API METHODS
 
   // Get available watch providers by region
-  async getWatchProviders(region: string = 'US') {
+  async getWatchProviders(region: string = 'US'): Promise<WatchProvider[]> {
     try {
-      const [movieProviders, tvProviders] = await Promise.all([
+      const response = await tmdbApi.get('/watch/providers/regions');
+      const regions = response.data.results;
+      const targetRegion = regions.find(r => r.iso_3166_1 === region);
+
+      if (!targetRegion) {
+        console.error(`Region ${region} not found.`);
+        return [];
+      }
+
+      // Fetch movie and TV providers separately and combine
+      const [movieProvidersResponse, tvProvidersResponse] = await Promise.all([
         tmdbApi.get('/watch/providers/movie', { params: { watch_region: region } }),
         tmdbApi.get('/watch/providers/tv', { params: { watch_region: region } })
       ]);
-      
-      // Combine and deduplicate providers
-      const allProviders = [...movieProviders.data.results, ...tvProviders.data.results];
-      const uniqueProviders = allProviders.reduce((acc, provider) => {
-        if (!acc.find(p => p.provider_id === provider.provider_id)) {
-          acc.push(provider);
+
+      const movieProviders = movieProvidersResponse.data.results || [];
+      const tvProviders = tvProvidersResponse.data.results || [];
+
+      // Combine and deduplicate providers based on provider_id
+      const combinedProviders = [...movieProviders, ...tvProviders];
+      const uniqueProvidersMap = new Map<number, WatchProvider>();
+
+      combinedProviders.forEach(provider => {
+        if (!uniqueProvidersMap.has(provider.provider_id)) {
+          uniqueProvidersMap.set(provider.provider_id, provider);
         }
-        return acc;
-      }, []);
-      
-      return uniqueProviders.sort((a, b) => b.display_priority - a.display_priority);
+      });
+
+      const uniqueProviders = Array.from(uniqueProvidersMap.values());
+
+      // Sort by display_priority if available, otherwise by name
+      uniqueProviders.sort((a, b) => {
+        if (a.display_priority !== undefined && b.display_priority !== undefined) {
+          return a.display_priority - b.display_priority;
+        }
+        return a.provider_name.localeCompare(b.provider_name);
+      });
+
+      return uniqueProviders;
+
     } catch (error) {
       console.error('Error fetching watch providers:', error);
       return [];
@@ -534,7 +570,17 @@ class TMDbService {
           page
         }
       });
-      return response.data;
+      // Check if response.data.results exists and has a length property
+      if (response.data && Array.isArray(response.data.results)) {
+        return {
+          results: response.data.results,
+          total_pages: response.data.total_pages || 1,
+          total_results: response.data.total_results || 0
+        };
+      } else {
+        console.error(`Unexpected response format for content by provider ${providerId}:`, response.data);
+        return { results: [], total_pages: 0, total_results: 0 };
+      }
     } catch (error) {
       console.error(`Error fetching content for provider ${providerId}:`, error);
       return { results: [], total_pages: 0, total_results: 0 };
@@ -554,7 +600,13 @@ class TMDbService {
           page
         }
       });
-      return response.data.results;
+      // Check if response.data.results exists and has a length property
+      if (response.data && Array.isArray(response.data.results)) {
+        return response.data.results;
+      } else {
+        console.error('Unexpected response format for popular content by providers:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Error fetching popular content by providers:', error);
       return [];
@@ -574,7 +626,13 @@ class TMDbService {
           page: 1
         }
       });
-      return response.data.results;
+      // Check if response.data.results exists and has a length property
+      if (response.data && Array.isArray(response.data.results)) {
+        return response.data.results;
+      } else {
+        console.error('Unexpected response format for trending content by providers:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Error fetching trending content by providers:', error);
       return [];
@@ -584,18 +642,36 @@ class TMDbService {
   // Get trending content by time window
   async getTrendingByTimeWindow(mediaType: 'movie' | 'tv' | 'person' = 'movie', timeWindow: 'day' | 'week' = 'week', page: number = 1) {
     const response = await tmdbApi.get(`/trending/${mediaType}/${timeWindow}`, { params: { page } });
-    return response.data.results;
+    // Check if response.data.results exists and has a length property
+    if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results;
+    } else {
+      console.error('Unexpected response format for trending content by time window:', response.data);
+      return [];
+    }
   }
 
   // Get latest content
   async getLatestMovie() {
     const response = await tmdbApi.get('/movie/latest');
-    return response.data;
+    // Check if response.data exists
+    if (response.data) {
+      return response.data;
+    } else {
+      console.error('Unexpected response format for latest movie:', response.data);
+      return null;
+    }
   }
 
   async getLatestTV() {
     const response = await tmdbApi.get('/tv/latest');
-    return response.data;
+    // Check if response.data exists
+    if (response.data) {
+      return response.data;
+    } else {
+      console.error('Unexpected response format for latest TV show:', response.data);
+      return null;
+    }
   }
 
   // Multi-search (movies, TV, people)
@@ -603,7 +679,13 @@ class TMDbService {
     const response = await tmdbApi.get('/search/multi', {
       params: { query, page }
     });
-    return response.data.results;
+    // Check if response.data.results exists and has a length property
+    if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results;
+    } else {
+      console.error('Unexpected response format for multi search:', response.data);
+      return [];
+    }
   }
 
   // Search by person
@@ -611,7 +693,13 @@ class TMDbService {
     const response = await tmdbApi.get('/search/person', {
       params: { query, page }
     });
-    return response.data.results;
+    // Check if response.data.results exists and has a length property
+    if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results;
+    } else {
+      console.error('Unexpected response format for search person:', response.data);
+      return [];
+    }
   }
 
   // Search by company
@@ -619,7 +707,13 @@ class TMDbService {
     const response = await tmdbApi.get('/search/company', {
       params: { query, page }
     });
-    return response.data.results;
+    // Check if response.data.results exists and has a length property
+    if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results;
+    } else {
+      console.error('Unexpected response format for search company:', response.data);
+      return [];
+    }
   }
 
   // Search by keyword
@@ -627,7 +721,13 @@ class TMDbService {
     const response = await tmdbApi.get('/search/keyword', {
       params: { query, page }
     });
-    return response.data.results;
+    // Check if response.data.keywords exists and has a length property
+    if (response.data && Array.isArray(response.data.keywords)) {
+      return response.data.keywords;
+    } else {
+      console.error('Unexpected response format for search keyword:', response.data);
+      return [];
+    }
   }
 
   // Search by collection
@@ -635,7 +735,13 @@ class TMDbService {
     const response = await tmdbApi.get('/search/collection', {
       params: { query, page }
     });
-    return response.data.results;
+    // Check if response.data.results exists and has a length property
+    if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results;
+    } else {
+      console.error('Unexpected response format for search collection:', response.data);
+      return [];
+    }
   }
 }
 
