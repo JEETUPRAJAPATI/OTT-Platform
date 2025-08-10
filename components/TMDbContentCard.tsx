@@ -141,14 +141,15 @@ const styles = StyleSheet.create({
   },
   qualityBadge: {
     backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
   },
   qualityText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
+    lineHeight: 11,
   },
   typeBadge: {
     paddingHorizontal: 6,

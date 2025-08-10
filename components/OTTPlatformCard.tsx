@@ -69,11 +69,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 10,
+    overflow: 'hidden',
   },
   logo: {
-    width: '65%',
-    height: '65%',
-    borderRadius: (CARD_WIDTH * 0.65) / 2,
+    width: '100%',
+    height: '100%',
+    borderRadius: CARD_WIDTH / 2,
   },
   name: {
     color: '#fff',
