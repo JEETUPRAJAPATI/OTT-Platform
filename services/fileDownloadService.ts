@@ -1,14 +1,15 @@
 
 import { Platform, Alert, Linking } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Conditional imports for native packages (only available on mobile)
+// Conditional imports for platform-specific packages
+let AsyncStorage: any = null;
 let RNFS: any = null;
 let PermissionsAndroid: any = null;
 let Permissions: any = null;
 
 if (Platform.OS !== 'web') {
   try {
+    AsyncStorage = require('@react-native-async-storage/async-storage').default;
     RNFS = require('react-native-fs');
     PermissionsAndroid = require('react-native').PermissionsAndroid;
     const permissions = require('react-native-permissions');
@@ -19,8 +20,33 @@ if (Platform.OS !== 'web') {
       RESULTS: permissions.RESULTS
     };
   } catch (error) {
-    console.warn('Native file system packages not available:', error);
+    console.warn('Native packages not available:', error);
   }
+} else {
+  // Web platform fallbacks
+  AsyncStorage = {
+    getItem: async (key: string) => {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    setItem: async (key: string, value: string) => {
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        // Ignore storage errors on web
+      }
+    },
+    removeItem: async (key: string) => {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Ignore storage errors on web
+      }
+    }
+  };
 }
 
 export interface DownloadProgress {

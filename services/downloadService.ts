@@ -671,7 +671,11 @@ class DownloadService {
       };
 
       if (Platform.OS === 'web') {
-        localStorage.setItem('downloadData', JSON.stringify(data));
+        try {
+          localStorage.setItem('downloadData', JSON.stringify(data));
+        } catch (storageError) {
+          console.warn('LocalStorage not available:', storageError);
+        }
       } else {
         await AsyncStorage.setItem('downloadData', JSON.stringify(data));
       }
@@ -683,13 +687,20 @@ class DownloadService {
   private async loadFromStorage(): Promise<void> {
     try {
       if (Platform.OS === 'web') {
-        // Use localStorage for web
-        const stored = localStorage.getItem('downloadData');
-        if (stored) {
-          const data = JSON.parse(stored);
-          this.downloads = data.downloads || [];
-          this.downloadHistory = data.history || [];
-          this.downloadQueue = data.queue || [];
+        try {
+          const stored = localStorage.getItem('downloadData');
+          if (stored) {
+            const data = JSON.parse(stored);
+            this.downloads = data.downloads || [];
+            this.downloadHistory = data.history || [];
+            this.downloadQueue = data.queue || [];
+          }
+        } catch (storageError) {
+          console.warn('LocalStorage not available:', storageError);
+          // Initialize with empty arrays
+          this.downloads = [];
+          this.downloadHistory = [];
+          this.downloadQueue = [];
         }
       } else {
         // Use AsyncStorage for mobile
@@ -703,6 +714,10 @@ class DownloadService {
       }
     } catch (error) {
       console.error('Failed to load download data:', error);
+      // Initialize with empty arrays on error
+      this.downloads = [];
+      this.downloadHistory = [];
+      this.downloadQueue = [];
     }
   }
 
