@@ -4,7 +4,7 @@ import { TouchableOpacity, StyleSheet, View, Text, Image, Dimensions } from 'rea
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = screenWidth * 0.22;
+const CARD_WIDTH = screenWidth * 0.16;
 
 interface WatchProvider {
   provider_id: number;
@@ -50,9 +50,9 @@ export function OTTPlatformCard({ provider, onPress, style }: OTTPlatformCardPro
 const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
-    marginRight: 15,
+    marginRight: 12,
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   logoContainer: {
     width: CARD_WIDTH,
@@ -60,15 +60,15 @@ const styles = StyleSheet.create({
     borderRadius: CARD_WIDTH / 2,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 2,
+    marginBottom: 6,
+    borderWidth: 1.5,
     borderColor: 'rgba(229, 9, 20, 0.3)',
     backgroundColor: 'rgba(26, 26, 26, 0.8)',
     shadowColor: '#E50914',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
     overflow: 'hidden',
   },
   logo: {
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   },
   name: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 12,

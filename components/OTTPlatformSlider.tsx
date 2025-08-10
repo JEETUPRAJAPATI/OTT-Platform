@@ -13,8 +13,8 @@ import { OTTPlatformCard } from './OTTPlatformCard';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = screenWidth * 0.22;
-const CARD_MARGIN = 15;
+const CARD_WIDTH = screenWidth * 0.16;
+const CARD_MARGIN = 12;
 
 interface WatchProvider {
   provider_id: number;
