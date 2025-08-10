@@ -191,10 +191,14 @@ export function MovieDownloader({
   const downloadMovie = async (identifier: string, title: string) => {
     try {
       setShowQualityModal(false);
+      setIsDownloading(true);
 
-      console.log(`Starting download for: ${title} (${identifier})`);
+      console.log(`Starting real download for: ${title} (${identifier})`);
 
-      // Get metadata to find video files
+      // Import the file download service
+      const { fileDownloadService } = await import('../services/fileDownloadService');
+
+      // Get metadata to find the best video file
       const metadataUrl = `https://archive.org/metadata/${identifier}`;
       console.log('Fetching metadata from:', metadataUrl);
 
@@ -203,68 +207,110 @@ export function MovieDownloader({
         throw new Error(`Failed to get metadata: ${metadataResponse.status}`);
       }
 
-      const metadata = await response.json();
+      const metadata = await metadataResponse.json();
       console.log('Metadata response:', metadata);
 
       if (!metadata.files || !Array.isArray(metadata.files)) {
         throw new Error('No files found in metadata');
       }
 
-      // Filter video files
-      const videoFiles = metadata.files.filter((file: any) => 
-        file.format && (
-          file.format.includes('MPEG4') ||
-          file.format.includes('Matroska') ||
-          file.format.includes('Ogg Video') ||
-          file.format.includes('MP4') ||
-          file.format.includes('AVI')
-        )
-      ).sort((a: any, b: any) => {
-        // Sort by file size (largest first)
+      // Filter and sort video files by quality and size
+      const videoFiles = metadata.files.filter((file: any) => {
+        const name = file.name?.toLowerCase() || '';
+        const format = file.format?.toLowerCase() || '';
+        
+        // Video file extensions
+        const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
+        const hasVideoExtension = videoExtensions.some(ext => name.endsWith(ext));
+        
+        // Video formats from Internet Archive
+        const videoFormats = ['mpeg4', 'h.264', 'matroska', 'ogg video', 'quicktime', 'windows media'];
+        const hasVideoFormat = videoFormats.some(fmt => format.includes(fmt));
+        
+        // Ensure minimum file size (video files are typically larger than 50MB)
+        const fileSize = file.size ? parseInt(file.size) : 0;
+        const isLargeEnough = fileSize > 50000000; // 50MB minimum
+        
+        return (hasVideoExtension || hasVideoFormat) && isLargeEnough;
+      }).sort((a: any, b: any) => {
+        // Sort by file size (largest first, assuming better quality)
         const sizeA = parseInt(a.size || '0');
         const sizeB = parseInt(b.size || '0');
         return sizeB - sizeA;
       });
 
-      console.log('Found video files:', videoFiles);
+      console.log('Found video files:', videoFiles.length);
 
       if (videoFiles.length === 0) {
-        throw new Error('No video files found for this movie');
+        throw new Error('No suitable video files found for download');
       }
 
-      // Use the first (largest) video file
+      // Use the largest video file (assuming best quality)
       const selectedFile = videoFiles[0];
-      const downloadUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(selectedFile.name)}`;
+      const downloadUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(selectedFile.name)}?download=1`;
 
+      console.log('Selected file for download:', selectedFile.name);
       console.log('Download URL:', downloadUrl);
-      console.log('File info:', selectedFile);
 
-      // For React Native, we'll open the direct download link
-      if (Platform.OS === 'web') {
-        // For web, create download link
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = selectedFile.name;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        // For mobile, use Linking to open browser
-        const { Linking } = require('react-native');
-        await Linking.openURL(downloadUrl);
-      }
+      // Start the real file download
+      const downloadId = await fileDownloadService.startDownload(
+        downloadUrl,
+        selectedFile.name,
+        title,
+        {
+          onProgress: (progress) => {
+            setDownloadProgress(progress.progress);
+            setProgressInfo(progress);
+            
+            // Update status message
+            if (progress.status === 'downloading') {
+              setStatusMessage(`Downloading... ${progress.progress.toFixed(1)}%`);
+            } else if (progress.status === 'paused') {
+              setStatusMessage('Download paused');
+            } else {
+              setStatusMessage(progress.status);
+            }
+          },
+          onComplete: (filePath) => {
+            setIsDownloading(false);
+            setDownloadProgress(100);
+            setStatusMessage('Download completed!');
+            
+            Alert.alert(
+              'Download Complete!',
+              `"${title}" has been downloaded successfully to your Downloads folder.`,
+              [
+                { text: 'OK', onPress: () => onClose() },
+                { text: 'Open Downloads', onPress: () => {
+                  // You can implement opening downloads folder here
+                  onClose();
+                }}
+              ]
+            );
+          },
+          onError: (error) => {
+            setIsDownloading(false);
+            setStatusMessage(`Download failed: ${error}`);
+            
+            Alert.alert(
+              'Download Failed',
+              `Failed to download "${title}": ${error}`,
+              [{ text: 'OK' }]
+            );
+          }
+        }
+      );
 
-      console.log('Download started successfully');
-
-      // Close the modal after opening URL
-      onClose();
+      setDownloadId(downloadId);
+      setStatusMessage('Starting download...');
 
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Download Error', error instanceof Error ? error.message : 'Failed to download movie');
-    } finally {
-      setDownloadingId(null);
+      setIsDownloading(false);
+      Alert.alert(
+        'Download Error', 
+        error instanceof Error ? error.message : 'Failed to start download'
+      );
     }
   };
 
