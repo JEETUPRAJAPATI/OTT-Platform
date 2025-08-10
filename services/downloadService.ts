@@ -360,20 +360,42 @@ class DownloadService {
 
       this.logNetwork('Processing files', metadataUrl, { fileCount: data.files.length });
 
-      // Filter video files using format field (like the example shows)
+      // Enhanced filtering for actual movie video files
       const videoFiles = data.files.filter((file: any) => {
-        if (!file.name) return false;
-
-        // Primary filtering by format field (exact approach from example)
+        const name = file.name?.toLowerCase() || '';
         const format = file.format?.toLowerCase() || '';
-        if (format.includes('mpeg4') || format.includes('matroska') || format.includes('ogg video')) {
-          return true;
+
+        // Skip audio-only files that might be soundtracks
+        if (name.includes('song') || name.includes('soundtrack') || 
+            name.includes('audio') || name.includes('music') ||
+            format.includes('mp3') || format.includes('flac') || 
+            format.includes('audio') || format.includes('sound')) {
+          return false;
         }
 
-        // Fallback to filename extension for files without proper format metadata
-        const fileName = file.name.toLowerCase();
-        const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
-        return videoExtensions.some(ext => fileName.endsWith(ext));
+        // Video file extensions
+        const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv'];
+        const hasVideoExtension = videoExtensions.some(ext => name.endsWith(ext));
+
+        // Video formats from Internet Archive
+        const videoFormats = ['mpeg4', 'h.264', 'matroska', 'ogg video', 'quicktime', 'windows media', 'flash video', 'webm'];
+        const hasVideoFormat = videoFormats.some(fmt => format.includes(fmt));
+
+        // Skip obviously non-video files
+        if (name.includes('subtitle') || name.includes('.srt') || name.includes('.vtt') ||
+            name.includes('thumbnail') || name.includes('.jpg') || name.includes('.png') ||
+            format.includes('text') || format.includes('image') || 
+            name.includes('poster') || name.includes('cover')) {
+          return false;
+        }
+
+        // Ensure minimum file size (video files are typically larger than 10MB)
+        const fileSize = file.size ? parseInt(file.size) : 0;
+        if (fileSize > 0 && fileSize < 10000000) { // Less than 10MB
+          return false;
+        }
+
+        return hasVideoExtension || hasVideoFormat;
       });
 
       this.logNetwork('Video files found', metadataUrl, { videoFileCount: videoFiles.length });
