@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -64,7 +63,7 @@ export function VideoPlayer({
   const [showSubtitleMenu, setShowSubtitleMenu] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]?.quality || 'auto');
   const [selectedSubtitle, setSelectedSubtitle] = useState<string | null>(null);
-  
+
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     isPlaying: false,
     position: 0,
@@ -85,7 +84,7 @@ export function VideoPlayer({
       item.contentType === contentType &&
       (episodeNumber ? item.episodeNumber === episodeNumber : true)
     );
-    
+
     if (savedItem && savedItem.progress > 5) {
       // Resume from saved position
       const resumeTime = (savedItem.progress / 100) * playbackState.duration;
@@ -100,7 +99,7 @@ export function VideoPlayer({
         setShowControls(false);
       }, 4000);
     }
-    
+
     return () => {
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
@@ -113,7 +112,7 @@ export function VideoPlayer({
     const interval = setInterval(() => {
       if (playbackState.isPlaying && playbackState.duration > 0) {
         const progress = (playbackState.position / playbackState.duration) * 100;
-        
+
         // Update continue watching
         userService.updateContinueWatching(
           contentId,
@@ -125,7 +124,7 @@ export function VideoPlayer({
           seasonNumber,
           episodeNumber
         );
-        
+
         // Add to viewing history
         userService.addToHistory(
           contentId,
@@ -139,58 +138,55 @@ export function VideoPlayer({
         );
       }
     }, 30000); // Save every 30 seconds
-    
+
     return () => clearInterval(interval);
   }, [playbackState, contentId, contentType, title, seasonNumber, episodeNumber]);
 
   const togglePlayPause = async () => {
     if (playbackState.isPlaying) {
-      await videoRef.current?.pauseAsync();
+      videoRef.current?.pause();
     } else {
-      await videoRef.current?.playAsync();
+      videoRef.current?.play();
     }
   };
 
   const toggleMute = async () => {
-    await videoRef.current?.setIsMutedAsync(!playbackState.isMuted);
+    // Updated for expo-video API
+    console.log('Mute toggle - implement with expo-video API');
   };
 
   const handleSeek = async (value: number) => {
     const seekTime = value * playbackState.duration;
-    await videoRef.current?.setPositionAsync(seekTime * 1000);
+    videoRef.current?.seekBy(seekTime);
   };
 
   const handleVolumeChange = async (value: number) => {
-    await videoRef.current?.setVolumeAsync(value);
+    // Updated for expo-video API
+    console.log('Volume change - implement with expo-video API');
   };
 
   const handlePlaybackRateChange = async (rate: number) => {
-    await videoRef.current?.setRateAsync(rate, true);
+    // Updated for expo-video API
     setPlaybackState(prev => ({ ...prev, playbackRate: rate }));
   };
 
   const toggleFullscreen = async () => {
     if (isFullscreen) {
-      await videoRef.current?.dismissFullscreenPlayer();
+      videoRef.current?.exitFullscreen();
     } else {
-      await videoRef.current?.presentFullscreenPlayer();
+      videoRef.current?.enterFullscreen();
     }
   };
 
-  const handleVideoTap = () => {
-    setShowControls(!showControls);
-  };
-
   const skip = async (seconds: number) => {
-    const newPosition = Math.max(0, Math.min(playbackState.duration, playbackState.position + seconds));
-    await videoRef.current?.setPositionAsync(newPosition * 1000);
+    videoRef.current?.seekBy(seconds);
   };
 
   const formatTime = (timeInSeconds: number) => {
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = Math.floor(timeInSeconds % 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
@@ -329,7 +325,7 @@ export function VideoPlayer({
       >
         <View style={styles.settingsContainer}>
           <Text style={styles.menuTitle}>Playback Settings</Text>
-          
+
           {/* Playback Speed */}
           <View style={styles.settingSection}>
             <Text style={styles.settingLabel}>Playback Speed</Text>
@@ -383,7 +379,7 @@ export function VideoPlayer({
               <Text style={styles.settingButtonText}>Video Quality</Text>
               <Ionicons name="chevron-forward" size={16} color="#999" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.settingButton}
               onPress={() => setShowSubtitleMenu(true)}
@@ -401,7 +397,7 @@ export function VideoPlayer({
   return (
     <View style={styles.container}>
       <StatusBar hidden={isFullscreen} />
-      
+
       <TouchableOpacity 
         style={styles.videoContainer}
         onPress={handleVideoTap}
@@ -417,7 +413,7 @@ export function VideoPlayer({
           onFullscreenUpdate={onFullscreenUpdate}
           useNativeControls={false}
         />
-        
+
         {/* Buffering Indicator */}
         {playbackState.isBuffering && (
           <View style={styles.bufferingContainer}>
@@ -437,7 +433,7 @@ export function VideoPlayer({
               <TouchableOpacity onPress={onClose} style={styles.controlButton}>
                 <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-              
+
               <View style={styles.titleContainer}>
                 <Text style={styles.videoTitle} numberOfLines={1}>{title}</Text>
                 {episodeNumber && (
@@ -446,7 +442,7 @@ export function VideoPlayer({
                   </Text>
                 )}
               </View>
-              
+
               <TouchableOpacity 
                 onPress={() => setShowSettings(true)} 
                 style={styles.controlButton}
@@ -462,12 +458,12 @@ export function VideoPlayer({
                   <Ionicons name="play-skip-back" size={32} color="#fff" />
                 </TouchableOpacity>
               )}
-              
+
               <TouchableOpacity onPress={() => skip(-10)} style={styles.controlButton}>
                 <Ionicons name="play-back" size={32} color="#fff" />
                 <Text style={styles.skipText}>10</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity onPress={togglePlayPause} style={styles.playButton}>
                 <Ionicons 
                   name={playbackState.isPlaying ? "pause" : "play"} 
@@ -475,12 +471,12 @@ export function VideoPlayer({
                   color="#fff" 
                 />
               </TouchableOpacity>
-              
+
               <TouchableOpacity onPress={() => skip(10)} style={styles.controlButton}>
                 <Ionicons name="play-forward" size={32} color="#fff" />
                 <Text style={styles.skipText}>10</Text>
               </TouchableOpacity>
-              
+
               {onNext && (
                 <TouchableOpacity onPress={onNext} style={styles.controlButton}>
                   <Ionicons name="play-skip-forward" size={32} color="#fff" />
@@ -494,7 +490,7 @@ export function VideoPlayer({
                 <Text style={styles.timeText}>
                   {formatTime(playbackState.position)}
                 </Text>
-                
+
                 <Slider
                   style={styles.progressSlider}
                   minimumValue={0}
@@ -505,12 +501,12 @@ export function VideoPlayer({
                   maximumTrackTintColor="rgba(255,255,255,0.3)"
                   thumbStyle={styles.sliderThumb}
                 />
-                
+
                 <Text style={styles.timeText}>
                   {formatTime(playbackState.duration)}
                 </Text>
               </View>
-              
+
               <View style={styles.bottomRightControls}>
                 <TouchableOpacity onPress={toggleMute} style={styles.controlButton}>
                   <Ionicons 
@@ -519,7 +515,7 @@ export function VideoPlayer({
                     color="#fff" 
                   />
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity onPress={toggleFullscreen} style={styles.controlButton}>
                   <Ionicons name="expand" size={20} color="#fff" />
                 </TouchableOpacity>

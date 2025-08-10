@@ -36,6 +36,41 @@ const getRankingBadgeColor = (rank: number) => {
   }
 };
 
+// Optimized item component to prevent re-renders
+const MovieSliderItem = React.memo(({ 
+  item, 
+  index, 
+  mediaType, 
+  showRanking, 
+  onContentPress 
+}: {
+  item: TMDbMovie | TMDbTVShow;
+  index: number;
+  mediaType: 'movie' | 'tv';
+  showRanking: boolean;
+  onContentPress: (item: TMDbMovie | TMDbTVShow) => void;
+}) => (
+  <View style={styles.itemWrapper}>
+    {showRanking && (
+      <View style={[
+        styles.rankingBadge,
+        { backgroundColor: getRankingBadgeColor(index + 1) }
+      ]}>
+        <Text style={styles.rankingNumber}>{index + 1}</Text>
+      </View>
+    )}
+    <TMDbContentCard
+      content={item}
+      type={mediaType}
+      onPress={() => onContentPress(item)}
+      style={[
+        styles.card,
+        showRanking && styles.cardWithRank
+      ]}
+    />
+  </View>
+));
+
 export function MovieSlider({ 
   title, 
   icon, 
@@ -167,27 +202,25 @@ export function MovieSlider({
           renderItem={({ item, index }) => {
             const mediaType = (item as any).title ? 'movie' : 'tv';
             return (
-              <View style={styles.itemWrapper}>
-                {showRanking && (
-                  <View style={[
-                    styles.rankingBadge,
-                    { backgroundColor: getRankingBadgeColor(index + 1) }
-                  ]}>
-                    <Text style={styles.rankingNumber}>{index + 1}</Text>
-                  </View>
-                )}
-                <TMDbContentCard
-                  content={item}
-                  type={mediaType}
-                  onPress={() => onContentPress(item)}
-                  style={[
-                    styles.card,
-                    showRanking && styles.cardWithRank
-                  ]}
-                />
-              </View>
+              <MovieSliderItem 
+                item={item}
+                index={index}
+                mediaType={mediaType}
+                showRanking={showRanking}
+                onContentPress={onContentPress}
+              />
             );
           }}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={5}
+          windowSize={10}
+          getItemLayout={(data, index) => ({
+            length: CARD_WIDTH + CARD_MARGIN,
+            offset: (CARD_WIDTH + CARD_MARGIN) * index,
+            index,
+          })}
           keyExtractor={(item, index) => `${title}-${item.id}-${index}`}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -275,19 +308,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 1)',
     elevation: 10,
   },
   rankingNumber: {
     color: '#fff',
     fontSize: 20,
     fontWeight: '900',
-    textShadowColor: '#000',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
+    textShadow: '2px 2px 4px rgba(0, 0, 0, 1)',
   },
   arrow: {
     position: 'absolute',
