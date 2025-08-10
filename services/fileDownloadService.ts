@@ -1,8 +1,27 @@
 
-import RNFS from 'react-native-fs';
-import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
+import { Platform, Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+
+// Conditional imports for native packages (only available on mobile)
+let RNFS: any = null;
+let PermissionsAndroid: any = null;
+let Permissions: any = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    RNFS = require('react-native-fs');
+    PermissionsAndroid = require('react-native').PermissionsAndroid;
+    const permissions = require('react-native-permissions');
+    Permissions = {
+      check: permissions.check,
+      request: permissions.request,
+      PERMISSIONS: permissions.PERMISSIONS,
+      RESULTS: permissions.RESULTS
+    };
+  } catch (error) {
+    console.warn('Native file system packages not available:', error);
+  }
+}
 
 export interface DownloadProgress {
   id: string;
@@ -31,13 +50,29 @@ class FileDownloadService {
   private downloadJobs: Map<string, any> = new Map();
   private callbacks: Map<string, DownloadCallbacks> = new Map();
   private readonly STORAGE_KEY = 'file_downloads';
+  private isNativeSupported: boolean;
 
   constructor() {
+    this.isNativeSupported = Platform.OS !== 'web' && RNFS !== null;
     this.loadDownloads();
+  }
+
+  // Check if file downloads are supported on current platform
+  isSupported(): boolean {
+    return this.isNativeSupported;
   }
 
   // Request storage permissions
   async requestStoragePermissions(): Promise<boolean> {
+    if (!this.isNativeSupported) {
+      Alert.alert(
+        'Platform Not Supported',
+        'File downloads are only available on mobile devices. Please use the mobile app to download files.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+
     if (Platform.OS === 'ios') {
       // iOS doesn't require explicit storage permissions for Downloads folder
       return true;
@@ -69,6 +104,9 @@ class FileDownloadService {
       } else {
         // Android 10 and below
         try {
+          if (!PermissionsAndroid) {
+            throw new Error('PermissionsAndroid not available');
+          }
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
             {
@@ -92,8 +130,11 @@ class FileDownloadService {
 
   private async checkScopedStoragePermission(): Promise<boolean> {
     try {
-      const result = await check(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
-      return result === RESULTS.GRANTED;
+      if (!Permissions || !Permissions.check || !Permissions.PERMISSIONS) {
+        return false;
+      }
+      const result = await Permissions.check(Permissions.PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
+      return result === Permissions.RESULTS.GRANTED;
     } catch (error) {
       console.error('Check scoped storage permission error:', error);
       return false;
@@ -102,8 +143,11 @@ class FileDownloadService {
 
   private async requestScopedStoragePermission(): Promise<boolean> {
     try {
-      const result = await request(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
-      if (result !== RESULTS.GRANTED) {
+      if (!Permissions || !Permissions.request || !Permissions.PERMISSIONS) {
+        throw new Error('Permissions not available');
+      }
+      const result = await Permissions.request(Permissions.PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
+      if (result !== Permissions.RESULTS.GRANTED) {
         // Open app settings for manual permission grant
         Alert.alert(
           'Permission Required',
@@ -172,6 +216,11 @@ class FileDownloadService {
     callbacks?: DownloadCallbacks
   ): Promise<string> {
     try {
+      // Check if platform supports file downloads
+      if (!this.isNativeSupported) {
+        throw new Error('File downloads are not supported on this platform. Please use the mobile app.');
+      }
+
       // Check permissions first
       const hasPermission = await this.requestStoragePermissions();
       if (!hasPermission) {

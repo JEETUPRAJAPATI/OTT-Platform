@@ -30,8 +30,12 @@ export default function DownloadsScreen() {
   const [activeTab, setActiveTab] = useState<RealTabType>('real');
   const [storageInfo, setStorageInfo] = useState({ used: 0, total: 0, available: 0 });
   const [showDownloadManager, setShowDownloadManager] = useState(false);
+  const [isWeb, setIsWeb] = useState(false);
 
   useEffect(() => {
+    // Check if the platform is web
+    setIsWeb(Platform.OS === 'web');
+
     loadDownloads();
     loadStorageInfo();
 
@@ -406,6 +410,14 @@ export default function DownloadsScreen() {
         showsVerticalScrollIndicator={false}
       />
 
+      {isWeb && (
+        <View style={styles.webNotice}>
+          <Text style={styles.webNoticeText}>
+            Download functionality is not available on the web. Please use the mobile app.
+          </Text>
+        </View>
+      )}
+
       <DownloadManager
         visible={showDownloadManager}
         onClose={() => setShowDownloadManager(false)}
@@ -614,5 +626,26 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 16,
     textAlign: 'center',
+  },
+  footerText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+  },
+  webNotice: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 9, 20, 0.3)',
+  },
+  webNoticeText: {
+    color: '#E50914',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
