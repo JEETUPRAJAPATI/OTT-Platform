@@ -11,12 +11,27 @@ import {
   Dimensions,
   ScrollView,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { downloadService, DownloadItem } from '@/services/downloadService';
-import { fileDownloadService, DownloadProgress } from '@/services/fileDownloadService'; // Assuming fileDownloadService is in '@/services/fileDownloadService'
-import DownloadManager from '@/components/DownloadManager'; // Assuming DownloadManager is in '@/components/DownloadManager'
+import DownloadManager from '@/components/DownloadManager';
+import { WebFileDownloader } from '@/components/WebFileDownloader';
+
+// Conditional imports for mobile platforms
+let fileDownloadService: any = null;
+let DownloadProgress: any = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    const fileDownloadModule = require('@/services/fileDownloadService');
+    fileDownloadService = fileDownloadModule.fileDownloadService;
+    DownloadProgress = fileDownloadModule.DownloadProgress;
+  } catch (error) {
+    console.warn('File download service not available on web platform');
+  }
+}
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -25,40 +40,49 @@ type RealTabType = 'real' | 'legacy' | 'all';
 
 export default function DownloadsScreen() {
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
-  const [realDownloads, setRealDownloads] = useState<DownloadProgress[]>([]);
+  const [realDownloads, setRealDownloads] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<RealTabType>('real');
   const [storageInfo, setStorageInfo] = useState({ used: 0, total: 0, available: 0 });
   const [showDownloadManager, setShowDownloadManager] = useState(false);
-  const [isWeb, setIsWeb] = useState(false);
+  const [isWeb, setIsWeb] = useState(Platform.OS === 'web');
 
   useEffect(() => {
-    // Check if the platform is web
-    setIsWeb(Platform.OS === 'web');
-
     loadDownloads();
-    loadStorageInfo();
+    if (!isWeb) {
+      loadStorageInfo();
+    }
 
-    // Set up interval to update progress for active downloads
-    const interval = setInterval(() => {
-      const activeDownloads = downloadService.getActiveDownloads();
-      const activeRealDownloads = fileDownloadService.getActiveDownloads();
-      if (activeDownloads.length > 0 || activeRealDownloads.length > 0) {
-        loadDownloads();
-      }
-    }, 1000);
+    // Set up interval to update progress for active downloads (mobile only)
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (!isWeb && fileDownloadService) {
+      interval = setInterval(() => {
+        const activeDownloads = downloadService.getActiveDownloads();
+        const activeRealDownloads = fileDownloadService.getActiveDownloads();
+        if (activeDownloads.length > 0 || activeRealDownloads.length > 0) {
+          loadDownloads();
+        }
+      }, 1000);
+    }
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isWeb]);
 
   const loadDownloads = async () => {
     try {
       const downloadItems = downloadService.getDownloads();
       setDownloads(downloadItems);
 
-      // Load real file downloads
-      const realDownloadItems = fileDownloadService.getAllDownloads();
-      setRealDownloads(realDownloadItems);
+      // Load real file downloads (mobile only)
+      if (!isWeb && fileDownloadService) {
+        const realDownloadItems = fileDownloadService.getAllDownloads();
+        setRealDownloads(realDownloadItems);
+      } else {
+        setRealDownloads([]);
+      }
     } catch (error) {
       console.error('Failed to load downloads:', error);
     }
@@ -392,6 +416,18 @@ export default function DownloadsScreen() {
       {/* Tab Bar */}
       {downloads.length > 0 || realDownloads.length > 0 && renderTabBar()}
 
+      {/* Web File Downloader */}
+      {isWeb && (
+        <View style={styles.webDownloaderSection}>
+          <Text style={styles.sectionTitle}>Direct File Download (Web)</Text>
+          <WebFileDownloader
+            url="https://ia600100.us.archive.org/4/items/DrawnTogetherComplete/s04%2FThe%20Drawn%20Together%20Movie%20The%20Movie!%20(2010).ia.mp4?download=1"
+            filename="The Drawn Together Movie The Movie! (2010).mp4"
+            title="The Drawn Together Movie"
+          />
+        </View>
+      )}
+
       {/* Downloads List */}
       <FlatList
         data={filteredDownloads}
@@ -410,10 +446,10 @@ export default function DownloadsScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {isWeb && (
+      {isWeb && filteredDownloads.length === 0 && (
         <View style={styles.webNotice}>
           <Text style={styles.webNoticeText}>
-            Download functionality is not available on the web. Please use the mobile app.
+            💡 Use the web downloader above to download files directly in your browser.
           </Text>
         </View>
       )}
@@ -631,19 +667,26 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
   },
+  webDownloaderSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
   webNotice: {
-    position: 'absolute',
-    bottom: 100,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+    margin: 20,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(229, 9, 20, 0.3)',
+    borderColor: 'rgba(76, 175, 80, 0.3)',
   },
   webNoticeText: {
-    color: '#E50914',
+    color: '#4CAF50',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,

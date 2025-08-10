@@ -218,19 +218,19 @@ export function MovieDownloader({
       const videoFiles = metadata.files.filter((file: any) => {
         const name = file.name?.toLowerCase() || '';
         const format = file.format?.toLowerCase() || '';
-        
+
         // Video file extensions
         const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
         const hasVideoExtension = videoExtensions.some(ext => name.endsWith(ext));
-        
+
         // Video formats from Internet Archive
         const videoFormats = ['mpeg4', 'h.264', 'matroska', 'ogg video', 'quicktime', 'windows media'];
         const hasVideoFormat = videoFormats.some(fmt => format.includes(fmt));
-        
+
         // Ensure minimum file size (video files are typically larger than 50MB)
         const fileSize = file.size ? parseInt(file.size) : 0;
         const isLargeEnough = fileSize > 50000000; // 50MB minimum
-        
+
         return (hasVideoExtension || hasVideoFormat) && isLargeEnough;
       }).sort((a: any, b: any) => {
         // Sort by file size (largest first, assuming better quality)
@@ -261,7 +261,7 @@ export function MovieDownloader({
           onProgress: (progress) => {
             setDownloadProgress(progress.progress);
             setProgressInfo(progress);
-            
+
             // Update status message
             if (progress.status === 'downloading') {
               setStatusMessage(`Downloading... ${progress.progress.toFixed(1)}%`);
@@ -275,7 +275,7 @@ export function MovieDownloader({
             setIsDownloading(false);
             setDownloadProgress(100);
             setStatusMessage('Download completed!');
-            
+
             Alert.alert(
               'Download Complete!',
               `"${title}" has been downloaded successfully to your Downloads folder.`,
@@ -291,7 +291,7 @@ export function MovieDownloader({
           onError: (error) => {
             setIsDownloading(false);
             setStatusMessage(`Download failed: ${error}`);
-            
+
             Alert.alert(
               'Download Failed',
               `Failed to download "${title}": ${error}`,
@@ -645,7 +645,6 @@ export function MovieDownloader({
         <VideoPlayerModal
           visible={videoModalVisible}
           onClose={() => setVideoModalVisible(false)}
-          videoFiles={movieFiles}
           movieTitle={searchTitle || movieTitle}
           currentVideo={currentVideo} // Pass currentVideo
         />
@@ -1013,5 +1012,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
+  },
+  webNoticeText: {
+    color: '#E50914',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  webDownloadContent: {
+    padding: 20,
+    maxHeight: '80%',
+  },
+  webDownloadInfo: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  webDownloadInfoTitle: {
+    color: '#4CAF50',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  webDownloadInfoText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginBottom: 8,
+    lineHeight: 20,
   },
 });
