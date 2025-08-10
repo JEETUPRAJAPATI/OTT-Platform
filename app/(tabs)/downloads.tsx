@@ -39,6 +39,22 @@ type TabType = 'all' | 'downloading' | 'completed' | 'pending';
 type RealTabType = 'real' | 'legacy' | 'all';
 
 export default function DownloadsScreen() {
+  const testDownloadUrl = 'https://ia600100.us.archive.org/4/items/DrawnTogetherComplete/s04%2FThe%20Drawn%20Together%20Movie%20The%20Movie!%20(2010).ia.mp4?download=1';
+  const testFileName = 'The Drawn Together Movie (2010).mp4';
+
+  // Check if react-native-fs is available
+  let RNFS: any = null;
+  let isNativeDownloadSupported = false;
+
+  if (Platform.OS !== 'web') {
+    try {
+      RNFS = require('react-native-fs');
+      isNativeDownloadSupported = RNFS && typeof RNFS.downloadFile === 'function';
+    } catch (error) {
+      console.log('react-native-fs not available:', error);
+    }
+  }
+
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
   const [realDownloads, setRealDownloads] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -55,7 +71,7 @@ export default function DownloadsScreen() {
 
     // Set up interval to update progress for active downloads (mobile only)
     let interval: NodeJS.Timeout | null = null;
-    
+
     if (!isWeb && fileDownloadService) {
       interval = setInterval(() => {
         const activeDownloads = downloadService.getActiveDownloads();
@@ -172,7 +188,9 @@ export default function DownloadsScreen() {
           style: 'destructive',
           onPress: () => {
             downloadService.deleteDownload(downloadId);
-            fileDownloadService.deleteDownload(downloadId); // Assuming fileDownloadService has deleteDownload
+            if (fileDownloadService) {
+              fileDownloadService.deleteDownload(downloadId);
+            }
             loadDownloads();
             loadStorageInfo();
           }
@@ -183,26 +201,34 @@ export default function DownloadsScreen() {
 
   const pauseDownload = (downloadId: string) => {
     downloadService.pauseDownload(downloadId);
-    fileDownloadService.pauseDownload(downloadId); // Assuming fileDownloadService has pauseDownload
+    if (fileDownloadService) {
+      fileDownloadService.pauseDownload(downloadId);
+    }
     loadDownloads();
   };
 
   const resumeDownload = (downloadId: string) => {
     downloadService.resumeDownload(downloadId);
-    fileDownloadService.resumeDownload(downloadId); // Assuming fileDownloadService has resumeDownload
+    if (fileDownloadService) {
+      fileDownloadService.resumeDownload(downloadId);
+    }
     loadDownloads();
   };
 
   const cancelDownload = (downloadId: string) => {
     downloadService.cancelDownload(downloadId);
-    fileDownloadService.cancelDownload(downloadId); // Assuming fileDownloadService has cancelDownload
+    if (fileDownloadService) {
+      fileDownloadService.cancelDownload(downloadId);
+    }
     loadDownloads();
     loadStorageInfo();
   };
 
   const retryDownload = (downloadId: string) => {
     downloadService.retryDownload(downloadId);
-    fileDownloadService.retryDownload(downloadId); // Assuming fileDownloadService has retryDownload
+    if (fileDownloadService) {
+      fileDownloadService.retryDownload(downloadId);
+    }
     loadDownloads();
   };
 
@@ -217,7 +243,9 @@ export default function DownloadsScreen() {
           style: 'destructive',
           onPress: () => {
             downloadService.clearAllDownloads();
-            fileDownloadService.clearAllDownloads(); // Assuming fileDownloadService has clearAllDownloads
+            if (fileDownloadService) {
+              fileDownloadService.clearAllDownloads();
+            }
             loadDownloads();
             loadStorageInfo();
           }
@@ -320,7 +348,7 @@ export default function DownloadsScreen() {
     <TouchableOpacity style={styles.downloadItem} onPress={() => handleDownloadAction(item)}>
       <Image
         source={{
-          uri: item.posterPath 
+          uri: item.posterPath
             ? `https://image.tmdb.org/t/p/w300${item.posterPath}`
             : 'https://via.placeholder.com/120x180?text=No+Image'
         }}
@@ -331,10 +359,10 @@ export default function DownloadsScreen() {
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
 
         <View style={styles.statusRow}>
-          <Ionicons 
-            name={getStatusIcon(item.status)} 
-            size={16} 
-            color={getStatusColor(item.status)} 
+          <Ionicons
+            name={getStatusIcon(item.status)}
+            size={16}
+            color={getStatusColor(item.status)}
           />
           <Text style={[styles.status, { color: getStatusColor(item.status) }]}>
             {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
@@ -378,7 +406,7 @@ export default function DownloadsScreen() {
       <Ionicons name="download-outline" size={64} color="rgba(255,255,255,0.3)" />
       <Text style={styles.emptyTitle}>No Downloads</Text>
       <Text style={styles.emptySubtitle}>
-        {activeTab === 'all' 
+        {activeTab === 'all'
           ? 'Start downloading movies to watch offline'
           : `No ${activeTab} downloads`}
       </Text>
@@ -395,13 +423,13 @@ export default function DownloadsScreen() {
       <LinearGradient colors={['#E50914', '#B81D1D']} style={styles.header}>
         <Text style={styles.headerTitle}>Downloads</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.managerButton}
             onPress={() => setShowDownloadManager(true)}
           >
             <Ionicons name="settings-outline" size={24} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.clearAllButton}
             onPress={clearAllDownloads}
           >
@@ -411,18 +439,34 @@ export default function DownloadsScreen() {
       </LinearGradient>
 
       {/* Storage Info */}
-      {downloads.length > 0 || realDownloads.length > 0 && renderStorageInfo()}
+      {(downloads.length > 0 || realDownloads.length > 0) && renderStorageInfo()}
 
       {/* Tab Bar */}
-      {downloads.length > 0 || realDownloads.length > 0 && renderTabBar()}
+      {(downloads.length > 0 || realDownloads.length > 0) && renderTabBar()}
+
+      {/* Platform Warning */}
+      {!isNativeDownloadSupported && (
+        <View style={styles.platformWarning}>
+          <Text style={styles.warningTitle}>📱 Platform Notice</Text>
+          <Text style={styles.warningText}>
+            File downloads are not available in Expo Go or web browsers.
+          </Text>
+          <Text style={styles.warningSubText}>
+            To enable downloads, create a development build:
+          </Text>
+          <Text style={styles.commandText}>
+            npx expo run:android{'\n'}npx expo run:ios
+          </Text>
+        </View>
+      )}
 
       {/* Web File Downloader */}
       {isWeb && (
         <View style={styles.webDownloaderSection}>
           <Text style={styles.sectionTitle}>Direct File Download (Web)</Text>
           <WebFileDownloader
-            url="https://ia600100.us.archive.org/4/items/DrawnTogetherComplete/s04%2FThe%20Drawn%20Together%20Movie%20The%20Movie!%20(2010).ia.mp4?download=1"
-            filename="The Drawn Together Movie The Movie! (2010).mp4"
+            url={testDownloadUrl}
+            filename={testFileName}
             title="The Drawn Together Movie"
           />
         </View>
@@ -690,5 +734,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  platformWarning: {
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 152, 0, 0.3)',
+  },
+  warningTitle: {
+    color: '#FF9800',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  warningText: {
+    color: '#FF9800',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  warningSubText: {
+    color: '#FF9800',
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  commandText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    padding: 8,
+    borderRadius: 4,
   },
 });

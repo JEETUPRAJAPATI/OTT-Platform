@@ -55,8 +55,8 @@ export function DirectFileDownloader({
   const lastProgressTimeRef = useRef<number>(0);
   const lastBytesWrittenRef = useRef<number>(0);
 
-  // Check if running on native platform
-  const isNativeApp = Platform.OS !== 'web' && RNFS !== null;
+  // Check if running on native platform with proper RNFS support
+  const isNativeApp = Platform.OS !== 'web' && RNFS !== null && typeof RNFS.downloadFile === 'function';
 
   // Request storage permissions for Android
   const requestStoragePermission = async (): Promise<boolean> => {
@@ -278,9 +278,18 @@ export function DirectFileDownloader({
     // Check if running on native platform
     if (!isNativeApp) {
       Alert.alert(
-        'Native App Required',
-        'This downloader only works on native Android/iOS devices. Please use the mobile app.',
-        [{ text: 'OK' }]
+        'Download Not Available',
+        'File downloads require a native build. This feature is not available in Expo Go or web browsers. You need to create a development build or use EAS Build.',
+        [
+          { text: 'OK' },
+          {
+            text: 'Learn More',
+            onPress: () => {
+              // You can add a link to Expo documentation here
+              console.log('For downloads, create a development build with: npx expo run:android or npx expo run:ios');
+            }
+          }
+        ]
       );
       return;
     }
@@ -508,7 +517,10 @@ export function DirectFileDownloader({
       {!isNativeApp && (
         <View style={styles.warningNotice}>
           <Text style={styles.warningText}>
-            ⚠️ This component only works on native Android/iOS devices
+            ⚠️ Downloads require native build - not available in Expo Go
+          </Text>
+          <Text style={styles.warningSubText}>
+            Use: npx expo run:android or npx expo run:ios
           </Text>
         </View>
       )}
@@ -622,5 +634,13 @@ const styles = StyleSheet.create({
     color: '#FF9800',
     fontSize: 12,
     textAlign: 'center',
+    fontWeight: '600',
+  },
+  warningSubText: {
+    color: '#FF9800',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 4,
+    opacity: 0.8,
   },
 });
