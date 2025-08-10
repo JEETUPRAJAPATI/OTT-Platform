@@ -641,7 +641,14 @@ class FileDownloadService {
   private async saveDownloads(): Promise<void> {
     try {
       const downloadsArray = Array.from(this.downloads.values());
-      await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(downloadsArray));
+      if (Platform.OS === 'web') {
+        // Use localStorage for web
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(downloadsArray));
+        }
+      } else {
+        await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(downloadsArray));
+      }
     } catch (error) {
       console.error('Save downloads error:', error);
     }
@@ -650,7 +657,17 @@ class FileDownloadService {
   // Load downloads from storage
   private async loadDownloads(): Promise<void> {
     try {
-      const downloadsJson = await AsyncStorage.getItem(this.STORAGE_KEY);
+      let downloadsJson: string | null = null;
+      
+      if (Platform.OS === 'web') {
+        // Use localStorage for web
+        if (typeof window !== 'undefined' && window.localStorage) {
+          downloadsJson = localStorage.getItem(this.STORAGE_KEY);
+        }
+      } else {
+        downloadsJson = await AsyncStorage.getItem(this.STORAGE_KEY);
+      }
+      
       if (downloadsJson) {
         const downloadsArray: DownloadProgress[] = JSON.parse(downloadsJson);
         downloadsArray.forEach(download => {
@@ -673,7 +690,14 @@ class FileDownloadService {
     this.downloadJobs.clear();
     this.callbacks.clear();
     
-    await AsyncStorage.removeItem(this.STORAGE_KEY);
+    if (Platform.OS === 'web') {
+      // Use localStorage for web
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(this.STORAGE_KEY);
+      }
+    } else {
+      await AsyncStorage.removeItem(this.STORAGE_KEY);
+    }
   }
 }
 

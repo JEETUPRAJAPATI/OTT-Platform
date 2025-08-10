@@ -17,7 +17,7 @@ localPort = 8082
 externalPort = 3000
 
 [workflows]
-runButton = "Mobile Development"
+runButton = "Mobile Development (Fixed)"
 
 [[workflows.workflow]]
 name = "Dev Server"
@@ -128,3 +128,34 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx expo start --tunnel"
+
+[[workflows.workflow]]
+name = "Mobile Development (Fixed)"
+author = 42947032
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install -g @expo/ngrok@^4.1.0 || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel"
+
+[[workflows.workflow]]
+name = "Web Only Development"
+author = 42947032
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --web"
+
+[[workflows.workflow]]
+name = "Local Mobile Development"
+author = 42947032
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start"

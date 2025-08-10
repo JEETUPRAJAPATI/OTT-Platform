@@ -672,7 +672,10 @@ class DownloadService {
 
       if (Platform.OS === 'web') {
         try {
-          localStorage.setItem('downloadData', JSON.stringify(data));
+          // Check if localStorage is available
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('downloadData', JSON.stringify(data));
+          }
         } catch (storageError) {
           console.warn('LocalStorage not available:', storageError);
         }
@@ -688,12 +691,20 @@ class DownloadService {
     try {
       if (Platform.OS === 'web') {
         try {
-          const stored = localStorage.getItem('downloadData');
-          if (stored) {
-            const data = JSON.parse(stored);
-            this.downloads = data.downloads || [];
-            this.downloadHistory = data.history || [];
-            this.downloadQueue = data.queue || [];
+          // Check if localStorage is available
+          if (typeof window !== 'undefined' && window.localStorage) {
+            const stored = localStorage.getItem('downloadData');
+            if (stored) {
+              const data = JSON.parse(stored);
+              this.downloads = data.downloads || [];
+              this.downloadHistory = data.history || [];
+              this.downloadQueue = data.queue || [];
+            }
+          } else {
+            // localStorage not available, use in-memory storage
+            this.downloads = [];
+            this.downloadHistory = [];
+            this.downloadQueue = [];
           }
         } catch (storageError) {
           console.warn('LocalStorage not available:', storageError);
