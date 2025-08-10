@@ -129,7 +129,7 @@ export default function ProviderContentScreen() {
         </TouchableOpacity>
       </View>
       <Text style={styles.resultCount}>
-        {content?.length || 0} {contentType === 'movie' ? 'movies' : 'TV shows'} found
+        {content.length} {contentType === 'movie' ? 'movies' : 'TV shows'} found
       </Text>
     </View>
   );

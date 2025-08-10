@@ -52,12 +52,6 @@ export interface WatchProvider {
 }
 
 class TMDbService {
-  // Get image URL for TMDb images
-  getImageUrl(path: string | null, size: string = 'w500'): string | null {
-    if (!path) return null;
-    return `https://image.tmdb.org/t/p/${size}${path}`;
-  }
-
   // Get popular streaming providers for a region
   async getWatchProviders(region: string = 'US'): Promise<WatchProvider[]> {
     try {
