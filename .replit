@@ -17,7 +17,7 @@ localPort = 8082
 externalPort = 3000
 
 [workflows]
-runButton = "Android and Web Development"
+runButton = "Web Development"
 
 [[workflows.workflow]]
 name = "Dev Server"
@@ -110,3 +110,12 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx expo start --android --web"
+
+[[workflows.workflow]]
+name = "Web Development"
+author = 42947032
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --web"
