@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// Conditional import for react-native-fs
+// Native-only import for react-native-fs
 let RNFS: any = null;
-try {
-  if (Platform.OS !== 'web') {
+if (Platform.OS !== 'web') {
+  try {
     RNFS = require('react-native-fs');
+  } catch (error) {
+    console.error('react-native-fs not available:', error);
   }
-} catch (error) {
-  console.warn('react-native-fs not available:', error);
 }
 
 interface DirectFileDownloaderProps {
@@ -35,6 +35,7 @@ interface DownloadProgress {
   bytesWritten: number;
   contentLength: number;
   speed: number;
+  eta: number;
 }
 
 export function DirectFileDownloader({
@@ -48,12 +49,14 @@ export function DirectFileDownloader({
   const [downloadedBytes, setDownloadedBytes] = useState(0);
   const [totalBytes, setTotalBytes] = useState(0);
   const [downloadSpeed, setDownloadSpeed] = useState(0);
+  const [eta, setEta] = useState(0);
   const downloadJobRef = useRef<any>(null);
-  const lastProgressTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(0);
+  const lastProgressTimeRef = useRef<number>(0);
   const lastBytesWrittenRef = useRef<number>(0);
 
-  // Check if native downloads are supported
-  const isNativeSupported = Platform.OS !== 'web' && RNFS !== null;
+  // Check if running on native platform
+  const isNativeApp = Platform.OS !== 'web' && RNFS !== null;
 
   // Request storage permissions for Android
   const requestStoragePermission = async (): Promise<boolean> => {
@@ -65,7 +68,7 @@ export function DirectFileDownloader({
       const androidVersion = Platform.Version;
       
       if (androidVersion >= 30) {
-        // Android 11+ uses scoped storage, no explicit permission needed for Downloads
+        // Android 11+ uses scoped storage
         return true;
       } else {
         // Android 10 and below
@@ -95,17 +98,47 @@ export function DirectFileDownloader({
       // Use Downloads directory on Android
       downloadDir = RNFS.DownloadDirectoryPath;
     } else {
-      // Use Documents directory on iOS
-      downloadDir = RNFS.DocumentDirectoryPath;
+      // Use Documents directory on iOS (accessible via Files app)
+      downloadDir = `${RNFS.DocumentDirectoryPath}/Downloads`;
     }
 
     // Ensure download directory exists
     const dirExists = await RNFS.exists(downloadDir);
     if (!dirExists) {
       await RNFS.mkdir(downloadDir);
+      console.log('Created downloads directory:', downloadDir);
     }
 
     return `${downloadDir}/${filename}`;
+  };
+
+  // Resolve HTTPS redirects before downloading
+  const resolveRedirects = async (url: string): Promise<string> => {
+    try {
+      console.log('Resolving redirects for URL:', url);
+      
+      // Use HEAD request to follow redirects without downloading content
+      const response = await fetch(url, {
+        method: 'HEAD',
+        redirect: 'follow', // Follow redirects automatically
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
+          'Accept': '*/*',
+        }
+      });
+
+      const finalUrl = response.url;
+      console.log('Final URL after redirects:', finalUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return finalUrl;
+    } catch (error) {
+      console.warn('Could not resolve redirects, using original URL:', error);
+      return url; // Fallback to original URL
+    }
   };
 
   // Check if file already exists and handle conflicts
@@ -166,21 +199,49 @@ export function DirectFileDownloader({
     return formatFileSize(bytesPerSecond) + '/s';
   };
 
-  // Calculate download speed
-  const calculateSpeed = (bytesWritten: number): number => {
+  // Format time remaining
+  const formatTime = (seconds: number): string => {
+    if (!isFinite(seconds) || seconds <= 0) return 'Calculating...';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+
+  // Calculate download speed and ETA
+  const calculateSpeedAndEta = useCallback((bytesWritten: number, contentLength: number): { speed: number; eta: number } => {
     const currentTime = Date.now();
+    
+    if (lastProgressTimeRef.current === 0) {
+      lastProgressTimeRef.current = currentTime;
+      lastBytesWrittenRef.current = bytesWritten;
+      return { speed: 0, eta: 0 };
+    }
+    
     const timeDiff = (currentTime - lastProgressTimeRef.current) / 1000; // seconds
     const bytesDiff = bytesWritten - lastBytesWrittenRef.current;
     
-    if (timeDiff > 0) {
+    if (timeDiff > 1) { // Update every second
       const speed = bytesDiff / timeDiff;
+      const remainingBytes = contentLength - bytesWritten;
+      const eta = speed > 0 ? remainingBytes / speed : 0;
+      
       lastProgressTimeRef.current = currentTime;
       lastBytesWrittenRef.current = bytesWritten;
-      return speed;
+      
+      return { speed, eta };
     }
     
-    return 0;
-  };
+    return { speed: downloadSpeed, eta };
+  }, [downloadSpeed]);
 
   // Check available storage space
   const checkStorageSpace = async (requiredBytes: number): Promise<boolean> => {
@@ -210,75 +271,18 @@ export function DirectFileDownloader({
     }
   };
 
-  // Handle web download using browser's download
-  const handleWebDownload = async () => {
-    try {
-      setDownloading(true);
-      setProgress(50); // Show some progress
-
-      // Create a temporary link element and trigger download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = fileName;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      
-      // Add to DOM temporarily
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Simulate progress completion
-      setTimeout(() => {
-        setProgress(100);
-        setDownloading(false);
-        
-        Alert.alert(
-          'Download Started',
-          `Your browser will download: ${fileName}\n\nCheck your Downloads folder once the download completes.`,
-          [{ text: 'OK' }]
-        );
-
-        if (onDownloadComplete) {
-          onDownloadComplete('Browser Download');
-        }
-      }, 1000);
-
-    } catch (error) {
-      console.error('Web download error:', error);
-      setDownloading(false);
-      setProgress(0);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Browser download failed';
-      
-      Alert.alert(
-        'Download Failed',
-        `Failed to start download: ${errorMessage}`,
-        [{ text: 'OK' }]
-      );
-
-      if (onDownloadError) {
-        onDownloadError(errorMessage);
-      }
-    }
-  };
-
   // Start the download
   const startDownload = async () => {
     if (downloading) return;
 
-    // Check platform support
-    if (!isNativeSupported) {
-      if (Platform.OS === 'web') {
-        return await handleWebDownload();
-      } else {
-        Alert.alert(
-          'Download Not Supported',
-          'Native file downloads are not available on this platform. Please use a mobile device with the native app.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+    // Check if running on native platform
+    if (!isNativeApp) {
+      Alert.alert(
+        'Native App Required',
+        'This downloader only works on native Android/iOS devices. Please use the mobile app.',
+        [{ text: 'OK' }]
+      );
+      return;
     }
 
     try {
@@ -287,10 +291,14 @@ export function DirectFileDownloader({
       setDownloadedBytes(0);
       setTotalBytes(0);
       setDownloadSpeed(0);
+      setEta(0);
 
       // Reset progress tracking
-      lastProgressTimeRef.current = Date.now();
+      startTimeRef.current = Date.now();
+      lastProgressTimeRef.current = 0;
       lastBytesWrittenRef.current = 0;
+
+      console.log('Starting native download process...');
 
       // Request permissions
       const hasPermission = await requestStoragePermission();
@@ -298,15 +306,28 @@ export function DirectFileDownloader({
         throw new Error('Storage permission denied');
       }
 
+      // Resolve redirects first
+      const resolvedUrl = await resolveRedirects(downloadUrl);
+      console.log('Using resolved URL:', resolvedUrl);
+
       // Get file path
       const downloadPath = await getDownloadPath(fileName);
+      console.log('Download path:', downloadPath);
       
       // Handle file conflicts
       const finalPath = await handleFileConflict(downloadPath);
+      console.log('Final path:', finalPath);
 
       // Get file size from server to check storage space
       try {
-        const headResponse = await fetch(downloadUrl, { method: 'HEAD' });
+        const headResponse = await fetch(resolvedUrl, { 
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
+            'Accept': '*/*',
+          }
+        });
+        
         const contentLength = parseInt(headResponse.headers.get('content-length') || '0', 10);
         
         if (contentLength > 0) {
@@ -315,32 +336,37 @@ export function DirectFileDownloader({
             throw new Error('Insufficient storage space');
           }
           setTotalBytes(contentLength);
+          console.log('Expected file size:', formatFileSize(contentLength));
         }
       } catch (error) {
         console.warn('Could not get file size from server:', error);
       }
 
-      console.log('Starting download:', {
-        url: downloadUrl,
-        path: finalPath,
-        fileName
+      console.log('Starting RNFS download with config:', {
+        fromUrl: resolvedUrl,
+        toFile: finalPath,
+        background: true,
+        discretionary: true,
+        cacheable: false
       });
 
       // Start download with react-native-fs
       const downloadJob = RNFS.downloadFile({
-        fromUrl: downloadUrl,
+        fromUrl: resolvedUrl,
         toFile: finalPath,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Mobile; rv:91.0) Gecko/91.0 Firefox/91.0',
           'Accept': '*/*',
+          'Accept-Encoding': 'identity', // Prevent compression for accurate progress
+          'Cache-Control': 'no-cache',
         },
         background: true, // Enable background download
         discretionary: true, // Allow system to optimize timing
-        cacheable: false,
-        progressDivider: 1,
-        progressInterval: 500, // Update every 500ms
+        cacheable: false, // Don't cache large files
+        progressDivider: 1, // Get all progress updates
+        progressInterval: 1000, // Update every 1 second
         begin: (res) => {
-          console.log('Download started:', res);
+          console.log('Download started with response:', res);
           const contentLength = parseInt(res.contentLength || '0', 10);
           if (contentLength > 0) {
             setTotalBytes(contentLength);
@@ -351,14 +377,15 @@ export function DirectFileDownloader({
             ? (res.bytesWritten / res.contentLength) * 100 
             : 0;
           
-          const speed = calculateSpeed(res.bytesWritten);
+          const { speed, eta } = calculateSpeedAndEta(res.bytesWritten, res.contentLength);
           
           setProgress(Math.min(progressPercent, 100));
           setDownloadedBytes(res.bytesWritten);
           setTotalBytes(res.contentLength);
           setDownloadSpeed(speed);
+          setEta(eta);
           
-          console.log(`Download progress: ${progressPercent.toFixed(1)}%`);
+          console.log(`Progress: ${progressPercent.toFixed(1)}% (${formatFileSize(res.bytesWritten)}/${formatFileSize(res.contentLength)})`);
         }
       });
 
@@ -367,7 +394,7 @@ export function DirectFileDownloader({
       // Wait for download completion
       const result = await downloadJob.promise;
       
-      console.log('Download completed:', result);
+      console.log('Download completed successfully:', result);
 
       // Make file visible in media scanner (Android)
       if (Platform.OS === 'android') {
@@ -383,10 +410,27 @@ export function DirectFileDownloader({
       setDownloading(false);
 
       // Success alert
+      const downloadTime = (Date.now() - startTimeRef.current) / 1000;
       Alert.alert(
         'Download Complete!',
-        `File downloaded successfully!\n\nFile: ${fileName}\nSize: ${formatFileSize(totalBytes)}\nLocation: ${Platform.OS === 'android' ? 'Downloads folder' : 'Documents folder'}`,
-        [{ text: 'OK' }]
+        `File downloaded successfully!\n\nFile: ${fileName}\nSize: ${formatFileSize(totalBytes)}\nTime: ${formatTime(downloadTime)}\nLocation: ${Platform.OS === 'android' ? 'Downloads folder' : 'Documents/Downloads folder'}`,
+        [
+          { text: 'OK' },
+          {
+            text: 'Open Folder',
+            onPress: () => {
+              if (Platform.OS === 'android') {
+                Linking.openURL('content://com.android.externalstorage.documents/document/primary%3ADownload').catch(() => {
+                  Alert.alert('Info', 'Please check your Downloads folder in the file manager.');
+                });
+              } else {
+                Linking.openURL('shareddocuments://').catch(() => {
+                  Alert.alert('Info', 'Please check Files app > On My iPhone > [App Name] > Downloads');
+                });
+              }
+            }
+          }
+        ]
       );
 
       // Call success callback
@@ -398,6 +442,10 @@ export function DirectFileDownloader({
       console.error('Download error:', error);
       setDownloading(false);
       setProgress(0);
+      setDownloadedBytes(0);
+      setTotalBytes(0);
+      setDownloadSpeed(0);
+      setEta(0);
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
@@ -426,6 +474,7 @@ export function DirectFileDownloader({
     setDownloadedBytes(0);
     setTotalBytes(0);
     setDownloadSpeed(0);
+    setEta(0);
     
     Alert.alert('Download Cancelled', 'The download has been cancelled.', [{ text: 'OK' }]);
   };
@@ -435,25 +484,31 @@ export function DirectFileDownloader({
       <TouchableOpacity
         style={[styles.downloadButton, downloading && styles.downloadingButton]}
         onPress={downloading ? cancelDownload : startDownload}
-        disabled={false}
+        disabled={!isNativeApp}
       >
         {downloading ? (
           <ActivityIndicator size="small" color="#fff" />
         ) : (
-          <Ionicons name="download" size={24} color="#fff" />
+          <Ionicons 
+            name={isNativeApp ? "download" : "close-circle"} 
+            size={24} 
+            color="#fff" 
+          />
         )}
         <Text style={styles.downloadButtonText}>
-          {downloading 
-            ? (Platform.OS === 'web' ? 'Downloading...' : 'Cancel Download')
-            : (Platform.OS === 'web' ? 'Download in Browser' : 'Download File')
+          {!isNativeApp 
+            ? 'Native App Required'
+            : downloading 
+              ? 'Cancel Download'
+              : 'Download File'
           }
         </Text>
       </TouchableOpacity>
 
-      {!isNativeSupported && Platform.OS === 'web' && (
-        <View style={styles.webNotice}>
-          <Text style={styles.webNoticeText}>
-            🌐 Web Version: Files will be downloaded using your browser
+      {!isNativeApp && (
+        <View style={styles.warningNotice}>
+          <Text style={styles.warningText}>
+            ⚠️ This component only works on native Android/iOS devices
           </Text>
         </View>
       )}
@@ -475,6 +530,11 @@ export function DirectFileDownloader({
               {downloadSpeed > 0 && (
                 <Text style={styles.detailText}>
                   Speed: {formatSpeed(downloadSpeed)}
+                </Text>
+              )}
+              {eta > 0 && (
+                <Text style={styles.detailText}>
+                  ETA: {formatTime(eta)}
                 </Text>
               )}
               <Text style={styles.detailText}>
@@ -550,16 +610,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 2,
   },
-  webNotice: {
-    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+  warningNotice: {
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: 'rgba(33, 150, 243, 0.3)',
+    borderColor: 'rgba(255, 152, 0, 0.3)',
   },
-  webNoticeText: {
-    color: '#2196F3',
+  warningText: {
+    color: '#FF9800',
     fontSize: 12,
     textAlign: 'center',
   },
