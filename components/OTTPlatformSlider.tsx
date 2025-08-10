@@ -9,12 +9,13 @@ import {
   Dimensions,
   ActivityIndicator 
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { OTTPlatformCard } from './OTTPlatformCard';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = screenWidth * 0.25;
-const CARD_MARGIN = 16;
+const CARD_WIDTH = screenWidth * 0.22;
+const CARD_MARGIN = 14;
 
 interface WatchProvider {
   provider_id: number;
@@ -72,7 +73,7 @@ export function OTTPlatformSlider({
           
           return finalIndex;
         });
-      }, 4000); // Auto-slide every 4 seconds
+      }, 5000); // Auto-slide every 5 seconds
 
       return () => clearInterval(interval);
     }
@@ -132,12 +133,20 @@ export function OTTPlatformSlider({
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>🎬 {title}</Text>
-        </View>
+        <LinearGradient
+          colors={['rgba(229, 9, 20, 0.1)', 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>🎬 {title}</Text>
+          </View>
+        </LinearGradient>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#E50914" />
-          <Text style={styles.loadingText}>Loading platforms...</Text>
+          <Text style={styles.loadingText}>Loading streaming platforms...</Text>
+          <Text style={styles.loadingSubtext}>Discovering the best content for you</Text>
         </View>
       </View>
     );
@@ -147,14 +156,25 @@ export function OTTPlatformSlider({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🎬 {title}</Text>
-        {onViewAll && (
-          <TouchableOpacity onPress={onViewAll}>
-            <Text style={styles.viewAll}>View All →</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <LinearGradient
+        colors={['rgba(229, 9, 20, 0.15)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>🎬 {title}</Text>
+            <Text style={styles.subtitle}>{providers.length} platforms available</Text>
+          </View>
+          {onViewAll && (
+            <TouchableOpacity style={styles.viewAllButton} onPress={onViewAll}>
+              <Text style={styles.viewAll}>View All</Text>
+              <Ionicons name="arrow-forward" size={16} color="#E50914" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </LinearGradient>
       
       <View style={styles.sliderContainer}>
         {/* Left Arrow */}
@@ -163,7 +183,12 @@ export function OTTPlatformSlider({
             style={[styles.arrow, styles.leftArrow]} 
             onPress={scrollLeft}
           >
-            <Ionicons name="chevron-back" size={20} color="#fff" />
+            <LinearGradient
+              colors={['#E50914', '#B00710']}
+              style={styles.arrowGradient}
+            >
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+            </LinearGradient>
           </TouchableOpacity>
         )}
         
@@ -205,34 +230,82 @@ export function OTTPlatformSlider({
             style={[styles.arrow, styles.rightArrow]} 
             onPress={scrollRight}
           >
-            <Ionicons name="chevron-forward" size={20} color="#fff" />
+            <LinearGradient
+              colors={['#E50914', '#B00710']}
+              style={styles.arrowGradient}
+            >
+              <Ionicons name="chevron-forward" size={22} color="#fff" />
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Progress Indicators */}
+      {providers.length > 4 && (
+        <View style={styles.indicatorContainer}>
+          {Array.from({ length: Math.ceil(providers.length / 4) }).map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.indicator,
+                Math.floor(currentIndex / 4) === index && styles.activeIndicator
+              ]}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 25,
+    marginBottom: 30,
+  },
+  headerGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 15,
+    marginHorizontal: 10,
+    marginBottom: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
+  },
+  titleContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '900',
     color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(229, 9, 20, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 9, 20, 0.3)',
   },
   viewAll: {
     color: '#E50914',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginRight: 4,
   },
   sliderContainer: {
     position: 'relative',
@@ -243,29 +316,61 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 50,
   },
   loadingText: {
     color: '#fff',
-    fontSize: 14,
-    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 15,
+  },
+  loadingSubtext: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    marginTop: 5,
   },
   arrow: {
     position: 'absolute',
     top: '50%',
     zIndex: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    width: 44,
+    height: 44,
+    marginTop: -22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  arrowGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   leftArrow: {
-    left: 5,
+    left: 8,
   },
   rightArrow: {
-    right: 5,
+    right: 8,
+  },
+  indicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 15,
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    marginHorizontal: 4,
+  },
+  activeIndicator: {
+    backgroundColor: '#E50914',
+    width: 24,
   },
 });
