@@ -356,6 +356,7 @@ export function MovieDownloader({
         dismissButtonStyle: 'done'
       });
 
+      // Close the downloader modal after opening in browser
       onClose();
 
     } catch (error) {
@@ -569,7 +570,35 @@ export function MovieDownloader({
                     </View>
                     <View style={styles.downloadBrowserContainer}>
                       <TouchableOpacity
-                        style={[styles.downloadButton, { backgroundColor: '#4CAF50' }]}
+                        style={[styles.downloadButton, { backgroundColor: '#FF9800', marginRight: 4 }]}
+                        onPress={async () => {
+                          try {
+                            // Remove download parameter for streaming
+                            const streamUrl = file.downloadUrl.replace('?download=1', '');
+                            console.log('Opening streaming URL in browser:', streamUrl);
+
+                            const { openBrowserAsync } = await import('expo-web-browser');
+                            await openBrowserAsync(streamUrl, {
+                              presentationStyle: 'fullScreen',
+                              showTitle: true,
+                              showInRecents: true,
+                              enableBarCollapsing: false,
+                              dismissButtonStyle: 'done'
+                            });
+
+                            onClose();
+                          } catch (error) {
+                            console.error('Play error:', error);
+                            showToast('Play Error', 'Failed to open video for streaming');
+                          }
+                        }}
+                      >
+                        <Ionicons name="play" size={16} color="#fff" />
+                        <Text style={styles.downloadButtonText}>Play</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.downloadButton, { backgroundColor: '#4CAF50', marginRight: 4 }]}
                         onPress={() => handleDirectDownload(file.downloadUrl)}
                       >
                         <Ionicons name="download" size={16} color="#fff" />
@@ -577,7 +606,7 @@ export function MovieDownloader({
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={[styles.downloadButton, { backgroundColor: '#2196F3', marginLeft: 8 }]}
+                        style={[styles.downloadButton, { backgroundColor: '#2196F3' }]}
                         onPress={async () => {
                           try {
                             // Keep download parameter for browser downloads
@@ -591,6 +620,9 @@ export function MovieDownloader({
                               enableBarCollapsing: false,
                               dismissButtonStyle: 'done'
                             });
+
+                            // Close modal after opening in browser
+                            onClose();
                           } catch (error) {
                             console.error('Browser open error:', error);
                             showToast('Browser Error', 'Failed to open download in browser');
@@ -1050,11 +1082,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 20,
   },
-  // Added style for the new container for download and browser buttons
+  // Updated style for the container with play, download and browser buttons
   downloadBrowserContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
+    flexWrap: 'wrap',
+    gap: 4,
   },
   // Adjusted style for downloadButtonText to be used by both buttons
   downloadButtonText: {
