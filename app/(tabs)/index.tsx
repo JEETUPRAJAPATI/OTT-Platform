@@ -23,6 +23,11 @@ import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 import { userService } from '@/services/userService';
 import { OTTPlatformSlider } from '@/components/OTTPlatformSlider';
 import { MoviePlatformBrowser } from '@/components/MoviePlatformBrowser';
+import { 
+  HeroSkeleton, 
+  MovieSliderSkeleton, 
+  PlatformSliderSkeleton 
+} from '@/components/SkeletonLoaders';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 
@@ -44,6 +49,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [watchProviders, setWatchProviders] = useState<any[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
+  const [loadingContent, setLoadingContent] = useState(true);
+  const [loadingHero, setLoadingHero] = useState(true);
   const router = useRouter();
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [popularMovies, setPopularMovies] = useState([]);
@@ -72,6 +79,9 @@ export default function HomeScreen() {
 
   const loadContent = async () => {
     try {
+      setLoadingContent(true);
+      setLoadingHero(true);
+      
       // Load user data
       userService.loadFromStorage();
       const continueWatching = userService.getContinueWatching();
@@ -124,6 +134,7 @@ export default function HomeScreen() {
       ]);
 
       setFeaturedContent(trending.slice(0, 5));
+      setLoadingHero(false); // Hero content loaded
 
       // Create a pool of used content to avoid duplicates
       const usedIds = new Set();
@@ -282,13 +293,20 @@ export default function HomeScreen() {
       );
 
       setContentSections(sections);
+      setLoadingContent(false); // All content loaded
     } catch (error) {
       console.error('Error loading content:', error);
+      setLoadingContent(false);
+      setLoadingHero(false);
+      setLoadingProviders(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setLoadingContent(true);
+    setLoadingHero(true);
+    setLoadingProviders(true);
     await loadContent();
     setRefreshing(false);
   };
@@ -310,7 +328,9 @@ export default function HomeScreen() {
   }, [featuredContent.length]);
 
   const renderHeroSection = () => {
-    if (!featuredContent.length) return null;
+    if (loadingHero || !featuredContent.length) {
+      return <HeroSkeleton />;
+    }
 
     const heroItem = featuredContent[currentHero];
     const title = (heroItem as any).title || (heroItem as any).name;
@@ -422,7 +442,18 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <FlatList
-        data={[
+        data={loadingContent ? [
+          { type: 'hero' },
+          { type: 'providers' },
+          { type: 'skeleton-section' },
+          { type: 'skeleton-section' },
+          { type: 'skeleton-section' },
+          { type: 'skeleton-section' },
+          { type: 'skeleton-section' },
+          { type: 'skeleton-section' },
+          { type: 'skeleton-section' },
+          { type: 'skeleton-section' }
+        ] : [
           { type: 'hero' },
           { type: 'providers' },
           ...contentSections.map(section => ({ type: 'section', section }))
@@ -432,24 +463,22 @@ export default function HomeScreen() {
             return renderHeroSection();
           }
           if (item.type === 'providers') {
-            return (
+            return loadingProviders ? (
+              <PlatformSliderSkeleton />
+            ) : (
               <OTTPlatformSlider
                 title="Watch on Your Favorite Platforms"
                 providers={watchProviders}
-                loading={loadingProviders}
+                loading={false}
                 onProviderPress={handleProviderPress}
                 autoSlide={true}
               />
             );
           }
-          // The following blocks are based on the provided changes.
-          // Note: The original code snippet had hardcoded section titles and data arrays
-          // that do not exist in the current scope of this HomeScreen component.
-          // I am applying the `autoSlide={true}` prop to MovieSlider instances where
-          // it seems contextually appropriate based on the provided changes.
-
-          // Assuming 'item.section.data' correctly maps to a list of movies/shows
-          // and that these are intended to be sliders.
+          if (item.type === 'skeleton-section') {
+            return <MovieSliderSkeleton />;
+          }
+          // Regular content sections
           return (
             <MovieSlider
               title={item.section.title}
