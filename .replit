@@ -17,7 +17,7 @@ localPort = 8082
 externalPort = 3000
 
 [workflows]
-runButton = "Development Server"
+runButton = "Mobile Development (Fixed)"
 
 [[workflows.workflow]]
 name = "Dev Server"
@@ -159,57 +159,3 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx expo start"
-
-[[workflows.workflow]]
-name = "Mobile and Web Development"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"node.*proxy.js\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd server && npm install && npm start &"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "sleep 3"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo install expo-audio expo-video"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN npx expo start --tunnel"
-
-[[workflows.workflow]]
-name = "Development Server"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"expo start\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"node.*proxy.js\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd server && npm install && npm start &"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "sleep 3"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo install expo-audio expo-video"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel"
