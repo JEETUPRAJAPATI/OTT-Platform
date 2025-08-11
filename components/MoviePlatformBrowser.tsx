@@ -56,7 +56,7 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
           ]
         );
       } else {
-        // Open external platform in browser
+        // For the new platforms, open directly in browser
         const { openBrowserAsync } = await import('expo-web-browser');
         await openBrowserAsync(platform.baseUrl, {
           presentationStyle: 'fullScreen',
@@ -65,9 +65,11 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
           dismissButtonStyle: 'done'
         });
         
+        // Show success message
         Alert.alert(
-          'Platform Opened',
-          `Opened ${platform.name} in browser. You can now browse and stream movies directly on their platform.`
+          'Opening Platform',
+          `Opening ${platform.name} in browser. You can browse and download movies directly from their website.`,
+          [{ text: 'OK' }]
         );
       }
     } catch (error) {

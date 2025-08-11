@@ -24,6 +24,39 @@ export const legitimateMoviePlatforms: MoviePlatform[] = [
     features: ['Free Download', 'No Ads', 'HD Quality', 'Legal']
   },
   {
+    id: 'thekitchenspot',
+    name: 'The Kitchen Spot',
+    description: 'Free movie downloads and streaming',
+    logo: '🍿',
+    baseUrl: 'https://thekitchenspot.net',
+    searchUrl: 'https://thekitchenspot.net/search?q=',
+    isLegitimate: false,
+    category: 'indie',
+    features: ['Free Download', 'Multiple Formats', 'Fast Downloads']
+  },
+  {
+    id: 'fmovies',
+    name: 'FMovies',
+    description: 'Watch movies and TV shows online',
+    logo: '🎭',
+    baseUrl: 'https://fmovies.to',
+    searchUrl: 'https://fmovies.to/search/',
+    isLegitimate: false,
+    category: 'indie',
+    features: ['HD Quality', 'No Registration', 'Fast Streaming']
+  },
+  {
+    id: 'yesmovies',
+    name: 'YesMovies',
+    description: 'Free online movie streaming',
+    logo: '📱',
+    baseUrl: 'https://yesmovies.ag',
+    searchUrl: 'https://yesmovies.ag/search/',
+    isLegitimate: false,
+    category: 'indie',
+    features: ['Free Streaming', 'Multiple Servers', 'Latest Movies']
+  },
+  {
     id: 'public-domain-movies',
     name: 'Public Domain Movies',
     description: 'Classic movies in the public domain',
@@ -44,28 +77,6 @@ export const legitimateMoviePlatforms: MoviePlatform[] = [
     isLegitimate: true,
     category: 'educational',
     features: ['Educational', 'Documentaries', 'Art Films']
-  },
-  {
-    id: 'retrovision',
-    name: 'Retrovision',
-    description: 'Classic TV shows and movies',
-    logo: '📺',
-    baseUrl: 'https://retrovision.tv',
-    searchUrl: 'https://retrovision.tv/search/',
-    isLegitimate: true,
-    category: 'classic',
-    features: ['Classic Content', 'TV Shows', 'Movies']
-  },
-  {
-    id: 'film-chest',
-    name: 'Film Chest',
-    description: 'Independent and classic films',
-    logo: '🎞️',
-    baseUrl: 'https://filmchest.com',
-    searchUrl: 'https://filmchest.com/search/',
-    isLegitimate: true,
-    category: 'indie',
-    features: ['Independent Films', 'Free Streaming', 'Classic Movies']
   }
 ];
 

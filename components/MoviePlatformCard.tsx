@@ -13,11 +13,11 @@ export function MoviePlatformCard({ platform, onPress }: MoviePlatformCardProps)
   const handlePress = () => {
     if (!platform.isLegitimate) {
       Alert.alert(
-        'Platform Notice',
-        'This platform may not be verified. Please ensure content is legally available.',
+        'External Platform',
+        `You are about to visit ${platform.name}. This will open in your browser where you can download or stream movies directly.`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: () => onPress(platform) }
+          { text: 'Open in Browser', onPress: () => onPress(platform) }
         ]
       );
       return;
