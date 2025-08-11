@@ -259,15 +259,34 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
             </Text>
           </View>
 
-          {filteredPlatforms.map((platform) => (
-            <MoviePlatformCard
-              key={platform.id}
-              platform={platform}
-              onPress={handlePlatformPress}
-            />
-          ))}
+          {/* Legitimate Platforms Section */}
+          {filteredPlatforms.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>📚 Archive Platforms</Text>
+              {filteredPlatforms.map((platform) => (
+                <MoviePlatformCard
+                  key={platform.id}
+                  platform={platform}
+                  onPress={handlePlatformPress}
+                />
+              ))}
+            </View>
+          )}
 
-          {filteredPlatforms.length === 0 && (
+          {/* External Platforms Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>🌐 External Movie Platforms</Text>
+            <Text style={styles.sectionSubtitle}>Click to browse movies directly on these platforms</Text>
+            {externalMoviePlatforms.map((platform) => (
+              <MoviePlatformCard
+                key={platform.id}
+                platform={platform}
+                onPress={handlePlatformPress}
+              />
+            ))}
+          </View>
+
+          {filteredPlatforms.length === 0 && externalMoviePlatforms.length === 0 && (
             <View style={styles.noResults}>
               <Ionicons name="film-outline" size={48} color="rgba(255,255,255,0.3)" />
               <Text style={styles.noResultsText}>No platforms found</Text>
@@ -394,5 +413,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
+  },
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  sectionSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginBottom: 12,
+    marginLeft: 4,
   },
 });

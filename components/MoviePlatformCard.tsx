@@ -10,25 +10,8 @@ interface MoviePlatformCardProps {
 }
 
 export function MoviePlatformCard({ platform, onPress }: MoviePlatformCardProps) {
-  const handlePress = async () => {
-    if (!platform.isLegitimate) {
-      // For external platforms, open directly in browser
-      try {
-        const { openBrowserAsync } = await import('expo-web-browser');
-        await openBrowserAsync(platform.baseUrl, {
-          presentationStyle: 'pageSheet',
-          showTitle: true,
-          showInRecents: true,
-          dismissButtonStyle: 'done',
-          toolbarColor: '#000000',
-          enableBarCollapsing: false
-        });
-      } catch (error) {
-        console.error('Error opening external platform:', error);
-      }
-    } else {
-      onPress(platform);
-    }
+  const handlePress = () => {
+    onPress(platform);
   };
 
   const getCategoryColor = (category: string) => {
