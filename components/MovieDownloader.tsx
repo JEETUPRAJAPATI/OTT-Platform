@@ -694,53 +694,82 @@ export function MovieDownloader({
 
           {/* External Platforms Section */}
           <View style={styles.externalPlatformsSection}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="globe" size={20} color="#FF6B35" />
-              <Text style={styles.sectionTitle}>External Platforms</Text>
+            <Text style={styles.externalPlatformTitle}>External Platforms</Text>
+            <Text style={styles.externalPlatformSubtitle}>Browse movies on external streaming platforms</Text>
+
+            <View style={styles.externalPlatformContainer}>
+              <Text style={styles.externalPlatformHeader}>Available Platforms:</Text>
+              <ScrollView style={styles.platformScrollView} showsVerticalScrollIndicator={true}>
+                <TouchableOpacity
+                  style={styles.platformCard}
+                  onPress={() => openExternalPlatform('https://thekitchenspot.net')}
+                >
+                  <View style={styles.platformCardContent}>
+                    <View style={styles.platformCardLeft}>
+                      <Text style={styles.platformCardIcon}>🍿</Text>
+                      <View style={styles.platformCardInfo}>
+                        <Text style={styles.platformCardName}>The Kitchen Spot</Text>
+                        <Text style={styles.platformCardDesc}>Movie streaming and download platform</Text>
+                      </View>
+                    </View>
+                    <View style={styles.platformCardActions}>
+                      <TouchableOpacity
+                        style={[styles.iconButton, { backgroundColor: '#2196F3' }]}
+                        onPress={() => openExternalPlatform('https://thekitchenspot.net')}
+                      >
+                        <Ionicons name="open-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.platformCard}
+                  onPress={() => openExternalPlatform('https://fmovies.to')}
+                >
+                  <View style={styles.platformCardContent}>
+                    <View style={styles.platformCardLeft}>
+                      <Text style={styles.platformCardIcon}>🎬</Text>
+                      <View style={styles.platformCardInfo}>
+                        <Text style={styles.platformCardName}>Fmovies</Text>
+                        <Text style={styles.platformCardDesc}>Free movie and TV show streaming</Text>
+                      </View>
+                    </View>
+                    <View style={styles.platformCardActions}>
+                      <TouchableOpacity
+                        style={[styles.iconButton, { backgroundColor: '#2196F3' }]}
+                        onPress={() => openExternalPlatform('https://fmovies.to')}
+                      >
+                        <Ionicons name="open-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.platformCard}
+                  onPress={() => openExternalPlatform('https://yesmovies.ag')}
+                >
+                  <View style={styles.platformCardContent}>
+                    <View style={styles.platformCardLeft}>
+                      <Text style={styles.platformCardIcon}>✅</Text>
+                      <View style={styles.platformCardInfo}>
+                        <Text style={styles.platformCardName}>YesMovies</Text>
+                        <Text style={styles.platformCardDesc}>Free online movie streaming platform</Text>
+                      </View>
+                    </View>
+                    <View style={styles.platformCardActions}>
+                      <TouchableOpacity
+                        style={[styles.iconButton, { backgroundColor: '#2196F3' }]}
+                        onPress={() => openExternalPlatform('https://yesmovies.ag')}
+                      >
+                        <Ionicons name="open-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
-            <Text style={styles.sectionSubtitle}>Browse movies on external streaming platforms</Text>
-
-            <TouchableOpacity
-              style={styles.platformButton}
-              onPress={() => openExternalPlatform('https://thekitchenspot.net')}
-            >
-              <View style={styles.platformInfo}>
-                <Text style={styles.platformIcon}>🍿</Text>
-                <View style={styles.platformDetails}>
-                  <Text style={styles.platformName}>The Kitchen Spot</Text>
-                  <Text style={styles.platformDescription}>Movie streaming and download platform</Text>
-                </View>
-              </View>
-              <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.6)" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.platformButton}
-              onPress={() => openExternalPlatform('https://fmovies.to')}
-            >
-              <View style={styles.platformInfo}>
-                <Text style={styles.platformIcon}>🎬</Text>
-                <View style={styles.platformDetails}>
-                  <Text style={styles.platformName}>Fmovies</Text>
-                  <Text style={styles.platformDescription}>Free movie and TV show streaming</Text>
-                </View>
-              </View>
-              <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.6)" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.platformButton}
-              onPress={() => openExternalPlatform('https://yesmovies.ag')}
-            >
-              <View style={styles.platformInfo}>
-                <Text style={styles.platformIcon}>✅</Text>
-                <View style={styles.platformDetails}>
-                  <Text style={styles.platformName}>YesMovies</Text>
-                  <Text style={styles.platformDescription}>Free online movie streaming platform</Text>
-                </View>
-              </View>
-              <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.6)" />
-            </TouchableOpacity>
           </View>
 
 
@@ -1230,63 +1259,75 @@ const styles = StyleSheet.create({
   },
   // Styles for External Platforms section
   externalPlatformsSection: {
-    marginTop: 24,
-    padding: 20,
-    backgroundColor: 'rgba(255,107,53,0.08)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.2)',
+    marginBottom: 30,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionTitle: {
+  externalPlatformTitle: {
     color: '#FF6B35',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
   },
-  sectionSubtitle: {
+  externalPlatformSubtitle: {
     color: 'rgba(255,107,53,0.8)',
     fontSize: 14,
     marginBottom: 16,
     lineHeight: 20,
   },
-  platformButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  externalPlatformContainer: {
     backgroundColor: 'rgba(255,255,255,0.05)',
-    padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  platformInfo: {
+  externalPlatformHeader: {
+    color: '#FF6B35',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  platformScrollView: {
+    maxHeight: 300,
+  },
+  platformCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  platformCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  platformCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-  },
-  platformIcon: {
-    fontSize: 24,
     marginRight: 12,
   },
-  platformDetails: {
+  platformCardIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  platformCardInfo: {
     flex: 1,
   },
-  platformName: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+  platformCardName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
   },
-  platformDescription: {
+  platformCardDesc: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  platformCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   howItWorksSection: {
     marginTop: 24,
