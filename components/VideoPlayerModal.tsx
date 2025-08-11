@@ -83,48 +83,21 @@ export function VideoPlayerModal({
 
   const handlePlayPress = async (file: VideoFile) => {
     try {
-      console.log('Direct play - fetching movie metadata for:', file.name);
+      console.log('Play button clicked - opening streaming URL for:', file.name);
       
-      // Extract identifier and filename from the downloadUrl
-      const urlParts = file.downloadUrl.split('/');
-      const identifier = urlParts[4]; // archive.org/download/[identifier]/filename
-      const filename = decodeURIComponent(urlParts[5].split('?')[0]);
+      // Extract streaming URL (remove download parameter for streaming)
+      const streamingUrl = file.downloadUrl.replace('?download=1', '');
       
-      console.log('Extracted - Identifier:', identifier, 'Filename:', filename);
+      console.log('Opening streaming URL:', streamingUrl);
       
-      // Call the download service API to get the direct streaming URL
-      const { downloadService } = await import('../services/downloadService');
-      
-      // Get metadata to construct proper streaming URL
-      const metadataUrl = `https://archive.org/metadata/${identifier}`;
-      const response = await fetch(metadataUrl);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch movie metadata');
-      }
-      
-      const metadata = await response.json();
-      
-      // Find the specific file in metadata
-      const fileData = metadata.files?.find((f: any) => f.name === filename);
-      
-      if (!fileData) {
-        throw new Error('Video file not found in archive');
-      }
-      
-      // Construct streaming URL without download parameter for auto-play
-      const streamingUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(filename)}`;
-      
-      console.log('Direct streaming URL:', streamingUrl);
-      
-      // Open in browser with auto-play capability
+      // Open directly in browser for auto-play
       await openInBrowser(streamingUrl);
       
     } catch (error) {
-      console.error('Direct play error:', error);
+      console.error('Play error:', error);
       Alert.alert(
         'Playback Error',
-        'Failed to open video for direct playback. You can try downloading instead.',
+        'Failed to open video for playback. You can try downloading instead.',
         [
           { text: 'Cancel' },
           { 
@@ -198,21 +171,21 @@ export function VideoPlayerModal({
     onClose();
   };
 
-  // Placeholder functions for startPlay and startDownload as they are used in the provided changes
-  const startPlay = () => {
-    if (selectedFile) {
-      handlePlayPress(selectedFile);
-    }
-  };
-
   const handleDirectDownload = async (url: string) => {
-    Alert.alert('Download', `Initiating download for: ${url}`);
-    // In a real app, this would trigger a download service
-  };
-
-  const startDownload = () => {
-    if (selectedFile) {
-      handleDirectDownload(selectedFile.downloadUrl);
+    try {
+      console.log('Opening download URL:', url);
+      const { openBrowserAsync } = await import('expo-web-browser');
+      await openBrowserAsync(url, {
+        presentationStyle: 'fullScreen',
+        showTitle: true,
+        showInRecents: true,
+        enableBarCollapsing: false,
+        dismissButtonStyle: 'done'
+      });
+      handleClose();
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Download Error', 'Failed to open download URL.');
     }
   };
 
@@ -414,53 +387,40 @@ export function VideoPlayerModal({
                 Playing: {selectedFile.name}
               </Text>
               
-              {movieFound && movieFiles && movieFiles.length > 0 && (
-                <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity
-                    style={styles.playButton}
-                    onPress={startPlay}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <Ionicons name="play" size={20} color="#fff" />
-                        <Text style={styles.playButtonText}>Play</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+              <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={() => handlePlayPress(selectedFile)}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="play" size={20} color="#fff" />
+                      <Text style={styles.playButtonText}>Stream</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.downloadButton}
-                    onPress={startDownload}
-                    disabled={isDownloading || isLoading}
-                  >
-                    {isDownloading ? (
-                      <>
-                        <ActivityIndicator size="small" color="#fff" />
-                        <Text style={styles.downloadButtonText}>
-                          {Math.round(downloadProgress)}%
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons name="download" size={20} color="#fff" />
-                        <Text style={styles.downloadButtonText}>Download</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.downloadButton}
+                  onPress={() => handleDirectDownload(selectedFile.downloadUrl)}
+                  disabled={isLoading}
+                >
+                  <Ionicons name="download" size={20} color="#fff" />
+                  <Text style={styles.downloadButtonText}>Download</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.browserButton}
-                    onPress={() => openInBrowser(movieFiles[0]?.downloadUrl || '')}
-                    disabled={isLoading}
-                  >
-                    <Ionicons name="globe" size={20} color="#fff" />
-                    <Text style={styles.browserButtonText}>Browser</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+                <TouchableOpacity
+                  style={styles.browserButton}
+                  onPress={() => openInBrowser(selectedFile.downloadUrl.replace('?download=1', ''))}
+                  disabled={isLoading}
+                >
+                  <Ionicons name="globe" size={20} color="#fff" />
+                  <Text style={styles.browserButtonText}>Browser</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </LinearGradient>
         )}

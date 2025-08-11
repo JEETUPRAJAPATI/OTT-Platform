@@ -321,37 +321,20 @@ export function MovieDownloader({
     }
 
     try {
-      console.log('Direct play initiated - calling API for movie files');
+      console.log('Play button clicked - opening best quality file');
       
       // Use the first/best quality file for direct playback
       const selectedFile = movieFiles[0];
       
-      // Extract identifier and filename from the downloadUrl
-      const urlParts = selectedFile.downloadUrl.split('/');
-      const identifier = urlParts[4];
-      const filename = decodeURIComponent(urlParts[5].split('?')[0]);
+      // Create streaming URL (remove download parameter)
+      const streamingUrl = selectedFile.downloadUrl.replace('?download=1', '');
       
-      console.log('Direct play - Identifier:', identifier, 'File:', filename);
+      console.log('Opening streaming URL:', streamingUrl);
       
-      // Fetch metadata via API call
-      const metadataUrl = `https://archive.org/metadata/${identifier}`;
-      const response = await fetch(metadataUrl);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch movie data');
-      }
-      
-      const metadata = await response.json();
-      
-      // Construct direct streaming URL
-      const directStreamUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(filename)}`;
-      
-      console.log('Opening direct stream URL:', directStreamUrl);
-      
-      // Import and use expo-web-browser for direct playback
+      // Open directly in browser for auto-play
       const { openBrowserAsync } = await import('expo-web-browser');
       
-      await openBrowserAsync(directStreamUrl, {
+      await openBrowserAsync(streamingUrl, {
         presentationStyle: 'fullScreen',
         showTitle: true,
         showInRecents: true,
@@ -363,68 +346,12 @@ export function MovieDownloader({
       onClose();
       
     } catch (error) {
-      console.error('Direct play error:', error);
-      showToast('Playback Failed', 'Could not start direct playback. Try using the browser button or download instead.');
-    }
-  };
-
-  const playMovie = async (identifier: string, title: string) => {
-    try {
-      setLoadingVideoId(identifier);
-      console.log(`Getting video URL for: ${title} (${identifier})`);
-
-      // Get metadata to find video files
-      const metadataUrl = `https://archive.org/metadata/${identifier}`;
-      const metadataResponse = await fetch(metadataUrl);
-
-      if (!metadataResponse.ok) {
-        throw new Error(`Failed to get metadata: ${metadataResponse.status}`);
-      }
-
-      const metadata = await metadataResponse.json();
-
-      if (!metadata.files || !Array.isArray(metadata.files)) {
-        throw new Error('No files found in metadata');
-      }
-
-      // Filter video files
-      const videoFiles = metadata.files.filter((file: any) =>
-        file.format && (
-          file.format.includes('MPEG4') ||
-          file.format.includes('Matroska') ||
-          file.format.includes('Ogg Video') ||
-          file.format.includes('MP4') ||
-          file.format.includes('AVI')
-        )
-      ).sort((a: any, b: any) => {
-        const sizeA = parseInt(a.size || '0');
-        const sizeB = parseInt(b.size || '0');
-        return sizeB - sizeA;
-      });
-
-      if (videoFiles.length === 0) {
-        throw new Error('No video files found for this movie');
-      }
-
-      const selectedFile = videoFiles[0];
-      const videoUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(selectedFile.name)}`;
-
-      console.log('Video URL:', videoUrl);
-
-      setCurrentVideo({
-        url: videoUrl,
-        title: title,
-        identifier: identifier
-      });
-      setVideoModalVisible(true);
-
-    } catch (error) {
       console.error('Play error:', error);
-      Alert.alert('Play Error', error instanceof Error ? error.message : 'Failed to load video');
-    } finally {
-      setLoadingVideoId(null);
+      showToast('Playback Failed', 'Could not start playback. Try using the browser button or download instead.');
     }
   };
+
+  
 
   const cancelDownload = () => {
     if (downloadId) {
@@ -526,10 +453,7 @@ export function MovieDownloader({
     </Modal>
   );
 
-  // Mock state for VideoPlayerModal
-  const [currentVideo, setCurrentVideo] = useState<{ url: string; title: string; identifier: string } | null>(null);
-  const [videoModalVisible, setVideoModalVisible] = useState(false);
-  const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
+  
 
   return (
     <Modal
@@ -624,7 +548,7 @@ export function MovieDownloader({
                   >
                     <View style={styles.fileDetails}>
                       <Text style={styles.fileInfo}>
-                        📹 {file.quality} • {formatFileSize(file.size)} • {file.format}
+                        📹 {file.quality} • {file.size}MB • {file.format}
                       </Text>
                       <Text style={styles.fileName} numberOfLines={1}>
                         {file.name}
@@ -844,7 +768,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   fileInfo: {
-    color: 'rgba(255,255,255,0.9)',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 2,
@@ -1088,7 +1012,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fileName: {
-    color: '#CCCCCC',
+    color: '#E0E0E0',
     fontSize: 12,
   },
   webNoticeText: {
