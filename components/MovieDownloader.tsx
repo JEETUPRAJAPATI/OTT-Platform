@@ -55,7 +55,8 @@ export function MovieDownloader({
   const [statusMessage, setStatusMessage] = useState('');
   const [movieFound, setMovieFound] = useState(false);
   const [archiveIdentifier, setArchiveIdentifier] = useState<string>('');
-  
+  const [searchQuery, setSearchQuery] = useState(movieTitle); // Added for consistency with search logic
+
 
   const showToast = (title: string, message: string) => {
     Alert.alert(title, message);
@@ -69,7 +70,7 @@ export function MovieDownloader({
 
       // Use the real file download service for automatic download
       const { fileDownloadService } = await import('../services/fileDownloadService');
-      
+
       // Check if downloads are supported on this platform
       if (!fileDownloadService.isSupported()) {
         Alert.alert(
@@ -91,7 +92,7 @@ export function MovieDownloader({
             setDownloadProgress(progress.progress);
             setProgressInfo(progress);
             setStatusMessage(`Downloading... ${progress.progress.toFixed(1)}%`);
-            
+
             // Update speed and time estimates
             if (progress.speed > 0) {
               setDownloadSpeed(progress.speed);
@@ -110,7 +111,7 @@ export function MovieDownloader({
             console.error(`Download failed: ${error}`);
             setIsDownloading(false);
             setStatusMessage(`Download failed: ${error}`);
-            showToast('Download Failed', `Download failed: ${error}`);
+            showToast('Download Failed', error instanceof Error ? error.message : 'Failed to start download.');
           }
         }
       );
@@ -125,22 +126,21 @@ export function MovieDownloader({
     }
   };
 
-  const searchMovie = async (title: string) => {
-    if (!title.trim()) {
-      showToast('Error', 'Please enter a movie title');
+  const searchMovie = async () => {
+    if (!searchQuery.trim()) {
+      Alert.alert('Search Required', 'Please enter a movie title to search.');
       return;
     }
 
     setIsSearching(true);
-    setMovieFound(false);
     setMovieFiles([]);
     setArchiveIdentifier('');
 
     try {
-      console.log('🔍 Starting search for:', title.trim());
+      console.log('🔍 Starting search for:', searchQuery);
 
       // Search for movie on Internet Archive
-      const searchResult = await downloadService.searchInternetArchive(title.trim());
+      const searchResult = await downloadService.searchInternetArchive(searchQuery);
 
       console.log('🎬 Search result:', searchResult);
       console.log('📝 Search details:', {
@@ -396,6 +396,23 @@ export function MovieDownloader({
     }
   };
 
+  const openExternalPlatform = async (url: string) => {
+    try {
+      const { openBrowserAsync } = await import('expo-web-browser');
+      await openBrowserAsync(url, {
+        presentationStyle: 'pageSheet',
+        showTitle: true,
+        showInRecents: true,
+        dismissButtonStyle: 'done',
+        toolbarColor: '#1a1a1a',
+        controlsColor: '#fff',
+        enableBarCollapsing: false
+      });
+    } catch (error) {
+      console.error('Error opening external platform:', error);
+      Alert.alert('Error', 'Failed to open platform. Please try again.');
+    }
+  };
 
 
   const cancelDownload = async () => {
@@ -529,19 +546,19 @@ export function MovieDownloader({
                 style={styles.searchInput}
                 placeholder="Enter movie title or direct download URL..."
                 placeholderTextColor="rgba(255,255,255,0.5)"
-                value={searchTitle}
-                onChangeText={setSearchTitle}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
                 editable={!isSearching}
               />
               <TouchableOpacity
                 style={[styles.searchButton, isSearching && styles.disabledButton]}
                 onPress={() => {
-                  if (searchTitle.includes('archive.org/download/')) {
+                  if (searchQuery.includes('archive.org/download/')) {
                     // Direct download URL
-                    handleDirectDownload(searchTitle);
+                    handleDirectDownload(searchQuery);
                   } else {
                     // Search for movie
-                    searchMovie(searchTitle);
+                    searchMovie();
                   }
                 }}
                 disabled={isSearching}
@@ -549,12 +566,12 @@ export function MovieDownloader({
                 {isSearching ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Ionicons name={searchTitle.includes('archive.org/download/') ? "download" : "search"} size={20} color="#fff" />
+                  <Ionicons name={searchQuery.includes('archive.org/download/') ? "download" : "search"} size={20} color="#fff" />
                 )}
               </TouchableOpacity>
             </View>
 
-            {searchTitle.includes('archive.org/download/') && (
+            {searchQuery.includes('archive.org/download/') && (
               <Text style={styles.directUrlHint}>
                 💡 Direct download URL detected - Click to download
               </Text>
@@ -577,7 +594,7 @@ export function MovieDownloader({
                   >
                     <View style={styles.fileDetails}>
                       <Text style={styles.fileInfo}>
-                        📹 {file.quality} • {file.size}MB • {file.format}
+                        📹 {file.quality} • {formatFileSize(file.size)} • {file.format}
                       </Text>
                       <Text style={styles.fileName} numberOfLines={1}>
                         {file.name}
@@ -665,7 +682,7 @@ export function MovieDownloader({
             </View>
           )}
 
-          {!movieFound && !isSearching && searchTitle.trim().length > 0 && (
+          {!movieFound && !isSearching && searchQuery.trim().length > 0 && (
             <View style={styles.noResultsSection}>
               <Ionicons name="search" size={48} color="rgba(255,255,255,0.3)" />
               <Text style={styles.noResultsTitle}>No Movie Found</Text>
@@ -674,6 +691,58 @@ export function MovieDownloader({
               </Text>
             </View>
           )}
+
+          {/* External Platforms Section */}
+          <View style={styles.externalPlatformsSection}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="globe" size={20} color="#FF6B35" />
+              <Text style={styles.sectionTitle}>External Platforms</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>Browse movies on external streaming platforms</Text>
+
+            <TouchableOpacity
+              style={styles.platformButton}
+              onPress={() => openExternalPlatform('https://thekitchenspot.net')}
+            >
+              <View style={styles.platformInfo}>
+                <Text style={styles.platformIcon}>🍿</Text>
+                <View style={styles.platformDetails}>
+                  <Text style={styles.platformName}>The Kitchen Spot</Text>
+                  <Text style={styles.platformDescription}>Movie streaming and download platform</Text>
+                </View>
+              </View>
+              <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.platformButton}
+              onPress={() => openExternalPlatform('https://fmovies.to')}
+            >
+              <View style={styles.platformInfo}>
+                <Text style={styles.platformIcon}>🎬</Text>
+                <View style={styles.platformDetails}>
+                  <Text style={styles.platformName}>Fmovies</Text>
+                  <Text style={styles.platformDescription}>Free movie and TV show streaming</Text>
+                </View>
+              </View>
+              <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.platformButton}
+              onPress={() => openExternalPlatform('https://yesmovies.ag')}
+            >
+              <View style={styles.platformInfo}>
+                <Text style={styles.platformIcon}>✅</Text>
+                <View style={styles.platformDetails}>
+                  <Text style={styles.platformName}>YesMovies</Text>
+                  <Text style={styles.platformDescription}>Free online movie streaming platform</Text>
+                </View>
+              </View>
+              <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+          </View>
+
 
           {isDownloading && (
             <View style={styles.progressSection}>
@@ -684,7 +753,7 @@ export function MovieDownloader({
                 </View>
                 <Text style={styles.progressText}>{downloadProgress.toFixed(1)}%</Text>
               </View>
-              
+
               <View style={styles.progressDetails}>
                 <View style={styles.progressDetailRow}>
                   <Text style={styles.progressDetailLabel}>Status:</Text>
@@ -728,20 +797,12 @@ export function MovieDownloader({
 
 
 
-          <View style={styles.infoSection}>
-            <Text style={styles.infoTitle}>How it works:</Text>
-            <Text style={styles.infoText}>
-              • Searches Internet Archive's movie collection
-            </Text>
-            <Text style={styles.infoText}>
-              • Finds available video files in different qualities
-            </Text>
-            <Text style={styles.infoText}>
-              • Downloads directly to your device storage
-            </Text>
-            <Text style={styles.infoText}>
-              • Supports MP4, MKV, WebM formats
-            </Text>
+          <View style={styles.howItWorksSection}>
+            <Text style={styles.howItWorksTitle}>How it works:</Text>
+            <Text style={styles.howItWorksItem}>• Searches Internet Archive's movie collection</Text>
+            <Text style={styles.howItWorksItem}>• Finds available video files in different qualities</Text>
+            <Text style={styles.howItWorksItem}>• Downloads directly to your device storage</Text>
+            <Text style={styles.howItWorksItem}>• Supports MP4, MKV, WebM formats</Text>
           </View>
         </View>
 
@@ -1166,5 +1227,85 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  // Styles for External Platforms section
+  externalPlatformsSection: {
+    marginTop: 24,
+    padding: 20,
+    backgroundColor: 'rgba(255,107,53,0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,53,0.2)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    color: '#FF6B35',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  sectionSubtitle: {
+    color: 'rgba(255,107,53,0.8)',
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  platformButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  platformInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  platformIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  platformDetails: {
+    flex: 1,
+  },
+  platformName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  platformDescription: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  howItWorksSection: {
+    marginTop: 24,
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  howItWorksTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  howItWorksItem: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginBottom: 6,
+    lineHeight: 20,
   },
 });
