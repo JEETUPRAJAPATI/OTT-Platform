@@ -182,7 +182,27 @@ export function VideoPlayerModal({
               {file.name}
             </Text>
           </View>
-          <Ionicons name="play" size={24} color="#FF9800" />
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handlePlayPress(file)}
+            >
+              <Ionicons name="play" size={20} color="#FF9800" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
+              onPress={() => {
+                // Remove ?download=1 for browser streaming
+                const streamUrl = file.downloadUrl.replace('?download=1', '');
+                
+                import('expo-web-browser').then(({ openBrowserAsync }) => {
+                  openBrowserAsync(streamUrl);
+                });
+              }}
+            >
+              <Ionicons name="globe" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       ))}
     </View>
@@ -277,6 +297,23 @@ export function VideoPlayerModal({
               >
                 <Ionicons name="download" size={20} color="#fff" />
                 <Text style={styles.retryButtonText}>Download Instead</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.retryButton, { backgroundColor: '#2196F3' }]}
+                onPress={() => {
+                  if (selectedFile) {
+                    // Remove ?download=1 for browser streaming
+                    const streamUrl = selectedFile.downloadUrl.replace('?download=1', '');
+                    
+                    import('expo-web-browser').then(({ openBrowserAsync }) => {
+                      openBrowserAsync(streamUrl);
+                    });
+                  }
+                }}
+              >
+                <Ionicons name="globe" size={20} color="#fff" />
+                <Text style={styles.retryButtonText}>Open in Browser</Text>
               </TouchableOpacity>
             </View>
             
@@ -423,6 +460,19 @@ const styles = StyleSheet.create({
   fileName: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    backgroundColor: 'rgba(255, 152, 0, 0.8)',
+    borderRadius: 20,
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 36,
+    minHeight: 36,
   },
   videoContainer: {
     flex: 1,
