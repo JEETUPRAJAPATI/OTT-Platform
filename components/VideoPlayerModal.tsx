@@ -81,33 +81,7 @@ export function VideoPlayerModal({
     };
   }, [showControls, selectedFile]);
 
-  const handlePlayPress = async (file: VideoFile) => {
-    try {
-      console.log('Play button clicked - opening streaming URL for:', file.name);
-
-      // Extract streaming URL (remove download parameter for streaming)
-      const streamingUrl = file.downloadUrl.replace('?download=1', '');
-
-      console.log('Opening streaming URL:', streamingUrl);
-
-      // Open directly in browser for auto-play
-      await openInBrowser(streamingUrl);
-
-    } catch (error) {
-      console.error('Play error:', error);
-      Alert.alert(
-        'Playback Error',
-        'Failed to open video for playback. You can try downloading instead.',
-        [
-          { text: 'Cancel' },
-          {
-            text: 'Download Instead',
-            onPress: () => handleDirectDownload(file.downloadUrl)
-          }
-        ]
-      );
-    }
-  };
+  
 
   const togglePlayPause = async () => {
     try {
@@ -206,12 +180,6 @@ export function VideoPlayerModal({
             </Text>
           </View>
           <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handlePlayPress(file)}
-            >
-              <Ionicons name="play" size={20} color="#fff" />
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
               onPress={() => handleDirectDownload(file.downloadUrl)}
@@ -353,21 +321,6 @@ export function VideoPlayerModal({
               </Text>
 
               <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity
-                  style={styles.playButton}
-                  onPress={() => handlePlayPress(selectedFile)}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="play" size={20} color="#fff" />
-                      <Text style={styles.playButtonText}>Stream</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   style={styles.downloadButton}
                   onPress={() => handleDirectDownload(selectedFile.downloadUrl)}
