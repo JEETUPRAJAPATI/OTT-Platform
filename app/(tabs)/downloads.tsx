@@ -16,8 +16,22 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { downloadService, DownloadItem } from '@/services/downloadService';
-import DownloadManager from '@/components/DownloadManager';
 import { WebFileDownloader } from '@/components/WebFileDownloader';
+
+// Conditional import for DownloadManager
+let DownloadManager: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    DownloadManager = require('@/components/DownloadManager').default;
+  } catch (error) {
+    console.warn('DownloadManager not available:', error);
+    // Fallback component for web
+    DownloadManager = ({ visible, onClose }: any) => null;
+  }
+} else {
+  // Fallback component for web
+  DownloadManager = ({ visible, onClose }: any) => null;
+}
 
 // Conditional imports for mobile platforms
 let fileDownloadService: any = null;
@@ -26,10 +40,10 @@ let DownloadProgress: any = null;
 if (Platform.OS !== 'web') {
   try {
     const fileDownloadModule = require('@/services/fileDownloadService');
-    fileDownloadService = fileDownloadModule.fileDownloadService;
+    fileDownloadService = fileDownloadModule.fileDownloadService || fileDownloadModule.default;
     DownloadProgress = fileDownloadModule.DownloadProgress;
   } catch (error) {
-    console.warn('File download service not available on web platform');
+    console.warn('File download service not available on web platform:', error);
   }
 }
 
@@ -498,10 +512,12 @@ export default function DownloadsScreen() {
         </View>
       )}
 
-      <DownloadManager
-        visible={showDownloadManager}
-        onClose={() => setShowDownloadManager(false)}
-      />
+      {DownloadManager && (
+        <DownloadManager
+          visible={showDownloadManager}
+          onClose={() => setShowDownloadManager(false)}
+        />
+      )}
     </View>
   );
 }
