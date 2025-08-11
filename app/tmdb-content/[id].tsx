@@ -65,6 +65,12 @@ export default function TMDbContentDetails() {
   const [downloadSpeed, setDownloadSpeed] = useState<string>('');
   const [downloadError, setDownloadError] = useState<string>('');
   const [showMovieDownloader, setShowMovieDownloader] = useState(false);
+  const [similarContent, setSimilarContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
+  const [keywords, setKeywords] = useState<any[]>([]);
+  const [watchProviders, setWatchProviders] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
 
   useEffect(() => {
     if (id && type) {
@@ -73,6 +79,8 @@ export default function TMDbContentDetails() {
       checkWatchlistStatus();
       checkDownloadStatus();
       checkInternetArchiveAvailability();
+      loadRecommendationsAndSimilar();
+      loadAdditionalDetails();
     }
   }, [id, type]);
 
@@ -107,6 +115,54 @@ export default function TMDbContentDetails() {
       Alert.alert('Error', 'Failed to load content details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRecommendationsAndSimilar = async () => {
+    try {
+      setLoadingRecommendations(true);
+      setLoadingSimilar(true);
+
+      const [recommendationsData, similarData] = await Promise.all([
+        type === 'movie' 
+          ? tmdbService.getMovieRecommendations(Number(id))
+          : tmdbService.getTVRecommendations(Number(id)),
+        type === 'movie'
+          ? tmdbService.getSimilarMovies(Number(id))
+          : tmdbService.getSimilarTVShows(Number(id))
+      ]);
+
+      setRecommendations(recommendationsData.slice(0, 10));
+      setSimilarContent(similarData.slice(0, 10));
+
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+    } finally {
+      setLoadingRecommendations(false);
+      setLoadingSimilar(false);
+    }
+  };
+
+  const loadAdditionalDetails = async () => {
+    try {
+      const [keywordsData, watchProvidersData, reviewsData] = await Promise.all([
+        type === 'movie' 
+          ? tmdbService.getMovieKeywords(Number(id))
+          : tmdbService.getTVKeywords(Number(id)),
+        type === 'movie'
+          ? tmdbService.getMovieWatchProviders(Number(id))
+          : tmdbService.getTVWatchProviders(Number(id)),
+        type === 'movie'
+          ? tmdbService.getMovieReviews(Number(id))
+          : tmdbService.getTVReviews(Number(id))
+      ]);
+
+      setKeywords(keywordsData.slice(0, 10));
+      setWatchProviders(watchProvidersData);
+      setReviews(reviewsData.slice(0, 3));
+
+    } catch (error) {
+      console.error('Error loading additional details:', error);
     }
   };
 
@@ -301,6 +357,11 @@ export default function TMDbContentDetails() {
     // For now, we'll just open the modal
   };
 
+  const handleContentPress = (contentItem: TMDbMovie | TMDbTVShow) => {
+    const contentType = 'title' in contentItem ? 'movie' : 'tv';
+    router.push(`/tmdb-content/${contentItem.id}?type=${contentType}`);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -427,11 +488,6 @@ export default function TMDbContentDetails() {
 
         {/* Main Action Buttons */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity style={styles.primaryButton}>
-            <Ionicons name="play" size={24} color="#fff" />
-            <Text style={styles.primaryButtonText}>Play</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[
               styles.secondaryButton, 
@@ -629,6 +685,171 @@ export default function TMDbContentDetails() {
                   </View>
                   <Text style={styles.videoTitle} numberOfLines={2}>{video.name}</Text>
                   <Text style={styles.videoType}>{video.type}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Keywords Section */}
+        {keywords.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Keywords</Text>
+            <View style={styles.keywordsContainer}>
+              {keywords.map((keyword, index) => (
+                <View key={keyword.id || index} style={styles.keywordChip}>
+                  <Text style={styles.keywordText}>{keyword.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Watch Providers Section */}
+        {watchProviders && watchProviders.results && watchProviders.results.US && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Where to Watch</Text>
+            {watchProviders.results.US.flatrate && (
+              <View style={styles.providerSection}>
+                <Text style={styles.providerSectionTitle}>Stream</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {watchProviders.results.US.flatrate.map((provider: any) => (
+                    <View key={provider.provider_id} style={styles.providerItem}>
+                      <Image
+                        source={{
+                          uri: `https://image.tmdb.org/t/p/w92${provider.logo_path}`
+                        }}
+                        style={styles.providerLogo}
+                      />
+                      <Text style={styles.providerName} numberOfLines={2}>
+                        {provider.provider_name}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            {watchProviders.results.US.rent && (
+              <View style={styles.providerSection}>
+                <Text style={styles.providerSectionTitle}>Rent</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {watchProviders.results.US.rent.map((provider: any) => (
+                    <View key={provider.provider_id} style={styles.providerItem}>
+                      <Image
+                        source={{
+                          uri: `https://image.tmdb.org/t/p/w92${provider.logo_path}`
+                        }}
+                        style={styles.providerLogo}
+                      />
+                      <Text style={styles.providerName} numberOfLines={2}>
+                        {provider.provider_name}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Reviews Section */}
+        {reviews.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Reviews</Text>
+            {reviews.map((review, index) => (
+              <View key={review.id || index} style={styles.reviewItem}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewAuthor}>{review.author}</Text>
+                  {review.author_details?.rating && (
+                    <View style={styles.reviewRating}>
+                      <Ionicons name="star" size={16} color="#FFD700" />
+                      <Text style={styles.reviewRatingText}>
+                        {review.author_details.rating}/10
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.reviewContent} numberOfLines={4}>
+                  {review.content}
+                </Text>
+                <Text style={styles.reviewDate}>
+                  {new Date(review.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Recommendations Section */}
+        {recommendations.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recommended for You</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.recommendationsContainer}
+            >
+              {recommendations.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.recommendationItem}
+                  onPress={() => handleContentPress(item)}
+                >
+                  <Image
+                    source={{
+                      uri: item.poster_path
+                        ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
+                        : 'https://via.placeholder.com/300x450?text=No+Image'
+                    }}
+                    style={styles.recommendationPoster}
+                  />
+                  <Text style={styles.recommendationTitle} numberOfLines={2}>
+                    {(item as any).title || (item as any).name}
+                  </Text>
+                  <View style={styles.recommendationMeta}>
+                    <Ionicons name="star" size={12} color="#FFD700" />
+                    <Text style={styles.recommendationRating}>
+                      {item.vote_average ? item.vote_average.toFixed(1) : 'N/A'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Similar Content Section */}
+        {similarContent.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>More Like This</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.recommendationsContainer}
+            >
+              {similarContent.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.recommendationItem}
+                  onPress={() => handleContentPress(item)}
+                >
+                  <Image
+                    source={{
+                      uri: item.poster_path
+                        ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
+                        : 'https://via.placeholder.com/300x450?text=No+Image'
+                    }}
+                    style={styles.recommendationPoster}
+                  />
+                  <Text style={styles.recommendationTitle} numberOfLines={2}>
+                    {(item as any).title || (item as any).name}
+                  </Text>
+                  <View style={styles.recommendationMeta}>
+                    <Ionicons name="star" size={12} color="#FFD700" />
+                    <Text style={styles.recommendationRating}>
+                      {item.vote_average ? item.vote_average.toFixed(1) : 'N/A'}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -886,22 +1107,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap', // Allow wrapping for smaller screens
     justifyContent: 'center',
   },
-  primaryButton: {
-    flex: 1, // Occupy available space
-    minWidth: 150, // Ensure a minimum width
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E50914',
-    paddingVertical: 16,
-    borderRadius: 12,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
+  
   secondaryButton: {
     flex: 1, // Occupy available space
     minWidth: 120, // Ensure a minimum width
@@ -1135,5 +1341,122 @@ const styles = StyleSheet.create({
     top: -10,
     right: -10,
     zIndex: 1,
+  },
+  keywordsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  keywordChip: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  keywordText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  providerSection: {
+    marginBottom: 16,
+  },
+  providerSectionTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  providerItem: {
+    alignItems: 'center',
+    marginRight: 16,
+    width: 80,
+  },
+  providerLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  providerName: {
+    color: '#fff',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  reviewItem: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewAuthor: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  reviewRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,215,0,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  reviewRatingText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  reviewContent: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  reviewDate: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+  },
+  recommendationsContainer: {
+    paddingVertical: 8,
+  },
+  recommendationItem: {
+    width: 120,
+    marginRight: 16,
+  },
+  recommendationPoster: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  recommendationTitle: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
+    lineHeight: 16,
+  },
+  recommendationMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  recommendationRating: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    marginLeft: 4,
   },
 });
