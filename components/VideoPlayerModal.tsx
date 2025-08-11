@@ -294,38 +294,6 @@ export function VideoPlayerModal({
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.retryButton, { backgroundColor: '#4CAF50' }]}
-                onPress={() => {
-                  if (selectedFile) {
-                    Alert.alert(
-                      'Download Video',
-                      'This video may work better if downloaded first. Would you like to download it?',
-                      [
-                        { text: 'Cancel' },
-                        { 
-                          text: 'Download', 
-                          onPress: () => {
-                            // Use the download service to open download URL
-                            const downloadUrl = selectedFile.downloadUrl.includes('?download=1') 
-                              ? selectedFile.downloadUrl 
-                              : `${selectedFile.downloadUrl}?download=1`;
-
-                            import('../services/downloadService').then(({ downloadService }) => {
-                              downloadService.downloadFile(downloadUrl, selectedFile.name);
-                              handleClose();
-                            });
-                          }
-                        }
-                      ]
-                    );
-                  }
-                }}
-              >
-                <Ionicons name="download" size={20} color="#fff" />
-                <Text style={styles.retryButtonText}>Download Instead</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
                 style={[styles.retryButton, { backgroundColor: '#2196F3' }]}
                 onPress={() => selectedFile && openInBrowser(selectedFile.downloadUrl)}
               >
