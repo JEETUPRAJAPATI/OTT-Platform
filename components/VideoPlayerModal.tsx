@@ -83,25 +83,55 @@ export function VideoPlayerModal({
 
   const handlePlayPress = async (file: VideoFile) => {
     try {
-      console.log('Opening video in browser for playback:', file.name);
+      console.log('Direct play - fetching movie metadata for:', file.name);
       
-      // Get the streaming URL (remove download parameter for browser playback)
-      let playbackUrl = file.downloadUrl.replace('?download=1', '');
+      // Extract identifier and filename from the downloadUrl
+      const urlParts = file.downloadUrl.split('/');
+      const identifier = urlParts[4]; // archive.org/download/[identifier]/filename
+      const filename = decodeURIComponent(urlParts[5].split('?')[0]);
       
-      // Add autoplay parameter for direct playback
-      playbackUrl += '?autoplay=1';
+      console.log('Extracted - Identifier:', identifier, 'Filename:', filename);
       
-      console.log('Opening browser with URL:', playbackUrl);
+      // Call the download service API to get the direct streaming URL
+      const { downloadService } = await import('../services/downloadService');
       
-      // Open directly in browser with auto-play
-      await openInBrowser(playbackUrl);
+      // Get metadata to construct proper streaming URL
+      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      const response = await fetch(metadataUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch movie metadata');
+      }
+      
+      const metadata = await response.json();
+      
+      // Find the specific file in metadata
+      const fileData = metadata.files?.find((f: any) => f.name === filename);
+      
+      if (!fileData) {
+        throw new Error('Video file not found in archive');
+      }
+      
+      // Construct streaming URL without download parameter for auto-play
+      const streamingUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(filename)}`;
+      
+      console.log('Direct streaming URL:', streamingUrl);
+      
+      // Open in browser with auto-play capability
+      await openInBrowser(streamingUrl);
       
     } catch (error) {
-      console.error('Browser playback error:', error);
+      console.error('Direct play error:', error);
       Alert.alert(
         'Playback Error',
-        'Failed to open video in browser. You can try downloading the video instead.',
-        [{ text: 'OK' }]
+        'Failed to open video for direct playback. You can try downloading instead.',
+        [
+          { text: 'Cancel' },
+          { 
+            text: 'Download Instead', 
+            onPress: () => handleDirectDownload(file.downloadUrl)
+          }
+        ]
       );
     }
   };
@@ -126,17 +156,27 @@ export function VideoPlayerModal({
     setShowControls(!showControls);
   };
 
-  const openInBrowser = async (downloadUrl: string) => {
+  const openInBrowser = async (url: string) => {
     try {
-      // Remove ?download=1 for better browser streaming
-      const streamUrl = downloadUrl.replace('?download=1', '');
-      console.log('Opening in browser:', streamUrl);
+      console.log('Opening streaming URL in browser:', url);
 
       const { openBrowserAsync } = await import('expo-web-browser');
-      await openBrowserAsync(streamUrl);
+      
+      // Open with browser options for better video playback
+      await openBrowserAsync(url, {
+        presentationStyle: 'fullScreen',
+        showTitle: true,
+        showInRecents: true,
+        enableBarCollapsing: false,
+        dismissButtonStyle: 'done'
+      });
+      
+      // Close the modal after opening browser
+      handleClose();
+      
     } catch (error) {
       console.error('Error opening browser:', error);
-      Alert.alert('Error', 'Failed to open video in browser');
+      Alert.alert('Browser Error', 'Failed to open video in browser. The video URL may not be compatible with browser playback.');
     }
   };
 
@@ -184,7 +224,7 @@ export function VideoPlayerModal({
         <TouchableOpacity
           key={index}
           style={styles.qualityOption}
-          onPress={() => handlePlayPress(file)}
+          onPress={() => setSelectedFile(file)}
         >
           <View style={styles.qualityInfo}>
             <Text style={styles.qualityText}>
@@ -209,7 +249,11 @@ export function VideoPlayerModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-              onPress={() => openInBrowser(file.downloadUrl)}
+              onPress={() => {
+                // Extract streaming URL for browser
+                const streamUrl = file.downloadUrl.replace('?download=1', '');
+                openInBrowser(streamUrl);
+              }}
             >
               <Ionicons name="globe" size={20} color="#fff" />
             </TouchableOpacity>

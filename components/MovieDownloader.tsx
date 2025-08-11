@@ -314,17 +314,57 @@ export function MovieDownloader({
     }
   };
 
-  const startPlay = () => {
+  const startPlay = async () => {
     if (movieFiles.length === 0) {
       showToast('Error', 'No video files available for playback');
       return;
     }
 
-    // Use the first found movie file for playback
-    if (archiveIdentifier) {
-      playMovie(archiveIdentifier, searchTitle || movieTitle);
-    } else {
-      showToast('Error', 'Movie identifier not found. Please search again.');
+    try {
+      console.log('Direct play initiated - calling API for movie files');
+      
+      // Use the first/best quality file for direct playback
+      const selectedFile = movieFiles[0];
+      
+      // Extract identifier and filename from the downloadUrl
+      const urlParts = selectedFile.downloadUrl.split('/');
+      const identifier = urlParts[4];
+      const filename = decodeURIComponent(urlParts[5].split('?')[0]);
+      
+      console.log('Direct play - Identifier:', identifier, 'File:', filename);
+      
+      // Fetch metadata via API call
+      const metadataUrl = `https://archive.org/metadata/${identifier}`;
+      const response = await fetch(metadataUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch movie data');
+      }
+      
+      const metadata = await response.json();
+      
+      // Construct direct streaming URL
+      const directStreamUrl = `https://archive.org/download/${identifier}/${encodeURIComponent(filename)}`;
+      
+      console.log('Opening direct stream URL:', directStreamUrl);
+      
+      // Import and use expo-web-browser for direct playback
+      const { openBrowserAsync } = await import('expo-web-browser');
+      
+      await openBrowserAsync(directStreamUrl, {
+        presentationStyle: 'fullScreen',
+        showTitle: true,
+        showInRecents: true,
+        enableBarCollapsing: false,
+        dismissButtonStyle: 'done'
+      });
+      
+      // Close downloader after successful play
+      onClose();
+      
+    } catch (error) {
+      console.error('Direct play error:', error);
+      showToast('Playback Failed', 'Could not start direct playback. Try using the browser button or download instead.');
     }
   };
 
@@ -601,13 +641,24 @@ export function MovieDownloader({
 
                       <TouchableOpacity
                         style={[styles.downloadButton, { backgroundColor: '#2196F3', marginLeft: 8 }]}
-                        onPress={() => {
-                          // Remove ?download=1 for browser streaming
-                          const streamUrl = file.downloadUrl.replace('?download=1', '');
+                        onPress={async () => {
+                          try {
+                            // Extract streaming URL (remove download parameter)
+                            const streamUrl = file.downloadUrl.replace('?download=1', '');
+                            console.log('Opening browser with streaming URL:', streamUrl);
 
-                          import('expo-web-browser').then(({ openBrowserAsync }) => {
-                            openBrowserAsync(streamUrl);
-                          });
+                            const { openBrowserAsync } = await import('expo-web-browser');
+                            await openBrowserAsync(streamUrl, {
+                              presentationStyle: 'fullScreen',
+                              showTitle: true,
+                              showInRecents: true,
+                              enableBarCollapsing: false,
+                              dismissButtonStyle: 'done'
+                            });
+                          } catch (error) {
+                            console.error('Browser open error:', error);
+                            showToast('Browser Error', 'Failed to open video in browser');
+                          }
                         }}
                       >
                         <Ionicons name="globe" size={16} color="#fff" />
