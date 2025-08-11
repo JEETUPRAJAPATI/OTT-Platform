@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -281,12 +282,12 @@ export default function DownloadsScreen() {
 
   const getStatusColor = (status: DownloadItem['status'] | DownloadProgress['status']) => {
     switch (status) {
-      case 'downloading': return '#2196F3';
+      case 'downloading': return '#00D4AA';
       case 'completed': return '#4CAF50';
-      case 'failed': return '#F44336';
-      case 'paused': return '#FF9800';
-      case 'pending': return '#9E9E9E';
-      default: return '#9E9E9E';
+      case 'failed': return '#FF3131';
+      case 'paused': return '#FFA500';
+      case 'pending': return '#9CA3AF';
+      default: return '#9CA3AF';
     }
   };
 
@@ -299,8 +300,8 @@ export default function DownloadsScreen() {
   };
 
   const formatStorageUsage = (used: number, total: number) => {
-    const usedGB = used / (1024 * 1024 * 1024); // Convert bytes to GB
-    const totalGB = total / (1024 * 1024 * 1024); // Convert bytes to GB
+    const usedGB = used / (1024 * 1024 * 1024);
+    const totalGB = total / (1024 * 1024 * 1024);
     const percentage = total > 0 ? (used / total) * 100 : 0;
     return {
       text: `${usedGB.toFixed(1)} GB / ${totalGB.toFixed(1)} GB`,
@@ -312,46 +313,75 @@ export default function DownloadsScreen() {
     const storage = formatStorageUsage(storageInfo.used, storageInfo.total);
 
     return (
-      <View style={styles.storageContainer}>
+      <LinearGradient
+        colors={['rgba(0, 0, 0, 0.8)', 'rgba(30, 30, 30, 0.6)']}
+        style={styles.storageContainer}
+      >
         <View style={styles.storageHeader}>
-          <Text style={styles.storageTitle}>Storage Usage</Text>
-          <Text style={styles.storageText}>{storage.text}</Text>
+          <View style={styles.storageIconContainer}>
+            <Ionicons name="folder-outline" size={20} color="#00D4AA" />
+          </View>
+          <View style={styles.storageTextContainer}>
+            <Text style={styles.storageTitle}>Storage Usage</Text>
+            <Text style={styles.storageText}>{storage.text}</Text>
+          </View>
+          <Text style={styles.storagePercentage}>{storage.percentage.toFixed(0)}%</Text>
         </View>
         <View style={styles.storageBar}>
-          <View style={[styles.storageUsed, { width: `${storage.percentage}%` }]} />
+          <LinearGradient
+            colors={['#00D4AA', '#007A88']}
+            style={[styles.storageUsed, { width: `${storage.percentage}%` }]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          />
         </View>
         <Text style={styles.storageDetails}>
-          Downloads: {formatFileSize(storageInfo.used)} • Available: {formatFileSize(storageInfo.available)}
+          Available: {formatFileSize(storageInfo.available)}
         </Text>
-      </View>
+      </LinearGradient>
     );
   };
 
   const renderTabBar = () => {
     const tabCounts = {
       all: downloads.length + realDownloads.length,
-      downloading: downloads.filter(item => item.status === 'downloading').length + realDownloads.filter(item => item.status === 'downloading').length,
-      completed: downloads.filter(item => item.status === 'completed').length + realDownloads.filter(item => item.status === 'completed').length,
-      pending: downloads.filter(item => item.status === 'pending' || item.status === 'paused').length + realDownloads.filter(item => item.status === 'pending' || item.status === 'paused').length,
+      real: realDownloads.length,
+      legacy: downloads.length,
     };
 
-    const tabs: { key: RealTabType; label: string }[] = [
-      { key: 'real', label: 'File Downloads' },
-      { key: 'legacy', label: 'Legacy' },
-      { key: 'all', label: 'All' }
+    const tabs: { key: RealTabType; label: string; icon: string }[] = [
+      { key: 'real', label: 'Downloads', icon: 'download' },
+      { key: 'legacy', label: 'Legacy', icon: 'archive' },
+      { key: 'all', label: 'All Files', icon: 'folder' }
     ];
 
     return (
-      <View style={styles.tabBar}>
+      <View style={styles.tabContainer}>
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.key}
             style={[styles.tabItem, activeTab === tab.key && styles.activeTab]}
             onPress={() => setActiveTab(tab.key)}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>
-              {tab.label} {tabCounts[tab.key] > 0 && `(${tabCounts[tab.key]})`}
-            </Text>
+            <LinearGradient
+              colors={activeTab === tab.key ? ['#00D4AA', '#007A88'] : ['transparent', 'transparent']}
+              style={styles.tabGradient}
+            >
+              <Ionicons 
+                name={tab.icon as any} 
+                size={18} 
+                color={activeTab === tab.key ? '#FFFFFF' : '#9CA3AF'} 
+              />
+              <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>
+                {tab.label}
+              </Text>
+              {tabCounts[tab.key] > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>{tabCounts[tab.key]}</Text>
+                </View>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         ))}
       </View>
@@ -359,96 +389,134 @@ export default function DownloadsScreen() {
   };
 
   const renderDownloadItem = ({ item }: { item: DownloadItem | DownloadProgress }) => (
-    <TouchableOpacity style={styles.downloadItem} onPress={() => handleDownloadAction(item)}>
-      <Image
-        source={{
-          uri: item.posterPath
-            ? `https://image.tmdb.org/t/p/w300${item.posterPath}`
-            : 'https://via.placeholder.com/120x180?text=No+Image'
-        }}
-        style={styles.poster}
-      />
-
-      <View style={styles.downloadInfo}>
-        <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-
-        <View style={styles.statusRow}>
-          <Ionicons
-            name={getStatusIcon(item.status)}
-            size={16}
-            color={getStatusColor(item.status)}
+    <TouchableOpacity style={styles.downloadItem} onPress={() => handleDownloadAction(item)} activeOpacity={0.9}>
+      <LinearGradient
+        colors={['rgba(30, 30, 30, 0.95)', 'rgba(20, 20, 20, 0.8)']}
+        style={styles.downloadCard}
+      >
+        <View style={styles.posterContainer}>
+          <Image
+            source={{
+              uri: item.posterPath
+                ? `https://image.tmdb.org/t/p/w300${item.posterPath}`
+                : 'https://via.placeholder.com/120x180?text=No+Image'
+            }}
+            style={styles.poster}
           />
-          <Text style={[styles.status, { color: getStatusColor(item.status) }]}>
-            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-          </Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+            <Ionicons
+              name={getStatusIcon(item.status)}
+              size={12}
+              color="#FFFFFF"
+            />
+          </View>
         </View>
 
-        <Text style={styles.size}>
-          {formatFileSize(item.size)} • {item.quality?.toUpperCase() || 'N/A'}
-        </Text>
+        <View style={styles.downloadInfo}>
+          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
 
-        {(item.status === 'downloading' || item.status === 'paused') && (
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBackground}>
-              <View style={[styles.progressFill, { width: `${item.progress}%` }]} />
-            </View>
-            <Text style={styles.progressText}>{Math.round(item.progress)}%</Text>
+          <View style={styles.metaInfo}>
+            <Text style={styles.fileSize}>
+              {formatFileSize(item.size)}
+            </Text>
+            <Text style={styles.separator}>•</Text>
+            <Text style={styles.quality}>
+              {item.quality?.toUpperCase() || 'N/A'}
+            </Text>
           </View>
-        )}
 
-        {item.status === 'completed' && (
-          <Text style={styles.downloadDate}>
-            Downloaded {new Date(item.downloadedAt).toLocaleDateString()}
-          </Text>
-        )}
+          {(item.status === 'downloading' || item.status === 'paused') && (
+            <View style={styles.progressSection}>
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBackground}>
+                  <LinearGradient
+                    colors={['#00D4AA', '#007A88']}
+                    style={[styles.progressFill, { width: `${item.progress}%` }]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  />
+                </View>
+                <Text style={styles.progressText}>{Math.round(item.progress)}%</Text>
+              </View>
+            </View>
+          )}
 
-        {item.status === 'failed' && (
-          <Text style={styles.errorText}>
-            Download failed - Tap to retry
-          </Text>
-        )}
-      </View>
+          <View style={styles.statusRow}>
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+              {item.status === 'completed' && `Downloaded ${new Date(item.downloadedAt).toLocaleDateString()}`}
+              {item.status === 'downloading' && 'Downloading...'}
+              {item.status === 'paused' && 'Paused'}
+              {item.status === 'pending' && 'Waiting...'}
+              {item.status === 'failed' && 'Failed - Tap to retry'}
+            </Text>
+          </View>
+        </View>
 
-      <TouchableOpacity style={styles.actionButton} onPress={() => handleDownloadAction(item)}>
-        <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton} onPress={() => handleDownloadAction(item)}>
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+            style={styles.actionButtonGradient}
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color="#FFFFFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </LinearGradient>
     </TouchableOpacity>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="download-outline" size={64} color="rgba(255,255,255,0.3)" />
-      <Text style={styles.emptyTitle}>No Downloads</Text>
+      <LinearGradient
+        colors={['rgba(0, 212, 170, 0.1)', 'rgba(0, 122, 136, 0.05)']}
+        style={styles.emptyIconContainer}
+      >
+        <Ionicons name="download-outline" size={48} color="#00D4AA" />
+      </LinearGradient>
+      <Text style={styles.emptyTitle}>No Downloads Yet</Text>
       <Text style={styles.emptySubtitle}>
-        {activeTab === 'all'
-          ? 'Start downloading movies to watch offline'
-          : `No ${activeTab} downloads`}
+        Start downloading movies and shows to watch offline
       </Text>
+      <LinearGradient
+        colors={['#00D4AA', '#007A88']}
+        style={styles.emptyButton}
+      >
+        <Text style={styles.emptyButtonText}>Browse Movies</Text>
+      </LinearGradient>
     </View>
   );
 
   const filteredDownloads = getFilteredDownloads();
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+    <LinearGradient colors={['#0A0A0A', '#1A1A1A', '#0A0A0A']} style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <LinearGradient colors={['#E50914', '#B81D1D']} style={styles.header}>
-        <Text style={styles.headerTitle}>Downloads</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.managerButton}
-            onPress={() => setShowDownloadManager(true)}
-          >
-            <Ionicons name="settings-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.clearAllButton}
-            onPress={clearAllDownloads}
-          >
-            <Ionicons name="trash-outline" size={24} color="#F44336" />
-          </TouchableOpacity>
+      <LinearGradient 
+        colors={['rgba(0, 0, 0, 0.9)', 'rgba(0, 0, 0, 0.7)', 'transparent']} 
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerIconContainer}>
+              <Ionicons name="download" size={24} color="#00D4AA" />
+            </View>
+            <Text style={styles.headerTitle}>My Downloads</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowDownloadManager(true)}
+            >
+              <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.headerButton, styles.dangerButton]}
+              onPress={clearAllDownloads}
+            >
+              <Ionicons name="trash-outline" size={20} color="#FF3131" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -460,24 +528,29 @@ export default function DownloadsScreen() {
 
       {/* Platform Warning */}
       {!isNativeDownloadSupported && (
-        <View style={styles.platformWarning}>
-          <Text style={styles.warningTitle}>📱 Platform Notice</Text>
+        <LinearGradient
+          colors={['rgba(255, 152, 0, 0.15)', 'rgba(255, 152, 0, 0.05)']}
+          style={styles.platformWarning}
+        >
+          <View style={styles.warningHeader}>
+            <Ionicons name="information-circle" size={20} color="#FFA500" />
+            <Text style={styles.warningTitle}>Platform Notice</Text>
+          </View>
           <Text style={styles.warningText}>
-            File downloads are not available in Expo Go or web browsers.
+            File downloads require a development build to work properly.
           </Text>
-          <Text style={styles.warningSubText}>
-            To enable downloads, create a development build:
-          </Text>
-          <Text style={styles.commandText}>
-            npx expo run:android{'\n'}npx expo run:ios
-          </Text>
-        </View>
+          <View style={styles.commandContainer}>
+            <Text style={styles.commandText}>
+              npx expo run:android{'\n'}npx expo run:ios
+            </Text>
+          </View>
+        </LinearGradient>
       )}
 
       {/* Web File Downloader */}
       {isWeb && (
         <View style={styles.webDownloaderSection}>
-          <Text style={styles.sectionTitle}>Direct File Download (Web)</Text>
+          <Text style={styles.sectionTitle}>Web Browser Download</Text>
           <WebFileDownloader
             url={testDownloadUrl}
             filename={testFileName}
@@ -497,19 +570,24 @@ export default function DownloadsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#E50914"
-            colors={['#E50914']}
+            tintColor="#00D4AA"
+            colors={['#00D4AA']}
           />
         }
         showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
       />
 
       {isWeb && filteredDownloads.length === 0 && (
-        <View style={styles.webNotice}>
+        <LinearGradient
+          colors={['rgba(76, 175, 80, 0.1)', 'rgba(76, 175, 80, 0.05)']}
+          style={styles.webNotice}
+        >
+          <Ionicons name="information-circle" size={16} color="#4CAF50" />
           <Text style={styles.webNoticeText}>
-            💡 Use the web downloader above to download files directly in your browser.
+            Use the web downloader above to download files directly in your browser.
           </Text>
-        </View>
+        </LinearGradient>
       )}
 
       {DownloadManager && (
@@ -518,192 +596,285 @@ export default function DownloadsScreen() {
           onClose={() => setShowDownloadManager(false)}
         />
       )}
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 212, 170, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   headerTitle: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  managerButton: {
-    padding: 8,
-    borderRadius: 8,
+  headerButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
-  clearAllButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(244, 67, 54, 0.2)',
+  dangerButton: {
+    backgroundColor: 'rgba(255, 49, 49, 0.2)',
   },
   storageContainer: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
     marginHorizontal: 20,
     marginVertical: 16,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   storageHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+  storageIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 212, 170, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  storageTextContainer: {
+    flex: 1,
+  },
   storageTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   storageText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+  },
+  storagePercentage: {
+    color: '#00D4AA',
+    fontSize: 16,
+    fontWeight: '700',
   },
   storageBar: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 8,
   },
   storageUsed: {
     height: '100%',
-    backgroundColor: '#E50914',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   storageDetails: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 12,
   },
-  tabBar: {
+  tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.05)',
     marginHorizontal: 20,
-    borderRadius: 8,
-    padding: 4,
     marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 4,
   },
   tabItem: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: 'center',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   activeTab: {
-    backgroundColor: '#E50914',
+    shadowColor: '#00D4AA',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  tabGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   tabText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   activeTabText: {
-    color: '#fff',
+    color: '#FFFFFF',
+  },
+  tabBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: '600',
   },
   listContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   emptyListContainer: {
     flex: 1,
     paddingHorizontal: 20,
   },
+  itemSeparator: {
+    height: 12,
+  },
   downloadItem: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  downloadCard: {
+    flexDirection: 'row',
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  posterContainer: {
+    position: 'relative',
+    marginRight: 16,
   },
   poster: {
     width: 80,
     height: 120,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#1A1A1A',
   },
   downloadInfo: {
     flex: 1,
-    padding: 16,
     justifyContent: 'space-between',
   },
   title: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+    lineHeight: 22,
   },
-  statusRow: {
+  metaInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  status: {
-    fontSize: 14,
+  fileSize: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  separator: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 13,
+    marginHorizontal: 8,
+  },
+  quality: {
+    color: '#00D4AA',
+    fontSize: 13,
     fontWeight: '600',
-    marginLeft: 6,
   },
-  size: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
+  progressSection: {
     marginBottom: 8,
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
   },
   progressBackground: {
     flex: 1,
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 3,
     marginRight: 12,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#2196F3',
     borderRadius: 3,
   },
   progressText: {
-    color: '#2196F3',
+    color: '#00D4AA',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     minWidth: 35,
   },
-  downloadDate: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  errorText: {
-    color: '#F44336',
+  statusText: {
     fontSize: 12,
-    fontStyle: 'italic',
+    fontWeight: '500',
   },
   actionButton: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+    alignSelf: 'center',
+  },
+  actionButtonGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 16,
   },
   emptyContainer: {
     flex: 1,
@@ -711,35 +882,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 60,
   },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
   emptyTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
     marginBottom: 8,
   },
   emptySubtitle: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 16,
     textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
   },
-  footerText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
+  emptyButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   webDownloaderSection: {
     marginHorizontal: 20,
     marginBottom: 20,
   },
   sectionTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
   },
   webNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
     margin: 20,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
@@ -748,40 +935,46 @@ const styles = StyleSheet.create({
   webNoticeText: {
     color: '#4CAF50',
     fontSize: 14,
-    textAlign: 'center',
+    marginLeft: 8,
+    flex: 1,
     lineHeight: 20,
   },
   platformWarning: {
-    backgroundColor: 'rgba(255, 152, 0, 0.1)',
-    borderRadius: 12,
-    padding: 16,
     marginHorizontal: 20,
     marginBottom: 24,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 152, 0, 0.3)',
   },
-  warningTitle: {
-    color: '#FF9800',
-    fontSize: 16,
-    fontWeight: 'bold',
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  warningTitle: {
+    color: '#FFA500',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   warningText: {
-    color: '#FF9800',
+    color: 'rgba(255, 152, 0, 0.9)',
     fontSize: 14,
-    marginBottom: 8,
+    marginBottom: 12,
+    lineHeight: 20,
   },
-  warningSubText: {
-    color: '#FF9800',
-    fontSize: 12,
-    marginBottom: 8,
+  commandContainer: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.2)',
   },
   commandText: {
     color: '#4CAF50',
     fontSize: 12,
     fontFamily: 'monospace',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    padding: 8,
-    borderRadius: 4,
+    lineHeight: 16,
   },
 });
