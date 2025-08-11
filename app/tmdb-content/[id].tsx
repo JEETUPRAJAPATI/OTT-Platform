@@ -303,13 +303,23 @@ export default function TMDbContentDetails() {
 
     try {
       const title = (content as any).title || (content as any).name;
-      const url = `https://www.themoviedb.org/${type}/${content.id}`;
-      await Share.share({
-        message: `Check out "${title}" on TMDb!`,
-        url: url,
+      const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : '';
+      const rating = content.vote_average ? content.vote_average.toFixed(1) : 'N/A';
+      const tmdbUrl = `https://www.themoviedb.org/${type}/${content.id}`;
+      
+      const shareMessage = `🎬 ${title}${releaseYear ? ` (${releaseYear})` : ''}\n⭐ Rating: ${rating}/10\n\nCheck it out on TMDb: ${tmdbUrl}`;
+      
+      const result = await Share.share({
+        message: shareMessage,
+        title: `Share ${title}`,
       });
+
+      if (result.action === Share.sharedAction) {
+        Alert.alert('Success', 'Content shared successfully!');
+      }
     } catch (error) {
       console.error('Error sharing:', error);
+      Alert.alert('Error', 'Failed to share content. Please try again.');
     }
   };
 
@@ -423,7 +433,15 @@ export default function TMDbContentDetails() {
               <View style={styles.header}>
                 <TouchableOpacity
                   style={styles.headerButton}
-                  onPress={() => router.back()}
+                  onPress={() => {
+                    console.log('Back button pressed');
+                    if (router.canGoBack()) {
+                      router.back();
+                    } else {
+                      router.push('/(tabs)/');
+                    }
+                  }}
+                  activeOpacity={0.7}
                 >
                   <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -431,6 +449,7 @@ export default function TMDbContentDetails() {
                 <TouchableOpacity
                   style={styles.headerButton}
                   onPress={handleShare}
+                  activeOpacity={0.7}
                 >
                   <Ionicons name="share-outline" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -992,6 +1011,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   headerTitle: {
     color: '#fff',
