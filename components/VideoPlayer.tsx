@@ -9,7 +9,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { Video, ResizeMode, VideoFullscreenUpdate } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
@@ -150,32 +150,41 @@ export function VideoPlayer({
     }
   };
 
+  const player = useVideoPlayer(source, (player) => {
+    player.loop = false;
+    player.muted = false;
+  });
+
   const toggleMute = async () => {
-    // Updated for expo-video API
-    console.log('Mute toggle - implement with expo-video API');
+    player.muted = !player.muted;
+    setPlaybackState(prev => ({ ...prev, isMuted: player.muted }));
   };
 
   const handleSeek = async (value: number) => {
     const seekTime = value * playbackState.duration;
-    videoRef.current?.seekBy(seekTime);
+    player.currentTime = seekTime;
   };
 
   const handleVolumeChange = async (value: number) => {
-    // Updated for expo-video API
-    console.log('Volume change - implement with expo-video API');
+    player.volume = value;
+    setPlaybackState(prev => ({ ...prev, volume: value }));
   };
 
   const handlePlaybackRateChange = async (rate: number) => {
-    // Updated for expo-video API
+    player.playbackRate = rate;
     setPlaybackState(prev => ({ ...prev, playbackRate: rate }));
   };
 
   const toggleFullscreen = async () => {
     if (isFullscreen) {
-      videoRef.current?.exitFullscreen();
+      player.exitFullscreen();
     } else {
-      videoRef.current?.enterFullscreen();
+      player.enterFullscreen();
     }
+  };
+
+  const handleVideoTap = () => {
+    setShowControls(!showControls);
   };
 
   const skip = async (seconds: number) => {
@@ -403,15 +412,13 @@ export function VideoPlayer({
         onPress={handleVideoTap}
         activeOpacity={1}
       >
-        <Video
+        <VideoView
           ref={videoRef}
-          source={source}
+          player={player}
           style={styles.video}
-          resizeMode={ResizeMode.CONTAIN}
-          isLooping={false}
-          onPlaybackStatusUpdate={onPlaybackStatusUpdate}
-          onFullscreenUpdate={onFullscreenUpdate}
-          useNativeControls={false}
+          allowsFullscreen
+          allowsPictureInPicture
+          contentFit="contain"
         />
 
         {/* Buffering Indicator */}

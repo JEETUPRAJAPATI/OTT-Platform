@@ -747,7 +747,7 @@ class DownloadService {
 
       const metadataResponse = await fetch(metadataUrl);
       if (!metadataResponse.ok) {
-        throw new Error(`Failed to fetch metadata: ${response.status}`);
+        throw new Error(`Failed to fetch metadata: ${metadataResponse.status}`);
       }
 
       const metadata = await metadataResponse.json();

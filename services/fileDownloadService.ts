@@ -6,6 +6,7 @@ let AsyncStorage: any = null;
 let RNFS: any = null;
 let PermissionsAndroid: any = null;
 let Permissions: any = null;
+let Permissions: any = null;
 
 if (Platform.OS !== 'web') {
   try {

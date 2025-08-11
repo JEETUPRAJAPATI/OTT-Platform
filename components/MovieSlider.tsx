@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   View, 
@@ -92,10 +91,10 @@ export function MovieSlider({
         setCurrentIndex(prevIndex => {
           const nextIndex = prevIndex + 1;
           const maxIndex = Math.max(0, data.length - 3);
-          
+
           // If we've reached the end, go back to start
           const finalIndex = nextIndex > maxIndex ? 0 : nextIndex;
-          
+
           try {
             flatListRef.current?.scrollToIndex({ 
               index: finalIndex, 
@@ -109,7 +108,7 @@ export function MovieSlider({
               animated: true 
             });
           }
-          
+
           return finalIndex;
         });
       }, 3000); // Auto-slide every 3 seconds
@@ -183,7 +182,7 @@ export function MovieSlider({
           </TouchableOpacity>
         )}
       </View>
-      
+
       <View style={styles.sliderContainer}>
         {/* Left Arrow */}
         {canScrollLeft && (
@@ -194,7 +193,7 @@ export function MovieSlider({
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
         )}
-        
+
         {/* Movie Slider */}
         <FlatList
           ref={flatListRef}
@@ -242,7 +241,7 @@ export function MovieSlider({
             });
           }}
         />
-        
+
         {/* Right Arrow */}
         {canScrollRight && (
           <TouchableOpacity 

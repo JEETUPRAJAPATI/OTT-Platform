@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
