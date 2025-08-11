@@ -700,5 +700,8 @@ class FileDownloadService {
   }
 }
 
-export { fileDownloadService };
+// Create and export singleton instance
+const fileDownloadService = new FileDownloadService();
+
+export { fileDownloadService, FileDownloadService, DownloadProgress };
 export default fileDownloadService;
