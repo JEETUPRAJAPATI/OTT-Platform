@@ -323,18 +323,18 @@ export function MovieDownloader({
 
     try {
       console.log('Play button clicked - opening best quality file');
-      
+
       // Use the first/best quality file for direct playback
       const selectedFile = movieFiles[0];
-      
+
       // Create streaming URL (remove download parameter)
       const streamingUrl = selectedFile.downloadUrl.replace('?download=1', '');
-      
+
       console.log('Opening streaming URL:', streamingUrl);
-      
+
       // Open directly in browser for auto-play
       const { openBrowserAsync } = await import('expo-web-browser');
-      
+
       await openBrowserAsync(streamingUrl, {
         presentationStyle: 'fullScreen',
         showTitle: true,
@@ -342,17 +342,17 @@ export function MovieDownloader({
         enableBarCollapsing: false,
         dismissButtonStyle: 'done'
       });
-      
+
       // Close downloader after successful play
       onClose();
-      
+
     } catch (error) {
       console.error('Play error:', error);
       showToast('Playback Failed', 'Could not start playback. Try using the browser button or download instead.');
     }
   };
 
-  
+
 
   const cancelDownload = () => {
     if (downloadId) {
@@ -435,7 +435,7 @@ export function MovieDownloader({
               <TouchableOpacity
                 key={index}
                 style={styles.qualityOption}
-                onPress={() => downloadMovie(archiveIdentifier, searchTitle || movieTitle)}
+                onPress={() => handleDirectDownload(file.downloadUrl)}
               >
                 <View style={styles.qualityInfo}>
                   <Text style={styles.qualityText}>
@@ -454,7 +454,7 @@ export function MovieDownloader({
     </Modal>
   );
 
-  
+
 
   return (
     <Modal

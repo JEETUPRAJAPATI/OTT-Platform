@@ -135,7 +135,6 @@ export function VideoPlayerModal({
 
       const { openBrowserAsync } = await import('expo-web-browser');
       
-      // Open with browser options for better video playback
       await openBrowserAsync(url, {
         presentationStyle: 'fullScreen',
         showTitle: true,
@@ -144,12 +143,11 @@ export function VideoPlayerModal({
         dismissButtonStyle: 'done'
       });
       
-      // Close the modal after opening browser
       handleClose();
       
     } catch (error) {
       console.error('Error opening browser:', error);
-      Alert.alert('Browser Error', 'Failed to open video in browser. The video URL may not be compatible with browser playback.');
+      Alert.alert('Browser Error', 'Failed to open video in browser.');
     }
   };
 
