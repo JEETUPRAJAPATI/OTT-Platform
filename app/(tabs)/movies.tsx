@@ -259,7 +259,7 @@ export default function MoviesScreen() {
           }
         />
       )}
-      
+
       <MovieDownloader
           visible={downloadModalVisible}
           onClose={() => setDownloadModalVisible(false)}

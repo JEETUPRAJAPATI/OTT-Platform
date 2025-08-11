@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,7 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MoviePlatform, legitimateMoviePlatforms, movieCategories } from '@/data/legitimateMoviePlatforms';
+import { MoviePlatform, legitimateMoviePlatforms, movieCategories, externalMoviePlatforms } from '@/data/legitimateMoviePlatforms';
 import { MoviePlatformCard } from './MoviePlatformCard';
 import { downloadService } from '@/services/downloadService';
 
@@ -66,7 +65,7 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
           toolbarColor: '#000000',
           enableBarCollapsing: false
         });
-        
+
         // Close the modal after opening browser
         onClose();
       }
@@ -82,10 +81,10 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
       try {
         // Use existing downloadService to search Internet Archive
         const result = await downloadService.searchInternetArchive(movieTitle);
-        
+
         if (result.found && result.identifier) {
           const filesResult = await downloadService.getInternetArchiveFiles(result.identifier);
-          
+
           if (filesResult.success && filesResult.files.length > 0) {
             // Show options to play or download
             Alert.alert(
@@ -182,7 +181,8 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
         {
           text: 'Continue',
           onPress: async () => {
-            for (const platform of legitimateMoviePlatforms.slice(0, 3)) {
+            const platformsToSearch = [...legitimateMoviePlatforms, ...externalMoviePlatforms].slice(0, 3);
+            for (const platform of platformsToSearch) {
               try {
                 const searchUrl = `${platform.searchUrl}${encodeURIComponent(movieTitle)}`;
                 const { openBrowserAsync } = await import('expo-web-browser');
