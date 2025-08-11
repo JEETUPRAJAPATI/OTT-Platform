@@ -88,7 +88,7 @@ class FileDownloadService {
     return this.isNativeSupported;
   }
 
-  // Request storage permissions
+  // Request storage permissions (public method)
   async requestStoragePermissions(): Promise<boolean> {
     if (!this.isNativeSupported) {
       Alert.alert(

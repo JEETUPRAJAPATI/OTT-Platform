@@ -66,7 +66,11 @@ export function MovieDownloader({
     try {
       console.log('Starting direct download:', downloadUrl);
       setIsDownloading(true);
-      setStatusMessage('Starting download...');
+      setDownloadProgress(0);
+      setProgressInfo(null);
+      setDownloadSpeed(0);
+      setEstimatedTime(0);
+      setStatusMessage('Requesting permissions...');
 
       // Use the real file download service for automatic download
       const { fileDownloadService } = await import('../services/fileDownloadService');
@@ -79,9 +83,23 @@ export function MovieDownloader({
           [{ text: 'OK' }]
         );
         setIsDownloading(false);
+        setStatusMessage('');
         return;
       }
 
+      // Request permissions first
+      setStatusMessage('Checking storage permissions...');
+      const hasPermission = await fileDownloadService.requestStoragePermissions();
+      
+      if (!hasPermission) {
+        setIsDownloading(false);
+        setStatusMessage('Permission denied');
+        showToast('Permission Required', 'Storage permission is required to download movies. Please grant permission and try again.');
+        return;
+      }
+
+      setStatusMessage('Starting download...');
+      
       const downloadId = await fileDownloadService.startDownload(
         downloadUrl,
         fileName || 'Movie Download',
@@ -103,13 +121,24 @@ export function MovieDownloader({
             console.log(`Download completed: ${filePath}`);
             setIsDownloading(false);
             setDownloadProgress(100);
-            setStatusMessage('Download completed!');
-            showToast('Download Complete', `Movie downloaded successfully!\n\nFile: ${filePath.split('/').pop()}`);
-            onClose();
+            setStatusMessage('Download completed successfully!');
+            
+            Alert.alert(
+              '✅ Download Complete!',
+              `Movie downloaded successfully to your Downloads folder!\n\nFile: ${filePath.split('/').pop()}\n\nYou can find it in the Downloads section of this app.`,
+              [
+                { text: 'View Downloads', onPress: () => {
+                  onClose();
+                  // Navigate to downloads tab if possible
+                }},
+                { text: 'OK', onPress: () => onClose() }
+              ]
+            );
           },
           onError: (error) => {
             console.error(`Download failed: ${error}`);
             setIsDownloading(false);
+            setDownloadProgress(0);
             setStatusMessage(`Download failed: ${error}`);
             showToast('Download Failed', error instanceof Error ? error.message : 'Failed to start download.');
           }
@@ -121,6 +150,7 @@ export function MovieDownloader({
     } catch (error) {
       console.error('Direct download error:', error);
       setIsDownloading(false);
+      setDownloadProgress(0);
       setStatusMessage('Download failed');
       showToast('Download Failed', error instanceof Error ? error.message : 'Failed to start download. Please try again.');
     }
@@ -240,11 +270,41 @@ export function MovieDownloader({
     try {
       setShowQualityModal(false);
       setIsDownloading(true);
+      setDownloadProgress(0);
+      setProgressInfo(null);
+      setDownloadSpeed(0);
+      setEstimatedTime(0);
+      setStatusMessage('Requesting permissions...');
 
       console.log(`Starting real download for: ${title} (${identifier})`);
 
       // Import the file download service
       const { fileDownloadService } = await import('../services/fileDownloadService');
+
+      // Check if downloads are supported
+      if (!fileDownloadService.isSupported()) {
+        Alert.alert(
+          'Platform Not Supported',
+          'File downloads are only available on mobile devices. Please use the mobile app to download files.',
+          [{ text: 'OK' }]
+        );
+        setIsDownloading(false);
+        setStatusMessage('');
+        return;
+      }
+
+      // Request permissions first
+      setStatusMessage('Checking storage permissions...');
+      const hasPermission = await fileDownloadService.requestStoragePermissions();
+      
+      if (!hasPermission) {
+        setIsDownloading(false);
+        setStatusMessage('Permission denied');
+        showToast('Permission Required', 'Storage permission is required to download movies. Please grant permission and try again.');
+        return;
+      }
+
+      setStatusMessage('Preparing download...');
 
       // Get metadata to find the best video file
       const metadataUrl = `https://archive.org/metadata/${identifier}`;
@@ -300,6 +360,8 @@ export function MovieDownloader({
       console.log('Selected file for download:', selectedFile.name);
       console.log('Download URL:', downloadUrl);
 
+      setStatusMessage('Starting download...');
+
       // Start the real file download
       const downloadId = await fileDownloadService.startDownload(
         downloadUrl,
@@ -309,8 +371,10 @@ export function MovieDownloader({
           onProgress: (progress) => {
             setDownloadProgress(progress.progress);
             setProgressInfo(progress);
+            setDownloadSpeed(progress.speed);
+            setEstimatedTime(progress.estimatedTime);
 
-            // Update status message
+            // Update status message with real-time info
             if (progress.status === 'downloading') {
               setStatusMessage(`Downloading... ${progress.progress.toFixed(1)}%`);
             } else if (progress.status === 'paused') {
@@ -322,27 +386,28 @@ export function MovieDownloader({
           onComplete: (filePath) => {
             setIsDownloading(false);
             setDownloadProgress(100);
-            setStatusMessage('Download completed!');
+            setStatusMessage('Download completed successfully!');
 
             Alert.alert(
-              'Download Complete!',
-              `"${title}" has been downloaded successfully to your Downloads folder.`,
+              '✅ Download Complete!',
+              `"${title}" has been downloaded successfully!\n\nFile: ${selectedFile.name}\nLocation: Downloads folder\n\nYou can find your downloaded movie in the Downloads section of this app.`,
               [
-                { text: 'OK', onPress: () => onClose() },
-                { text: 'Open Downloads', onPress: () => {
-                  // You can implement opening downloads folder here
+                { text: 'View Downloads', onPress: () => {
                   onClose();
-                }}
+                  // Navigate to downloads tab
+                }},
+                { text: 'OK', onPress: () => onClose() }
               ]
             );
           },
           onError: (error) => {
             setIsDownloading(false);
+            setDownloadProgress(0);
             setStatusMessage(`Download failed: ${error}`);
 
             Alert.alert(
               'Download Failed',
-              `Failed to download "${title}": ${error}`,
+              `Failed to download "${title}": ${error}\n\nPlease check your internet connection and storage space, then try again.`,
               [{ text: 'OK' }]
             );
           }
@@ -350,11 +415,12 @@ export function MovieDownloader({
       );
 
       setDownloadId(downloadId);
-      setStatusMessage('Starting download...');
 
     } catch (error) {
       console.error('Download error:', error);
       setIsDownloading(false);
+      setDownloadProgress(0);
+      setStatusMessage('Download failed');
       Alert.alert(
         'Download Error',
         error instanceof Error ? error.message : 'Failed to start download'
@@ -785,42 +851,43 @@ export function MovieDownloader({
 
           {isDownloading && (
             <View style={styles.progressSection}>
-              <Text style={styles.sectionTitle}>Download Progress</Text>
+              <View style={styles.progressHeader}>
+                <Text style={styles.sectionTitle}>Downloading Movie</Text>
+                <Text style={styles.progressPercentage}>{downloadProgress.toFixed(1)}%</Text>
+              </View>
+              
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { width: `${downloadProgress}%` }]} />
                 </View>
-                <Text style={styles.progressText}>{downloadProgress.toFixed(1)}%</Text>
               </View>
 
-              <View style={styles.progressDetails}>
-                <View style={styles.progressDetailRow}>
-                  <Text style={styles.progressDetailLabel}>Status:</Text>
-                  <Text style={styles.progressDetailValue}>{statusMessage}</Text>
-                </View>
-                {progressInfo && (
-                  <>
-                    <View style={styles.progressDetailRow}>
-                      <Text style={styles.progressDetailLabel}>Downloaded:</Text>
-                      <Text style={styles.progressDetailValue}>
-                        {formatFileSize(progressInfo.bytesWritten)} / {formatFileSize(progressInfo.contentLength)}
-                      </Text>
-                    </View>
-                    {downloadSpeed > 0 && (
-                      <>
-                        <View style={styles.progressDetailRow}>
-                          <Text style={styles.progressDetailLabel}>Speed:</Text>
-                          <Text style={styles.progressDetailValue}>{formatSpeed(downloadSpeed)}</Text>
-                        </View>
-                        <View style={styles.progressDetailRow}>
-                          <Text style={styles.progressDetailLabel}>Time remaining:</Text>
-                          <Text style={styles.progressDetailValue}>{formatTime(estimatedTime)}</Text>
-                        </View>
-                      </>
-                    )}
-                  </>
-                )}
+              <View style={styles.statusContainer}>
+                <Text style={styles.statusMessage}>{statusMessage}</Text>
               </View>
+
+              {progressInfo && (
+                <View style={styles.progressDetails}>
+                  <View style={styles.progressDetailRow}>
+                    <Text style={styles.progressDetailLabel}>Downloaded:</Text>
+                    <Text style={styles.progressDetailValue}>
+                      {formatFileSize(progressInfo.bytesWritten)} / {formatFileSize(progressInfo.contentLength)}
+                    </Text>
+                  </View>
+                  {downloadSpeed > 0 && (
+                    <>
+                      <View style={styles.progressDetailRow}>
+                        <Text style={styles.progressDetailLabel}>Speed:</Text>
+                        <Text style={styles.progressDetailValue}>{formatSpeed(downloadSpeed)}</Text>
+                      </View>
+                      <View style={styles.progressDetailRow}>
+                        <Text style={styles.progressDetailLabel}>Time remaining:</Text>
+                        <Text style={styles.progressDetailValue}>{formatTime(estimatedTime)}</Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
 
               <View style={styles.downloadActions}>
                 <TouchableOpacity
@@ -828,7 +895,7 @@ export function MovieDownloader({
                   onPress={cancelDownload}
                 >
                   <Ionicons name="close" size={16} color="#fff" />
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={styles.cancelButtonText}>Cancel Download</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1033,30 +1100,45 @@ const styles = StyleSheet.create({
   },
   progressSection: {
     marginBottom: 30,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressPercentage: {
+    color: '#4CAF50',
+    fontSize: 18,
+    fontWeight: '700',
   },
   progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   progressBar: {
-    flex: 1,
-    height: 8,
+    height: 10,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 4,
-    marginRight: 12,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#4CAF50',
-    borderRadius: 4,
+    borderRadius: 5,
   },
-  progressText: {
+  statusContainer: {
+    marginBottom: 12,
+  },
+  statusMessage: {
     color: '#4CAF50',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    minWidth: 45,
+    textAlign: 'center',
   },
   downloadActions: {
     flexDirection: 'row',
