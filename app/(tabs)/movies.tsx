@@ -49,15 +49,11 @@ type TMDbTVShow = {
   backdrop_path: string | null;
 };
 
-// Mock tmdbService and useRouter for the sake of rendering the code snippet
+// Mock tmdbService for the sake of rendering the code snippet
 const tmdbService = {
   getPopularMovies: async (page: number) => ({ results: [] }),
   getPopularTVShows: async (page: number) => ({ results: [] }),
 };
-
-const useRouter = () => ({
-  push: (path: string) => console.log('Navigating to:', path),
-});
 
 type TabType = 'favorites' | 'watchlist';
 
