@@ -147,6 +147,20 @@ export function VideoPlayerModal({
     setShowControls(!showControls);
   };
 
+  const openInBrowser = async (downloadUrl: string) => {
+    try {
+      // Remove ?download=1 for better browser streaming
+      const streamUrl = downloadUrl.replace('?download=1', '');
+      console.log('Opening in browser:', streamUrl);
+      
+      const { openBrowserAsync } = await import('expo-web-browser');
+      await openBrowserAsync(streamUrl);
+    } catch (error) {
+      console.error('Error opening browser:', error);
+      Alert.alert('Error', 'Failed to open video in browser');
+    }
+  };
+
   const handleClose = async () => {
     try {
       if (videoRef.current) {
@@ -187,18 +201,11 @@ export function VideoPlayerModal({
               style={styles.actionButton}
               onPress={() => handlePlayPress(file)}
             >
-              <Ionicons name="play" size={20} color="#FF9800" />
+              <Ionicons name="play" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-              onPress={() => {
-                // Remove ?download=1 for browser streaming
-                const streamUrl = file.downloadUrl.replace('?download=1', '');
-                
-                import('expo-web-browser').then(({ openBrowserAsync }) => {
-                  openBrowserAsync(streamUrl);
-                });
-              }}
+              onPress={() => openInBrowser(file.downloadUrl)}
             >
               <Ionicons name="globe" size={20} color="#fff" />
             </TouchableOpacity>
@@ -301,16 +308,7 @@ export function VideoPlayerModal({
 
               <TouchableOpacity 
                 style={[styles.retryButton, { backgroundColor: '#2196F3' }]}
-                onPress={() => {
-                  if (selectedFile) {
-                    // Remove ?download=1 for browser streaming
-                    const streamUrl = selectedFile.downloadUrl.replace('?download=1', '');
-                    
-                    import('expo-web-browser').then(({ openBrowserAsync }) => {
-                      openBrowserAsync(streamUrl);
-                    });
-                  }
-                }}
+                onPress={() => selectedFile && openInBrowser(selectedFile.downloadUrl)}
               >
                 <Ionicons name="globe" size={20} color="#fff" />
                 <Text style={styles.retryButtonText}>Open in Browser</Text>
