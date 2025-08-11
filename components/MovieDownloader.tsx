@@ -10,7 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
-  Platform, // Import Platform
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadService } from '@/services/downloadService';
@@ -73,7 +73,8 @@ export function MovieDownloader({
       setStatusMessage('Requesting permissions...');
 
       // Use the real file download service for automatic download
-      const { fileDownloadService } = await import('../services/fileDownloadService');
+      const fileDownloadServiceModule = await import('../services/fileDownloadService');
+      const fileDownloadService = fileDownloadServiceModule.fileDownloadService;
 
       // Check if downloads are supported on this platform
       if (!fileDownloadService.isSupported()) {
@@ -279,7 +280,8 @@ export function MovieDownloader({
       console.log(`Starting real download for: ${title} (${identifier})`);
 
       // Import the file download service
-      const { fileDownloadService } = await import('../services/fileDownloadService');
+      const fileDownloadServiceModule = await import('../services/fileDownloadService');
+      const fileDownloadService = fileDownloadServiceModule.fileDownloadService;
 
       // Check if downloads are supported
       if (!fileDownloadService.isSupported()) {
@@ -484,7 +486,8 @@ export function MovieDownloader({
   const cancelDownload = async () => {
     if (downloadId) {
       try {
-        const { fileDownloadService } = await import('../services/fileDownloadService');
+        const fileDownloadServiceModule = await import('../services/fileDownloadService');
+        const fileDownloadService = fileDownloadServiceModule.fileDownloadService;
         fileDownloadService.cancelDownload(downloadId);
         setIsDownloading(false);
         setDownloadProgress(0);

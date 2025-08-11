@@ -1,4 +1,3 @@
-
 import { Platform, Alert, Linking } from 'react-native';
 
 // Conditional imports for platform-specific packages
@@ -106,7 +105,7 @@ class FileDownloadService {
 
     if (Platform.OS === 'android') {
       const androidVersion = Platform.Version;
-      
+
       if (androidVersion >= 30) {
         // Android 11+ uses scoped storage
         try {
@@ -205,7 +204,7 @@ class FileDownloadService {
   // Ensure Downloads folder exists
   private async ensureDownloadsFolderExists(): Promise<void> {
     const downloadsPath = this.getDownloadsPath();
-    
+
     try {
       const exists = await RNFS.exists(downloadsPath);
       if (!exists) {
@@ -223,12 +222,12 @@ class FileDownloadService {
     // Remove invalid characters and create a safe filename
     const sanitizedTitle = movieTitle.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
     const sanitizedOriginal = originalName.replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
-    
+
     // If original name is descriptive, use it; otherwise, use movie title
     if (sanitizedOriginal.length > 10 && !sanitizedOriginal.includes('archive')) {
       return sanitizedOriginal;
     }
-    
+
     // Extract file extension from original name
     const extension = originalName.split('.').pop() || 'mp4';
     return `${sanitizedTitle}.${extension}`;
@@ -258,7 +257,7 @@ class FileDownloadService {
 
       // Generate unique download ID
       const downloadId = `download_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Generate safe filename
       const safeFilename = this.generateSafeFilename(filename, movieTitle);
       const downloadsPath = this.getDownloadsPath();
@@ -325,7 +324,7 @@ class FileDownloadService {
         begin: (res) => {
           console.log('Download started:', res);
           const contentLength = parseInt(res.contentLength || '0', 10);
-          
+
           this.updateDownloadProgress(downloadId, {
             contentLength,
             status: 'downloading'
@@ -335,7 +334,7 @@ class FileDownloadService {
           const progress = (res.bytesWritten / res.contentLength) * 100;
           const currentTime = Date.now();
           const download = this.downloads.get(downloadId);
-          
+
           if (download) {
             const timeDiff = (currentTime - download.lastUpdateTime) / 1000; // seconds
             const bytesDiff = res.bytesWritten - download.bytesWritten;
@@ -385,19 +384,19 @@ class FileDownloadService {
       // Get file size from server
       const response = await fetch(url, { method: 'HEAD' });
       const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-      
+
       if (contentLength > 0) {
         // Get available storage space
         const statResult = await RNFS.getFSInfo();
         const availableSpace = statResult.freeSpace;
-        
+
         // Add 10% buffer for safety
         const requiredSpace = contentLength * 1.1;
-        
+
         if (availableSpace < requiredSpace) {
           const availableGB = (availableSpace / (1024 * 1024 * 1024)).toFixed(1);
           const requiredGB = (requiredSpace / (1024 * 1024 * 1024)).toFixed(1);
-          
+
           throw new Error(`Insufficient storage space. Available: ${availableGB}GB, Required: ${requiredGB}GB`);
         }
       }
@@ -416,12 +415,12 @@ class FileDownloadService {
     if (download) {
       const updatedDownload = { ...download, ...updates };
       this.downloads.set(downloadId, updatedDownload);
-      
+
       const callbacks = this.callbacks.get(downloadId);
       if (callbacks?.onProgress) {
         callbacks.onProgress(updatedDownload);
       }
-      
+
       // Save to storage periodically (every 5% progress)
       if (updatedDownload.progress % 5 < (download.progress % 5)) {
         this.saveDownloads();
@@ -515,14 +514,14 @@ class FileDownloadService {
         download.filename,
         this.callbacks.get(downloadId)
       );
-      
+
       // Update the ID mapping
       const callbacks = this.callbacks.get(downloadId);
       if (callbacks) {
         this.callbacks.delete(downloadId);
         this.callbacks.set(newDownloadId, callbacks);
       }
-      
+
       this.cancelDownload(downloadId);
     }
   }
@@ -588,7 +587,7 @@ class FileDownloadService {
   // Open downloads folder
   private openDownloadsFolder(): void {
     const downloadsPath = this.getDownloadsPath();
-    
+
     if (Platform.OS === 'android') {
       // Open file manager to downloads folder
       Linking.openURL(`content://com.android.externalstorage.documents/document/primary%3ADownload`).catch(() => {
@@ -623,11 +622,11 @@ class FileDownloadService {
   // Format time remaining
   formatTimeRemaining(seconds: number): string {
     if (!isFinite(seconds) || seconds <= 0) return 'Calculating...';
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     } else if (minutes > 0) {
@@ -658,7 +657,7 @@ class FileDownloadService {
   private async loadDownloads(): Promise<void> {
     try {
       let downloadsJson: string | null = null;
-      
+
       if (Platform.OS === 'web') {
         // Use localStorage for web
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -667,7 +666,7 @@ class FileDownloadService {
       } else {
         downloadsJson = await AsyncStorage.getItem(this.STORAGE_KEY);
       }
-      
+
       if (downloadsJson) {
         const downloadsArray: DownloadProgress[] = JSON.parse(downloadsJson);
         downloadsArray.forEach(download => {
@@ -689,7 +688,7 @@ class FileDownloadService {
     this.downloads.clear();
     this.downloadJobs.clear();
     this.callbacks.clear();
-    
+
     if (Platform.OS === 'web') {
       // Use localStorage for web
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -701,4 +700,5 @@ class FileDownloadService {
   }
 }
 
-export const fileDownloadService = new FileDownloadService();
+export { fileDownloadService };
+export default fileDownloadService;
