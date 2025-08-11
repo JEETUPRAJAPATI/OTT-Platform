@@ -11,6 +11,15 @@ interface TMDbContentCardProps {
   style?: any;
 }
 
+// Helper function to get rating color based on score
+const getRatingColor = (rating: number): string => {
+  if (rating >= 8) return '#4CAF50'; // Green for excellent
+  if (rating >= 7) return '#8BC34A'; // Light green for very good
+  if (rating >= 6) return '#FFC107'; // Yellow for good
+  if (rating >= 5) return '#FF9800'; // Orange for average
+  return '#F44336'; // Red for poor
+};
+
 export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCardProps) {
   // Add null checks to prevent undefined access
   if (!content || !content.id) {
@@ -24,6 +33,7 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
   const title = (content as any).title || (content as any).name || 'Unknown Title';
   const releaseDate = (content as any).release_date || (content as any).first_air_date;
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
+  const rating = content.vote_average || 0;
   const posterUrl = content.poster_path
     ? `https://image.tmdb.org/t/p/w500${content.poster_path}`
     : 'https://via.placeholder.com/300x450?text=No+Image';
