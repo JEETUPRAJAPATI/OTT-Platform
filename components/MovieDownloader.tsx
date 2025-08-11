@@ -699,7 +699,12 @@ export function MovieDownloader({
 
             <View style={styles.externalPlatformContainer}>
               <Text style={styles.externalPlatformHeader}>Available Platforms:</Text>
-              <ScrollView style={styles.platformScrollView} showsVerticalScrollIndicator={true}>
+              <ScrollView 
+                style={styles.platformScrollView} 
+                contentContainerStyle={styles.platformScrollContent}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
                 <TouchableOpacity
                   style={styles.platformCard}
                   onPress={() => openExternalPlatform('https://thekitchenspot.net')}
@@ -1288,6 +1293,11 @@ const styles = StyleSheet.create({
   },
   platformScrollView: {
     maxHeight: 300,
+    flex: 1,
+  },
+  platformScrollContent: {
+    paddingBottom: 16,
+    flexGrow: 1,
   },
   platformCard: {
     backgroundColor: 'rgba(255,255,255,0.05)',
