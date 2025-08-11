@@ -308,7 +308,7 @@ export function MovieDownloader({
       console.error('Download error:', error);
       setIsDownloading(false);
       Alert.alert(
-        'Download Error', 
+        'Download Error',
         error instanceof Error ? error.message : 'Failed to start download'
       );
     }
@@ -348,7 +348,7 @@ export function MovieDownloader({
       }
 
       // Filter video files
-      const videoFiles = metadata.files.filter((file: any) => 
+      const videoFiles = metadata.files.filter((file: any) =>
         file.format && (
           file.format.includes('MPEG4') ||
           file.format.includes('Matroska') ||
@@ -590,7 +590,30 @@ export function MovieDownloader({
                         {file.name}
                       </Text>
                     </View>
-                    <Ionicons name="download-outline" size={20} color="#4CAF50" />
+                    <View style={styles.downloadBrowserContainer}>
+                      <TouchableOpacity
+                        style={[styles.downloadButton, { backgroundColor: '#4CAF50' }]}
+                        onPress={() => handleDirectDownload(file.downloadUrl)}
+                      >
+                        <Ionicons name="download" size={16} color="#fff" />
+                        <Text style={styles.downloadButtonText}>Download</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.downloadButton, { backgroundColor: '#2196F3', marginLeft: 8 }]}
+                        onPress={() => {
+                          // Remove ?download=1 for browser streaming
+                          const streamUrl = file.downloadUrl.replace('?download=1', '');
+
+                          import('expo-web-browser').then(({ openBrowserAsync }) => {
+                            openBrowserAsync(streamUrl);
+                          });
+                        }}
+                      >
+                        <Ionicons name="globe" size={16} color="#fff" />
+                        <Text style={styles.downloadButtonText}>Browser</Text>
+                      </TouchableOpacity>
+                    </View>
                   </TouchableOpacity>
                 ))}
                 {movieFiles.length > 4 && (
@@ -1042,5 +1065,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
     lineHeight: 20,
+  },
+  // Added style for the new container for download and browser buttons
+  downloadBrowserContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  // Adjusted style for downloadButtonText to be used by both buttons
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
 });
