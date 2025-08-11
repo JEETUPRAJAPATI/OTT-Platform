@@ -35,9 +35,11 @@ export function MoviePlatformCard({ platform, onPress }: MoviePlatformCardProps)
           <Text style={styles.description} numberOfLines={2}>
             {platform.description}
           </Text>
-          <Text style={styles.platformUrl} numberOfLines={1}>
-            {platform.baseUrl}
-          </Text>
+          {platform.baseUrl && (
+            <Text style={styles.platformUrl} numberOfLines={1}>
+              {platform.baseUrl.replace('https://', '').replace('http://', '')}
+            </Text>
+          )}
         </View>
         <View style={styles.rightSection}>
           {platform.isLegitimate ? (

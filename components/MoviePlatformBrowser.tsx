@@ -28,7 +28,14 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedPlatform, setSelectedPlatform] = useState<MoviePlatform | null>(null);
 
-  const filteredPlatforms = legitimateMoviePlatforms.filter(platform => {
+  const filteredLegitimate = legitimateMoviePlatforms.filter(platform => {
+    const matchesCategory = selectedCategory === 'all' || platform.category === selectedCategory;
+    const matchesSearch = platform.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         platform.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const filteredExternal = externalMoviePlatforms.filter(platform => {
     const matchesCategory = selectedCategory === 'all' || platform.category === selectedCategory;
     const matchesSearch = platform.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          platform.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -172,8 +179,6 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
   };
 
   const searchOnAllPlatforms = async (movieTitle: string) => {
-    // This would search across multiple platforms
-    // For now, just open search pages in sequence
     Alert.alert(
       'Multi-Platform Search',
       'This will open search pages for the movie on multiple platforms in your browser.',
@@ -181,7 +186,8 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
         {
           text: 'Continue',
           onPress: async () => {
-            const platformsToSearch = [...legitimateMoviePlatforms, ...externalMoviePlatforms].slice(0, 3);
+            const allPlatforms = [...filteredLegitimate, ...filteredExternal];
+            const platformsToSearch = allPlatforms.slice(0, 3);
             for (const platform of platformsToSearch) {
               try {
                 const searchUrl = `${platform.searchUrl}${encodeURIComponent(movieTitle)}`;
@@ -260,10 +266,10 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
           </View>
 
           {/* Legitimate Platforms Section */}
-          {filteredPlatforms.length > 0 && (
+          {filteredLegitimate.length > 0 && (
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>📚 Archive Platforms</Text>
-              {filteredPlatforms.map((platform) => (
+              {filteredLegitimate.map((platform) => (
                 <MoviePlatformCard
                   key={platform.id}
                   platform={platform}
@@ -274,19 +280,21 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
           )}
 
           {/* External Platforms Section */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>🌐 External Movie Platforms</Text>
-            <Text style={styles.sectionSubtitle}>Click to browse movies directly on these platforms</Text>
-            {externalMoviePlatforms.map((platform) => (
-              <MoviePlatformCard
-                key={platform.id}
-                platform={platform}
-                onPress={handlePlatformPress}
-              />
-            ))}
-          </View>
+          {filteredExternal.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>🌐 External Movie Platforms</Text>
+              <Text style={styles.sectionSubtitle}>Click to browse movies directly on these platforms</Text>
+              {filteredExternal.map((platform) => (
+                <MoviePlatformCard
+                  key={platform.id}
+                  platform={platform}
+                  onPress={handlePlatformPress}
+                />
+              ))}
+            </View>
+          )}
 
-          {filteredPlatforms.length === 0 && externalMoviePlatforms.length === 0 && (
+          {filteredLegitimate.length === 0 && filteredExternal.length === 0 && (
             <View style={styles.noResults}>
               <Ionicons name="film-outline" size={48} color="rgba(255,255,255,0.3)" />
               <Text style={styles.noResultsText}>No platforms found</Text>
