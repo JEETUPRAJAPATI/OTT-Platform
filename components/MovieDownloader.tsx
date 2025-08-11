@@ -56,6 +56,7 @@ export function MovieDownloader({
   const [movieFound, setMovieFound] = useState(false);
   const [archiveIdentifier, setArchiveIdentifier] = useState<string>('');
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [videoModalVisible, setVideoModalVisible] = useState(false);
 
   const showToast = (title: string, message: string) => {
     Alert.alert(title, message);
@@ -641,8 +642,8 @@ export function MovieDownloader({
         {renderQualityModal()}
 
         <VideoPlayerModal
-          visible={videoModalVisible}
-          onClose={() => setVideoModalVisible(false)}
+          visible={showVideoPlayer}
+          onClose={() => setShowVideoPlayer(false)}
           videoFiles={movieFiles || []}
           movieTitle={searchTitle || movieTitle || 'Unknown Movie'}
         />
