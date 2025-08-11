@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadService } from '@/services/downloadService';
-import { VideoPlayerModal } from './VideoPlayerModal';
+
 
 interface MovieFile {
   name: string;
@@ -55,8 +55,7 @@ export function MovieDownloader({
   const [statusMessage, setStatusMessage] = useState('');
   const [movieFound, setMovieFound] = useState(false);
   const [archiveIdentifier, setArchiveIdentifier] = useState<string>('');
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [videoModalVisible, setVideoModalVisible] = useState(false);
+  
 
   const showToast = (title: string, message: string) => {
     Alert.alert(title, message);
@@ -339,17 +338,29 @@ export function MovieDownloader({
     }
 
     try {
-      console.log('Play button clicked - opening video player modal');
+      console.log('Play button clicked - opening directly in browser');
 
       // Use the first/best quality file for streaming
       const selectedFile = movieFiles[0];
 
-      // Open video player modal for in-app streaming
-      setShowVideoPlayer(true);
+      // Remove download parameter for streaming playback
+      const streamUrl = selectedFile.downloadUrl.replace('?download=1', '');
+      console.log('Opening streaming URL in browser:', streamUrl);
+
+      const { openBrowserAsync } = await import('expo-web-browser');
+      await openBrowserAsync(streamUrl, {
+        presentationStyle: 'fullScreen',
+        showTitle: true,
+        showInRecents: true,
+        enableBarCollapsing: false,
+        dismissButtonStyle: 'done'
+      });
+
+      onClose();
 
     } catch (error) {
       console.error('Play error:', error);
-      showToast('Playback Failed', 'Could not start playback. Try using the browser button instead.');
+      showToast('Playback Failed', 'Could not open video in browser. Please try again.');
     }
   };
 
@@ -640,13 +651,6 @@ export function MovieDownloader({
         </View>
 
         {renderQualityModal()}
-
-        <VideoPlayerModal
-          visible={showVideoPlayer}
-          onClose={() => setShowVideoPlayer(false)}
-          videoFiles={movieFiles || []}
-          movieTitle={searchTitle || movieTitle || 'Unknown Movie'}
-        />
       </SafeAreaView>
     </Modal>
   );
