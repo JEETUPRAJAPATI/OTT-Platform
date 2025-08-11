@@ -82,55 +82,27 @@ export function VideoPlayerModal({
   }, [showControls, selectedFile]);
 
   const handlePlayPress = async (file: VideoFile) => {
-    setSelectedFile(file);
-    setShowQualitySelector(false);
-    setIsLoading(true);
-    setError(null);
-
     try {
-      console.log('Starting playback for:', file.name);
-      console.log('Video URL:', file.downloadUrl);
-
-      // Check if it's a direct Internet Archive URL and modify if needed
-      let playbackUrl = file.downloadUrl;
-
-      // For Internet Archive URLs, ensure proper format for streaming
-      if (playbackUrl.includes('archive.org/download/')) {
-        // Remove the ?download=1 parameter if present for streaming
-        playbackUrl = playbackUrl.replace('?download=1', '');
-        console.log('Modified URL for streaming:', playbackUrl);
-      }
-
-      // Load and play the video
-      if (videoRef.current) {
-        const videoSource = {
-          uri: playbackUrl,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://archive.org/'
-          }
-        };
-
-        console.log('Loading video with source:', videoSource);
-        await videoRef.current.loadAsync(videoSource);
-        console.log('Video loaded successfully, starting playback...');
-        await videoRef.current.playAsync();
-        setIsPlaying(true);
-        console.log('Video playback started');
-      }
+      console.log('Opening video in browser for playback:', file.name);
+      
+      // Get the streaming URL (remove download parameter for browser playback)
+      let playbackUrl = file.downloadUrl.replace('?download=1', '');
+      
+      // Add autoplay parameter for direct playback
+      playbackUrl += '?autoplay=1';
+      
+      console.log('Opening browser with URL:', playbackUrl);
+      
+      // Open directly in browser with auto-play
+      await openInBrowser(playbackUrl);
+      
     } catch (error) {
-      console.error('Playback error:', error);
-      setError(`Failed to load video: ${error.message || 'Unknown error'}. This video may not support streaming playback.`);
+      console.error('Browser playback error:', error);
       Alert.alert(
         'Playback Error',
-        'This video cannot be streamed directly. You can try:\n\n• Download the video first\n• Try a different quality\n• Check your internet connection\n\nSome Internet Archive videos only support download, not streaming.',
-        [
-          { text: 'Try Different Quality', onPress: () => setShowQualitySelector(true) },
-          { text: 'OK' }
-        ]
+        'Failed to open video in browser. You can try downloading the video instead.',
+        [{ text: 'OK' }]
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -216,7 +188,7 @@ export function VideoPlayerModal({
         >
           <View style={styles.qualityInfo}>
             <Text style={styles.qualityText}>
-              {file.quality} - {Math.round(file.size)}MB - {file.format}
+              {file.quality} - {file.size}MB - {file.format}
             </Text>
             <Text style={styles.fileName} numberOfLines={2}>
               {file.name}
@@ -530,13 +502,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   qualityText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   fileName: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#CCCCCC',
     fontSize: 12,
   },
   actionButtons: {

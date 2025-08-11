@@ -368,13 +368,22 @@ class DownloadService {
         // Skip audio-only files that might be soundtracks
         if (name.includes('song') || name.includes('soundtrack') || 
             name.includes('audio') || name.includes('music') ||
+            name.includes('radio') || name.includes('podcast') ||
             format.includes('mp3') || format.includes('flac') || 
-            format.includes('audio') || format.includes('sound')) {
+            format.includes('audio') || format.includes('sound') ||
+            format.includes('wav') || format.includes('aac')) {
+          return false;
+        }
+
+        // Skip short clips and trailers (usually not full movies)
+        if (name.includes('trailer') || name.includes('clip') || 
+            name.includes('preview') || name.includes('teaser') ||
+            name.includes('excerpt') || name.includes('sample')) {
           return false;
         }
 
         // Video file extensions
-        const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv'];
+        const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
         const hasVideoExtension = videoExtensions.some(ext => name.endsWith(ext));
 
         // Video formats from Internet Archive
@@ -385,13 +394,14 @@ class DownloadService {
         if (name.includes('subtitle') || name.includes('.srt') || name.includes('.vtt') ||
             name.includes('thumbnail') || name.includes('.jpg') || name.includes('.png') ||
             format.includes('text') || format.includes('image') || 
-            name.includes('poster') || name.includes('cover')) {
+            name.includes('poster') || name.includes('cover') ||
+            name.includes('logo') || name.includes('banner')) {
           return false;
         }
 
-        // Ensure minimum file size (video files are typically larger than 10MB)
+        // Ensure minimum file size for full-length movies (at least 100MB)
         const fileSize = file.size ? parseInt(file.size) : 0;
-        if (fileSize > 0 && fileSize < 10000000) { // Less than 10MB
+        if (fileSize > 0 && fileSize < 100000000) { // Less than 100MB
           return false;
         }
 

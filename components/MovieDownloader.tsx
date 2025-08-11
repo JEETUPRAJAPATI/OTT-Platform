@@ -1036,6 +1036,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 4,
   },
+  fileName: {
+    color: '#CCCCCC',
+    fontSize: 12,
+  },
   webNoticeText: {
     color: '#E50914',
     fontSize: 14,
