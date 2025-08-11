@@ -5,10 +5,6 @@ modules = ["nodejs-20"]
 channel = "stable-24_05"
 
 [[ports]]
-localPort = 5000
-externalPort = 5000
-
-[[ports]]
 localPort = 8081
 externalPort = 80
 
@@ -20,16 +16,31 @@ externalPort = 3000
 runButton = "Mobile and Web Development"
 
 [[workflows.workflow]]
-name = "Dev Server"
+name = "Mobile and Web Development"
+author = 42947032
 mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd server && npm install && npm start"
+args = "npx expo start --tunnel"
+
+[[workflows.workflow]]
+name = "Web Only"
+author = 42947032
+mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN npx expo start"
+args = "npx expo start --web"
+
+[[workflows.workflow]]
+name = "Local Development"
+author = 42947032
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start"
 
 [[workflows.workflow]]
 name = "EAS Init"
@@ -62,118 +73,3 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx eas build --platform android --profile preview"
-
-[[workflows.workflow]]
-name = "Start Proxy Server"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd server && npm install && npm start"
-
-[[workflows.workflow]]
-name = "Kill Port 5000 and Start Servers"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"node.*proxy.js\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd server && npm install && npm start &"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "sleep 3"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN npx expo start"
-
-[[workflows.workflow]]
-name = "React Native App"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start"
-
-[[workflows.workflow]]
-name = "Android and Web Development"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --android --web"
-
-[[workflows.workflow]]
-name = "Web Development"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --web"
-
-[[workflows.workflow]]
-name = "Mobile Development"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel"
-
-[[workflows.workflow]]
-name = "Mobile Development (Fixed)"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm install -g @expo/ngrok@^4.1.0 || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel"
-
-[[workflows.workflow]]
-name = "Web Only Development"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --web"
-
-[[workflows.workflow]]
-name = "Local Mobile Development"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start"
-
-[[workflows.workflow]]
-name = "Mobile and Web Development"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel"
-
-[[workflows.workflow]]
-name = "Web Only"
-author = 42947032
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --web"
