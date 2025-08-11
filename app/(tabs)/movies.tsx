@@ -8,6 +8,8 @@ import {
   RefreshControl,
   Alert,
   Text,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +19,45 @@ import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { apiService, FavoriteItem, WatchlistItem } from '@/services/apiService';
 import { MovieDownloader } from '@/components/MovieDownloader';
 import { MoviePlatformBrowser } from '@/components/MoviePlatformBrowser';
+
+// Dummy types for MoviesTab component, which are not used in MoviesScreen
+type TMDbMovie = {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  vote_average: number;
+  overview: string;
+  release_date: string;
+  first_air_date: string;
+  genre_ids: number[];
+  original_language: string;
+  popularity: number;
+  backdrop_path: string | null;
+};
+
+type TMDbTVShow = {
+  id: number;
+  name: string;
+  poster_path: string | null;
+  vote_average: number;
+  overview: string;
+  release_date: string;
+  first_air_date: string;
+  genre_ids: number[];
+  original_language: string;
+  popularity: number;
+  backdrop_path: string | null;
+};
+
+// Mock tmdbService and useRouter for the sake of rendering the code snippet
+const tmdbService = {
+  getPopularMovies: async (page: number) => ({ results: [] }),
+  getPopularTVShows: async (page: number) => ({ results: [] }),
+};
+
+const useRouter = () => ({
+  push: (path: string) => console.log('Navigating to:', path),
+});
 
 type TabType = 'favorites' | 'watchlist';
 
@@ -163,21 +204,21 @@ export default function MoviesScreen() {
 
   const renderEmptyState = (type: TabType) => (
     <View style={styles.emptyContainer}>
-      <Ionicons 
-        name={type === 'favorites' ? 'heart-outline' : 'bookmark-outline'} 
-        size={80} 
-        color="#333" 
+      <Ionicons
+        name={type === 'favorites' ? 'heart-outline' : 'bookmark-outline'}
+        size={80}
+        color="#333"
       />
       <ThemedText style={styles.emptyText}>
         {type === 'favorites' ? 'No Favorites Yet' : 'No Items in Watchlist'}
       </ThemedText>
       <ThemedText style={styles.emptySubText}>
-        {type === 'favorites' 
+        {type === 'favorites'
           ? 'Add movies and shows to your favorites by tapping the heart icon'
           : 'Add movies and shows to your watchlist by tapping the bookmark icon'
         }
       </ThemedText>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.exploreButton}
         onPress={() => router.push('/discover')}
       >
@@ -208,10 +249,10 @@ export default function MoviesScreen() {
           style={[styles.tabButton, selectedTab === 'favorites' && styles.activeTab]}
           onPress={() => setSelectedTab('favorites')}
         >
-          <Ionicons 
-            name={selectedTab === 'favorites' ? 'heart' : 'heart-outline'} 
-            size={20} 
-            color={selectedTab === 'favorites' ? '#fff' : '#999'} 
+          <Ionicons
+            name={selectedTab === 'favorites' ? 'heart' : 'heart-outline'}
+            size={20}
+            color={selectedTab === 'favorites' ? '#fff' : '#999'}
           />
           <Text style={[
             styles.tabText,
@@ -225,10 +266,10 @@ export default function MoviesScreen() {
           style={[styles.tabButton, selectedTab === 'watchlist' && styles.activeTab]}
           onPress={() => setSelectedTab('watchlist')}
         >
-          <Ionicons 
-            name={selectedTab === 'watchlist' ? 'bookmark' : 'bookmark-outline'} 
-            size={20} 
-            color={selectedTab === 'watchlist' ? '#fff' : '#999'} 
+          <Ionicons
+            name={selectedTab === 'watchlist' ? 'bookmark' : 'bookmark-outline'}
+            size={20}
+            color={selectedTab === 'watchlist' ? '#fff' : '#999'}
           />
           <Text style={[
             styles.tabText,
@@ -251,8 +292,8 @@ export default function MoviesScreen() {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
+            <RefreshControl
+              refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor="#E50914"
             />
@@ -281,6 +322,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
     flexDirection: 'row',
@@ -390,5 +432,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  footerLoader: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    color: '#fff',
+    marginTop: 10,
   },
 });
