@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,6 +15,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { apiService, FavoriteItem, WatchlistItem } from '@/services/apiService';
+import { MovieDownloader } from '@/components/MovieDownloader';
+import { MoviePlatformBrowser } from '@/components/MoviePlatformBrowser';
 
 type TabType = 'favorites' | 'watchlist';
 
@@ -25,6 +26,9 @@ export default function MoviesScreen() {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloadModalVisible, setDownloadModalVisible] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<any>(null);
+  const [platformBrowserVisible, setPlatformBrowserVisible] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -36,7 +40,7 @@ export default function MoviesScreen() {
         apiService.getFavorites(),
         apiService.getWatchlist(),
       ]);
-      
+
       setFavorites(favoritesData);
       setWatchlist(watchlistData);
     } catch (error) {
@@ -189,9 +193,13 @@ export default function MoviesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <ThemedText style={styles.title}>My Movies & Shows</ThemedText>
-        <TouchableOpacity onPress={onRefresh}>
-          <Ionicons name="refresh-outline" size={24} color="#fff" />
-        </TouchableOpacity>
+        <TouchableOpacity
+            style={styles.platformsButton}
+            onPress={() => setPlatformBrowserVisible(true)}
+          >
+            <Ionicons name="globe" size={20} color="#fff" />
+            <Text style={styles.platformsButtonText}>Free Platforms</Text>
+          </TouchableOpacity>
       </View>
 
       {/* Tab Selector */}
@@ -251,6 +259,20 @@ export default function MoviesScreen() {
           }
         />
       )}
+      
+      <MovieDownloader
+          visible={downloadModalVisible}
+          onClose={() => setDownloadModalVisible(false)}
+          movieTitle={selectedMovie?.title || selectedMovie?.name || ''}
+          contentId={selectedMovie?.id || 0}
+          contentType="movie"
+          posterPath={selectedMovie?.poster_path || ''}
+        />
+
+        <MoviePlatformBrowser
+          visible={platformBrowserVisible}
+          onClose={() => setPlatformBrowserVisible(false)}
+        />
     </ThemedView>
   );
 }
@@ -262,12 +284,12 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 60,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   title: {
     fontSize: 24,
@@ -354,5 +376,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
     zIndex: 10,
+  },
+  platformsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2196F3',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  platformsButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });

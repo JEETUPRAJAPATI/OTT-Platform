@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ScrollView, 
-  StyleSheet, 
-  FlatList, 
-  RefreshControl, 
-  View, 
-  TouchableOpacity, 
+import {
+  ScrollView,
+  StyleSheet,
+  FlatList,
+  RefreshControl,
+  View,
+  TouchableOpacity,
   Dimensions,
   StatusBar,
   ImageBackground,
@@ -22,6 +22,9 @@ import { MovieSlider } from '@/components/MovieSlider';
 import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
 import { userService } from '@/services/userService';
 import { OTTPlatformSlider } from '@/components/OTTPlatformSlider';
+import { MoviePlatformBrowser } from '@/components/MoviePlatformBrowser';
+import Ionicons from '@expo/vector-icons/Ionicons';
+
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -42,6 +45,12 @@ export default function HomeScreen() {
   const [watchProviders, setWatchProviders] = useState<any[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
   const router = useRouter();
+  const [trendingMovies, setTrendingMovies] = useState([]);
+  const [popularMovies, setPopularMovies] = useState([]);
+  const [upcomingMovies, setUpcomingMovies] = useState([]);
+  const [topRatedMovies, setTopRatedMovies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [platformBrowserVisible, setPlatformBrowserVisible] = useState(false);
 
   const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
     const type = (content as any).title ? 'movie' : 'tv';
@@ -355,7 +364,7 @@ export default function HomeScreen() {
                 </Text>
 
                 <View style={styles.heroButtons}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.playButton}
                     onPress={() => handleTMDbContentPress(heroItem)}
                   >
@@ -363,7 +372,7 @@ export default function HomeScreen() {
                     <Text style={styles.playText}>Play</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.infoButton}
                     onPress={() => handleTMDbContentPress(heroItem)}
                   >
@@ -397,6 +406,13 @@ export default function HomeScreen() {
     router.push(`/discover?category=${sectionId}`);
   };
 
+  const handleMoviePress = (movie: TMDbMovie) => {
+    // This is a placeholder for the new movie platform integration
+    // For now, we'll just log it or navigate to a generic page
+    console.log('Movie pressed:', movie.title);
+    // Example: router.push(`/movie/${movie.id}`);
+  };
+
   if (showSplash) {
     return <SplashScreen onAnimationEnd={() => setShowSplash(false)} />;
   }
@@ -407,7 +423,7 @@ export default function HomeScreen() {
 
       <FlatList
         data={[
-          { type: 'hero' }, 
+          { type: 'hero' },
           { type: 'providers' },
           ...contentSections.map(section => ({ type: 'section', section }))
         ]}
@@ -452,8 +468,8 @@ export default function HomeScreen() {
           return `section-${item.section.id}-${index}`;
         }}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#E50914"
             progressBackgroundColor="#000"
@@ -462,6 +478,44 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.mainContainer}
         bounces={true}
+        ListFooterComponent={() => (
+          <>
+            {/* Render the Top Rated Movies section as before */}
+            <MovieSlider
+              title="Top Rated Movies"
+              data={topRatedMovies}
+              onMoviePress={handleMoviePress}
+            />
+
+            <View style={styles.freePlatformsSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Free Movie Platforms</Text>
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => setPlatformBrowserVisible(true)}
+                >
+                  <Text style={styles.viewAllText}>Browse All</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#2196F3" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.freePlatformsDescription}>
+                Access free, legal movie streaming platforms
+              </Text>
+              <TouchableOpacity
+                style={styles.freePlatformsButton}
+                onPress={() => setPlatformBrowserVisible(true)}
+              >
+                <Ionicons name="globe" size={24} color="#fff" />
+                <Text style={styles.freePlatformsButtonText}>Explore Free Movies</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      />
+
+      <MoviePlatformBrowser
+        visible={platformBrowserVisible}
+        onClose={() => setPlatformBrowserVisible(false)}
       />
     </View>
   );
@@ -633,5 +687,55 @@ const styles = StyleSheet.create({
     width: 20,
   },
 
-
+  // Styles for the new Free Platforms Section
+  freePlatformsSection: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 20,
+    margin: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllText: {
+    color: '#2196F3',
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  freePlatformsDescription: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  freePlatformsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2196F3',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  freePlatformsButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
 });
