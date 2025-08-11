@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { TMDbMovie, TMDbTVShow, tmdbService } from '../services/tmdbApi';
@@ -13,24 +12,25 @@ interface TMDbContentCardProps {
 }
 
 export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCardProps) {
+  // Add null checks to prevent undefined access
+  if (!content || !content.id) {
+    return (
+      <View style={[styles.container, styles.errorCard, style]}>
+        <Text style={styles.errorText}>Content unavailable</Text>
+      </View>
+    );
+  }
+
   const title = (content as any).title || (content as any).name || 'Unknown Title';
   const releaseDate = (content as any).release_date || (content as any).first_air_date;
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
-  const posterUrl = tmdbService.getImageUrl(content.poster_path);
-  const rating = content.vote_average || 0;
-
-  // Get rating color based on score
-  const getRatingColor = (rating: number) => {
-    if (rating >= 8) return '#4CAF50'; // Green for excellent
-    if (rating >= 7) return '#8BC34A'; // Light green for very good
-    if (rating >= 6) return '#FFC107'; // Yellow for good
-    if (rating >= 5) return '#FF9800'; // Orange for average
-    return '#F44336'; // Red for poor
-  };
+  const posterUrl = content.poster_path
+    ? `https://image.tmdb.org/t/p/w500${content.poster_path}`
+    : 'https://via.placeholder.com/300x450?text=No+Image';
 
   return (
-    <TouchableOpacity 
-      style={[styles.container, style]} 
+    <TouchableOpacity
+      style={[styles.container, style]}
       onPress={onPress}
       activeOpacity={0.8}
     >
@@ -43,7 +43,7 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
             <Text style={styles.placeholderText}>No Image</Text>
           </View>
         )}
-        
+
         {/* Top badges */}
         <View style={styles.topBadges}>
           <View style={styles.qualityBadge}>
@@ -53,7 +53,7 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
             <Text style={styles.typeText}>{type === 'movie' ? 'MOVIE' : 'SERIES'}</Text>
           </View>
         </View>
-        
+
         {/* Bottom overlay with gradient */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.9)']}
@@ -71,7 +71,7 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
             </View>
           </View>
         </LinearGradient>
-        
+
         {/* Play button overlay */}
         <View style={styles.playButtonContainer}>
           <View style={styles.playButton}>
@@ -79,7 +79,7 @@ export function TMDbContentCard({ content, onPress, type, style }: TMDbContentCa
           </View>
         </View>
       </View>
-      
+
       <View style={styles.infoContainer}>
         <Text style={styles.title} numberOfLines={2}>
           {title}
@@ -241,5 +241,15 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     backgroundColor: '#666',
     marginHorizontal: 6,
+  },
+  errorCard: {
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

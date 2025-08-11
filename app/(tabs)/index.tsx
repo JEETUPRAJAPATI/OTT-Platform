@@ -140,13 +140,18 @@ export default function HomeScreen() {
       const usedIds = new Set();
 
       const getUniqueContent = (data: any[], count: number, preserveOrder = false) => {
-        let filtered = data.filter(item => !usedIds.has(item.id));
+        // Filter out undefined items and items without IDs
+        let filtered = data.filter(item => item && item.id && !usedIds.has(item.id));
         if (!preserveOrder) {
           // Always randomize content for dynamic experience
           filtered = shuffleArray(filtered);
         }
         const selected = filtered.slice(0, count);
-        selected.forEach(item => usedIds.add(item.id));
+        selected.forEach(item => {
+          if (item && item.id) {
+            usedIds.add(item.id);
+          }
+        });
         return selected;
       };
 

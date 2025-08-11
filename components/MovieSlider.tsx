@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   View, 
@@ -92,10 +91,10 @@ export function MovieSlider({
         setCurrentIndex(prevIndex => {
           const nextIndex = prevIndex + 1;
           const maxIndex = Math.max(0, data.length - 3);
-          
+
           // If we've reached the end, go back to start
           const finalIndex = nextIndex > maxIndex ? 0 : nextIndex;
-          
+
           try {
             flatListRef.current?.scrollToIndex({ 
               index: finalIndex, 
@@ -109,7 +108,7 @@ export function MovieSlider({
               animated: true 
             });
           }
-          
+
           return finalIndex;
         });
       }, 4000); // Auto-slide every 4 seconds
@@ -183,7 +182,7 @@ export function MovieSlider({
           </TouchableOpacity>
         )}
       </View>
-      
+
       <View style={styles.sliderContainer}>
         {/* Left Arrow */}
         {canScrollLeft && (
@@ -194,13 +193,21 @@ export function MovieSlider({
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
         )}
-        
+
         {/* Movie Slider */}
         <FlatList
           ref={flatListRef}
           data={data}
           renderItem={({ item, index }) => {
             const mediaType = (item as any).title ? 'movie' : 'tv';
+            // Safety check for undefined items
+            if (!item || !item.id) {
+              return (
+                <View style={[styles.itemWrapper, styles.errorContainer]}>
+                  <Text style={styles.errorText}>Content Error</Text>
+                </View>
+              );
+            }
             return (
               <MovieSliderItem 
                 item={item}
@@ -242,7 +249,7 @@ export function MovieSlider({
             });
           }}
         />
-        
+
         {/* Right Arrow */}
         {canScrollRight && (
           <TouchableOpacity 
@@ -334,5 +341,27 @@ const styles = StyleSheet.create({
   },
   rightArrow: {
     right: 5,
+  },
+  viewAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 6,
+  },
+  viewAllText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 10,
+    textAlign: 'center',
   },
 });

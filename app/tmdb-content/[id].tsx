@@ -72,6 +72,18 @@ export default function TMDbContentDetails() {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
 
+  // Early return if required params are missing
+  if (!id || !type) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Invalid content parameters</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   useEffect(() => {
     if (id && type) {
       loadContent();
@@ -197,7 +209,7 @@ export default function TMDbContentDetails() {
     setIsCheckingArchive(true);
     try {
       const title = (content as any).title || (content as any).name;
-      
+
       // Use downloadService to search for the content on Internet Archive
       const searchResult = await downloadService.searchInternetArchive(title);
       if (searchResult && searchResult.found && searchResult.identifier) {
@@ -1111,7 +1123,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap', // Allow wrapping for smaller screens
     justifyContent: 'center',
   },
-  
+
   secondaryButton: {
     flex: 1, // Occupy available space
     minWidth: 120, // Ensure a minimum width
