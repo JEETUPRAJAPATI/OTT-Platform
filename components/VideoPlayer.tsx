@@ -9,7 +9,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { Video, ResizeMode, VideoFullscreenUpdate } from 'expo-av';
+import { Video, ResizeMode, VideoFullscreenUpdate, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
@@ -144,42 +144,43 @@ export function VideoPlayer({
 
   const togglePlayPause = async () => {
     if (playbackState.isPlaying) {
-      videoRef.current?.pause();
+      await videoRef.current?.pauseAsync();
     } else {
-      videoRef.current?.play();
+      await videoRef.current?.playAsync();
     }
   };
 
   const toggleMute = async () => {
-    // Updated for expo-video API
-    console.log('Mute toggle - implement with expo-video API');
+    await videoRef.current?.setIsMutedAsync(!playbackState.isMuted);
   };
 
   const handleSeek = async (value: number) => {
-    const seekTime = value * playbackState.duration;
-    videoRef.current?.seekBy(seekTime);
+    const seekTime = value * playbackState.duration * 1000; // Convert to milliseconds
+    await videoRef.current?.setPositionAsync(seekTime);
   };
 
   const handleVolumeChange = async (value: number) => {
-    // Updated for expo-video API
-    console.log('Volume change - implement with expo-video API');
+    await videoRef.current?.setVolumeAsync(value);
+    setPlaybackState(prev => ({ ...prev, volume: value }));
   };
 
   const handlePlaybackRateChange = async (rate: number) => {
-    // Updated for expo-video API
+    await videoRef.current?.setRateAsync(rate, true);
     setPlaybackState(prev => ({ ...prev, playbackRate: rate }));
   };
 
   const toggleFullscreen = async () => {
     if (isFullscreen) {
-      videoRef.current?.exitFullscreen();
+      await videoRef.current?.dismissFullscreenPlayer();
     } else {
-      videoRef.current?.enterFullscreen();
+      await videoRef.current?.presentFullscreenPlayer();
     }
   };
 
   const skip = async (seconds: number) => {
-    videoRef.current?.seekBy(seconds);
+    const currentPosition = playbackState.position * 1000; // Convert to milliseconds
+    const newPosition = Math.max(0, Math.min(currentPosition + (seconds * 1000), playbackState.duration * 1000));
+    await videoRef.current?.setPositionAsync(newPosition);
   };
 
   const formatTime = (timeInSeconds: number) => {
@@ -193,16 +194,18 @@ export function VideoPlayer({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const onPlaybackStatusUpdate = (status: any) => {
-    setPlaybackState({
-      isPlaying: status.isPlaying || false,
-      position: (status.positionMillis || 0) / 1000,
-      duration: (status.durationMillis || 0) / 1000,
-      isBuffering: status.isBuffering || false,
-      isMuted: status.isMuted || false,
-      volume: status.volume || 1.0,
-      playbackRate: status.rate || 1.0
-    });
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (status.isLoaded) {
+      setPlaybackState({
+        isPlaying: status.isPlaying || false,
+        position: (status.positionMillis || 0) / 1000,
+        duration: (status.durationMillis || 0) / 1000,
+        isBuffering: status.isBuffering || false,
+        isMuted: status.isMuted || false,
+        volume: status.volume || 1.0,
+        playbackRate: status.rate || 1.0
+      });
+    }
   };
 
   const onFullscreenUpdate = (event: any) => {
@@ -400,7 +403,7 @@ export function VideoPlayer({
 
       <TouchableOpacity 
         style={styles.videoContainer}
-        onPress={handleVideoTap}
+        onPress={() => setShowControls(!showControls)}
         activeOpacity={1}
       >
         <Video
