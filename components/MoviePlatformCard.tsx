@@ -35,11 +35,18 @@ export function MoviePlatformCard({ platform, onPress }: MoviePlatformCardProps)
           <Text style={styles.description} numberOfLines={2}>
             {platform.description}
           </Text>
+          <Text style={styles.platformUrl} numberOfLines={1}>
+            {platform.baseUrl}
+          </Text>
         </View>
         <View style={styles.rightSection}>
-          {platform.isLegitimate && (
+          {platform.isLegitimate ? (
             <View style={styles.verifiedBadge}>
               <Ionicons name="shield-checkmark" size={16} color="#4CAF50" />
+            </View>
+          ) : (
+            <View style={styles.externalBadge}>
+              <Ionicons name="link" size={16} color="#FF9800" />
             </View>
           )}
           <Ionicons name="chevron-forward" size={20} color="#666" />
@@ -108,6 +115,15 @@ const styles = StyleSheet.create({
   },
   verifiedBadge: {
     marginRight: 8,
+  },
+  externalBadge: {
+    marginRight: 8,
+  },
+  platformUrl: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 10,
+    marginTop: 2,
+    fontFamily: 'monospace',
   },
   footer: {
     flexDirection: 'row',

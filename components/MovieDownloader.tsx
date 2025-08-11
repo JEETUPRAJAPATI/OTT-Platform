@@ -61,36 +61,67 @@ export function MovieDownloader({
     Alert.alert(title, message);
   };
 
-  const handleDirectDownload = async (downloadUrl: string) => {
+  const handleDirectDownload = async (downloadUrl: string, fileName?: string) => {
     try {
-      console.log('Starting automatic download:', downloadUrl);
+      console.log('Starting direct download:', downloadUrl);
+      setIsDownloading(true);
+      setStatusMessage('Starting download...');
 
       // Use the real file download service for automatic download
       const { fileDownloadService } = await import('../services/fileDownloadService');
       
+      // Check if downloads are supported on this platform
+      if (!fileDownloadService.isSupported()) {
+        Alert.alert(
+          'Platform Not Supported',
+          'File downloads are only available on mobile devices. Please use the mobile app to download files.',
+          [{ text: 'OK' }]
+        );
+        setIsDownloading(false);
+        return;
+      }
+
       const downloadId = await fileDownloadService.startDownload(
         downloadUrl,
-        'Movie Download',
+        fileName || 'Movie Download',
         searchTitle || movieTitle,
         {
           onProgress: (progress) => {
             console.log(`Download progress: ${progress.progress}%`);
+            setDownloadProgress(progress.progress);
+            setProgressInfo(progress);
+            setStatusMessage(`Downloading... ${progress.progress.toFixed(1)}%`);
+            
+            // Update speed and time estimates
+            if (progress.speed > 0) {
+              setDownloadSpeed(progress.speed);
+              setEstimatedTime(progress.estimatedTime);
+            }
           },
           onComplete: (filePath) => {
             console.log(`Download completed: ${filePath}`);
-            showToast('Download Complete', 'Movie downloaded successfully!');
+            setIsDownloading(false);
+            setDownloadProgress(100);
+            setStatusMessage('Download completed!');
+            showToast('Download Complete', `Movie downloaded successfully!\n\nFile: ${filePath.split('/').pop()}`);
             onClose();
           },
           onError: (error) => {
             console.error(`Download failed: ${error}`);
+            setIsDownloading(false);
+            setStatusMessage(`Download failed: ${error}`);
             showToast('Download Failed', `Download failed: ${error}`);
           }
         }
       );
 
+      setDownloadId(downloadId);
+
     } catch (error) {
       console.error('Direct download error:', error);
-      showToast('Download Failed', 'Failed to start download. Please try again.');
+      setIsDownloading(false);
+      setStatusMessage('Download failed');
+      showToast('Download Failed', error instanceof Error ? error.message : 'Failed to start download. Please try again.');
     }
   };
 
@@ -367,13 +398,19 @@ export function MovieDownloader({
 
 
 
-  const cancelDownload = () => {
+  const cancelDownload = async () => {
     if (downloadId) {
-      downloadService.cancelDownload(downloadId);
-      setIsDownloading(false);
-      setDownloadProgress(0);
-      setDownloadId(null);
-      showToast('Download Cancelled', 'Download has been cancelled');
+      try {
+        const { fileDownloadService } = await import('../services/fileDownloadService');
+        fileDownloadService.cancelDownload(downloadId);
+        setIsDownloading(false);
+        setDownloadProgress(0);
+        setDownloadId(null);
+        setStatusMessage('Download cancelled');
+        showToast('Download Cancelled', 'Download has been cancelled');
+      } catch (error) {
+        console.error('Cancel download error:', error);
+      }
     }
   };
 
@@ -448,7 +485,7 @@ export function MovieDownloader({
               <TouchableOpacity
                 key={index}
                 style={styles.qualityOption}
-                onPress={() => handleDirectDownload(file.downloadUrl)}
+                onPress={() => handleDirectDownload(file.downloadUrl, file.name)}
               >
                 <View style={styles.qualityInfo}>
                   <Text style={styles.qualityText}>
@@ -576,7 +613,7 @@ export function MovieDownloader({
 
                       <TouchableOpacity
                         style={[styles.iconButton, { backgroundColor: '#4CAF50' }]}
-                        onPress={() => handleDirectDownload(file.downloadUrl)}
+                        onPress={() => handleDirectDownload(file.downloadUrl, file.name)}
                       >
                         <Ionicons name="download" size={20} color="#fff" />
                       </TouchableOpacity>
@@ -635,6 +672,57 @@ export function MovieDownloader({
               <Text style={styles.noResultsText}>
                 Try searching with a different title or check your spelling
               </Text>
+            </View>
+          )}
+
+          {isDownloading && (
+            <View style={styles.progressSection}>
+              <Text style={styles.sectionTitle}>Download Progress</Text>
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${downloadProgress}%` }]} />
+                </View>
+                <Text style={styles.progressText}>{downloadProgress.toFixed(1)}%</Text>
+              </View>
+              
+              <View style={styles.progressDetails}>
+                <View style={styles.progressDetailRow}>
+                  <Text style={styles.progressDetailLabel}>Status:</Text>
+                  <Text style={styles.progressDetailValue}>{statusMessage}</Text>
+                </View>
+                {progressInfo && (
+                  <>
+                    <View style={styles.progressDetailRow}>
+                      <Text style={styles.progressDetailLabel}>Downloaded:</Text>
+                      <Text style={styles.progressDetailValue}>
+                        {formatFileSize(progressInfo.bytesWritten)} / {formatFileSize(progressInfo.contentLength)}
+                      </Text>
+                    </View>
+                    {downloadSpeed > 0 && (
+                      <>
+                        <View style={styles.progressDetailRow}>
+                          <Text style={styles.progressDetailLabel}>Speed:</Text>
+                          <Text style={styles.progressDetailValue}>{formatSpeed(downloadSpeed)}</Text>
+                        </View>
+                        <View style={styles.progressDetailRow}>
+                          <Text style={styles.progressDetailLabel}>Time remaining:</Text>
+                          <Text style={styles.progressDetailValue}>{formatTime(estimatedTime)}</Text>
+                        </View>
+                      </>
+                    )}
+                  </>
+                )}
+              </View>
+
+              <View style={styles.downloadActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={cancelDownload}
+                >
+                  <Ionicons name="close" size={16} color="#fff" />
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
