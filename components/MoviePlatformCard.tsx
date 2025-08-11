@@ -11,17 +11,6 @@ interface MoviePlatformCardProps {
 
 export function MoviePlatformCard({ platform, onPress }: MoviePlatformCardProps) {
   const handlePress = () => {
-    if (!platform.isLegitimate) {
-      Alert.alert(
-        'External Platform',
-        `You are about to visit ${platform.name}. This will open in your browser where you can download or stream movies directly.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open in Browser', onPress: () => onPress(platform) }
-        ]
-      );
-      return;
-    }
     onPress(platform);
   };
 

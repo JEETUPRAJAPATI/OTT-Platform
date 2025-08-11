@@ -56,21 +56,19 @@ export function MoviePlatformBrowser({ visible, onClose }: MoviePlatformBrowserP
           ]
         );
       } else {
-        // For the new platforms, open directly in browser
+        // For external platforms, open directly in browser without confirmation
         const { openBrowserAsync } = await import('expo-web-browser');
         await openBrowserAsync(platform.baseUrl, {
-          presentationStyle: 'fullScreen',
+          presentationStyle: 'pageSheet',
           showTitle: true,
           showInRecents: true,
-          dismissButtonStyle: 'done'
+          dismissButtonStyle: 'done',
+          toolbarColor: '#000000',
+          enableBarCollapsing: false
         });
         
-        // Show success message
-        Alert.alert(
-          'Opening Platform',
-          `Opening ${platform.name} in browser. You can browse and download movies directly from their website.`,
-          [{ text: 'OK' }]
-        );
+        // Close the modal after opening browser
+        onClose();
       }
     } catch (error) {
       console.error('Error opening platform:', error);
