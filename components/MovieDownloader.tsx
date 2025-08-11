@@ -527,29 +527,7 @@ export function MovieDownloader({
           {movieFound && movieFiles && movieFiles.length > 0 && (
             <View style={styles.downloadSection}>
               <Text style={styles.sectionTitle}>
-                Found {movieFiles.length} file(s) - Ready to Play or Download
-              </Text>
-
-              <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity
-                  style={styles.playButton}
-                  onPress={startPlay}
-                >
-                  <Ionicons name="play" size={24} color="#fff" />
-                  <Text style={styles.actionButtonText}>Play</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.downloadButton}
-                  onPress={startDownload}
-                >
-                  <Ionicons name="download" size={24} color="#fff" />
-                  <Text style={styles.actionButtonText}>Download</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.playbackNote}>
-                💡 Some videos may only support download due to Internet Archive streaming limitations
+                Found {movieFiles.length} file(s) - Available Files
               </Text>
 
               <View style={styles.filesPreview}>
@@ -570,7 +548,7 @@ export function MovieDownloader({
                     </View>
                     <View style={styles.downloadBrowserContainer}>
                       <TouchableOpacity
-                        style={[styles.downloadButton, { backgroundColor: '#FF9800', marginRight: 4 }]}
+                        style={[styles.iconButton, { backgroundColor: '#FF9800' }]}
                         onPress={async () => {
                           try {
                             // Remove download parameter for streaming
@@ -593,20 +571,18 @@ export function MovieDownloader({
                           }
                         }}
                       >
-                        <Ionicons name="play" size={16} color="#fff" />
-                        <Text style={styles.downloadButtonText}>Play</Text>
+                        <Ionicons name="play" size={20} color="#fff" />
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={[styles.downloadButton, { backgroundColor: '#4CAF50', marginRight: 4 }]}
+                        style={[styles.iconButton, { backgroundColor: '#4CAF50' }]}
                         onPress={() => handleDirectDownload(file.downloadUrl)}
                       >
-                        <Ionicons name="download" size={16} color="#fff" />
-                        <Text style={styles.downloadButtonText}>Download</Text>
+                        <Ionicons name="download" size={20} color="#fff" />
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={[styles.downloadButton, { backgroundColor: '#2196F3' }]}
+                        style={[styles.iconButton, { backgroundColor: '#2196F3' }]}
                         onPress={async () => {
                           try {
                             // Keep download parameter for browser downloads
@@ -629,8 +605,7 @@ export function MovieDownloader({
                           }
                         }}
                       >
-                        <Ionicons name="globe" size={16} color="#fff" />
-                        <Text style={styles.downloadButtonText}>Browser</Text>
+                        <Ionicons name="globe" size={20} color="#fff" />
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
@@ -1087,8 +1062,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    flexWrap: 'wrap',
-    gap: 4,
+    gap: 8,
+  },
+  // Icon-only button style
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Adjusted style for downloadButtonText to be used by both buttons
   downloadButtonText: {
