@@ -668,8 +668,8 @@ export function MovieDownloader({
         <VideoPlayerModal
           visible={videoModalVisible}
           onClose={() => setVideoModalVisible(false)}
-          movieTitle={searchTitle || movieTitle}
-          currentVideo={currentVideo} // Pass currentVideo
+          videoFiles={movieFiles || []}
+          movieTitle={searchTitle || movieTitle || 'Unknown Movie'}
         />
       </SafeAreaView>
     </Modal>

@@ -27,7 +27,7 @@ interface VideoFile {
 interface VideoPlayerModalProps {
   visible: boolean;
   onClose: () => void;
-  videoFiles: VideoFile[];
+  videoFiles?: VideoFile[];
   movieTitle: string;
 }
 
@@ -47,23 +47,24 @@ export function VideoPlayerModal({
 
   // Mock states for movieFound, movieFiles, isLoading, isDownloading, downloadProgress
   // These would typically come from props or state management in a real app.
-  const movieFound = videoFiles.length > 0;
-  const movieFiles = videoFiles; // Use the passed videoFiles directly
+  const safeVideoFiles = videoFiles || [];
+  const movieFound = safeVideoFiles.length > 0;
+  const movieFiles = safeVideoFiles; // Use the passed videoFiles directly
   const isDownloading = false; // Placeholder
   const downloadProgress = 0; // Placeholder
 
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    if (visible && videoFiles.length > 0) {
-      if (videoFiles.length === 1) {
-        setSelectedFile(videoFiles[0]);
+    if (visible && safeVideoFiles.length > 0) {
+      if (safeVideoFiles.length === 1) {
+        setSelectedFile(safeVideoFiles[0]);
         setShowQualitySelector(false);
       } else {
         setShowQualitySelector(true);
       }
     }
-  }, [visible, videoFiles]);
+  }, [visible, safeVideoFiles]);
 
   useEffect(() => {
     // Auto-hide controls
@@ -207,7 +208,7 @@ export function VideoPlayerModal({
   const renderQualitySelector = () => (
     <View style={styles.qualitySelectorContainer}>
       <Text style={styles.qualitySelectorTitle}>Select Quality</Text>
-      {videoFiles.map((file, index) => (
+      {safeVideoFiles.map((file, index) => (
         <TouchableOpacity
           key={index}
           style={styles.qualityOption}
@@ -397,7 +398,7 @@ export function VideoPlayerModal({
                 Playing: {selectedFile.name}
               </Text>
               
-              {movieFound && movieFiles.length > 0 && (
+              {movieFound && movieFiles && movieFiles.length > 0 && (
                 <View style={styles.actionButtonsContainer}>
                   <TouchableOpacity
                     style={styles.playButton}
@@ -436,7 +437,7 @@ export function VideoPlayerModal({
 
                   <TouchableOpacity
                     style={styles.browserButton}
-                    onPress={() => openInBrowser(movieFiles[0]?.downloadUrl)}
+                    onPress={() => openInBrowser(movieFiles[0]?.downloadUrl || '')}
                     disabled={isLoading}
                   >
                     <Ionicons name="globe" size={20} color="#fff" />
