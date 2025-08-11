@@ -81,7 +81,7 @@ export default function HomeScreen() {
     try {
       setLoadingContent(true);
       setLoadingHero(true);
-      
+
       // Load user data
       userService.loadFromStorage();
       const continueWatching = userService.getContinueWatching();
@@ -338,90 +338,163 @@ export default function HomeScreen() {
     }
 
     const heroItem = featuredContent[currentHero];
-    const title = (heroItem as any).title || (heroItem as any).name;
-    const backdropUrl = `https://image.tmdb.org/t/p/w1280${heroItem.backdrop_path}`;
+    // Safety check for heroItem itself
+    if (!heroItem) {
+      return <HeroSkeleton />;
+    }
+
+    const title = (heroItem as any).title || (heroItem as any).name || 'Untitled';
+    const backdropUrl = heroItem.backdrop_path ? `https://image.tmdb.org/t/p/w1280${heroItem.backdrop_path}` : null;
 
     return (
       <View style={styles.heroContainer}>
-        <ImageBackground
-          source={{ uri: backdropUrl }}
-          style={styles.heroBackground}
-          imageStyle={styles.heroBackgroundImage}
-        >
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)', '#000']}
-            locations={[0, 0.6, 0.8, 1]}
-            style={styles.heroGradient}
+        {backdropUrl ? (
+          <ImageBackground
+            source={{ uri: backdropUrl }}
+            style={styles.heroBackground}
+            imageStyle={styles.heroBackgroundImage}
           >
-            <SafeAreaView style={styles.heroContent}>
-              <View style={styles.heroTopSection}>
-                <Text style={styles.logoText}>RK SWOT</Text>
-                <TouchableOpacity style={styles.profileButton}>
-                  <Text style={styles.profileIcon}>👤</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.heroBottomSection}>
-                <View style={styles.newReleaseBadge}>
-                  <Text style={styles.badgeText}>NEW RELEASE</Text>
-                </View>
-
-                <Text style={styles.heroTitle} numberOfLines={2}>
-                  {title}
-                </Text>
-
-                <View style={styles.heroMeta}>
-                  <Text style={styles.heroYear}>
-                    {new Date((heroItem as any).release_date || (heroItem as any).first_air_date).getFullYear()}
-                  </Text>
-                  <View style={styles.heroDot} />
-                  <Text style={styles.heroRating}>
-                    ⭐ {heroItem.vote_average.toFixed(1)}
-                  </Text>
-                  <View style={styles.heroDot} />
-                  <Text style={styles.heroType}>
-                    {(heroItem as any).title ? 'Movie' : 'Series'}
-                  </Text>
-                </View>
-
-                <Text style={styles.heroDescription} numberOfLines={3}>
-                  {heroItem.overview}
-                </Text>
-
-                <View style={styles.heroButtons}>
-                  <TouchableOpacity
-                    style={styles.playButton}
-                    onPress={() => handleTMDbContentPress(heroItem)}
-                  >
-                    <Text style={styles.playIcon}>▶</Text>
-                    <Text style={styles.playText}>Play</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.infoButton}
-                    onPress={() => handleTMDbContentPress(heroItem)}
-                  >
-                    <Text style={styles.infoIcon}>ℹ</Text>
-                    <Text style={styles.infoText}>More Info</Text>
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)', '#000']}
+              locations={[0, 0.6, 0.8, 1]}
+              style={styles.heroGradient}
+            >
+              <SafeAreaView style={styles.heroContent}>
+                <View style={styles.heroTopSection}>
+                  <Text style={styles.logoText}>RK SWOT</Text>
+                  <TouchableOpacity style={styles.profileButton}>
+                    <Text style={styles.profileIcon}>👤</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Hero Indicators */}
-                <View style={styles.heroIndicators}>
-                  {featuredContent.map((_, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.heroIndicator,
-                        index === currentHero && styles.heroIndicatorActive
-                      ]}
-                    />
-                  ))}
+                <View style={styles.heroBottomSection}>
+                  <View style={styles.newReleaseBadge}>
+                    <Text style={styles.badgeText}>NEW RELEASE</Text>
+                  </View>
+
+                  <Text style={styles.heroTitle} numberOfLines={2}>
+                    {title}
+                  </Text>
+
+                  <View style={styles.heroMeta}>
+                    <Text style={styles.heroYear}>
+                      {(() => {
+                        const date = (heroItem as any).release_date || (heroItem as any).first_air_date;
+                        if (!date) return 'N/A';
+                        try {
+                          return new Date(date).getFullYear();
+                        } catch (e) {
+                          return 'N/A';
+                        }
+                      })()}
+                    </Text>
+                    <View style={styles.heroDot} />
+                    <Text style={styles.heroRating}>
+                      ⭐ {(heroItem.vote_average || 0).toFixed(1)}
+                    </Text>
+                    <View style={styles.heroDot} />
+                    <Text style={styles.heroType}>
+                      {(heroItem as any).title ? 'Movie' : 'Series'}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.heroDescription} numberOfLines={3}>
+                    {heroItem.overview || 'No description available'}
+                  </Text>
+
+                  <View style={styles.heroButtons}>
+                    <TouchableOpacity
+                      style={styles.playButton}
+                      onPress={() => handleTMDbContentPress(heroItem)}
+                    >
+                      <Text style={styles.playIcon}>▶</Text>
+                      <Text style={styles.playText}>Play</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.infoButton}
+                      onPress={() => handleTMDbContentPress(heroItem)}
+                    >
+                      <Text style={styles.infoIcon}>ℹ</Text>
+                      <Text style={styles.infoText}>More Info</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Hero Indicators */}
+                  <View style={styles.heroIndicators}>
+                    {featuredContent.map((_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.heroIndicator,
+                          index === currentHero && styles.heroIndicatorActive
+                        ]}
+                      />
+                    ))}
+                  </View>
                 </View>
-              </View>
-            </SafeAreaView>
-          </LinearGradient>
-        </ImageBackground>
+              </SafeAreaView>
+            </LinearGradient>
+          </ImageBackground>
+        ) : (
+          // Fallback if no backdrop is available
+          <View style={styles.heroBackground}>
+             <SafeAreaView style={styles.heroContent}>
+                <View style={styles.heroTopSection}>
+                  <Text style={styles.logoText}>RK SWOT</Text>
+                  <TouchableOpacity style={styles.profileButton}>
+                    <Text style={styles.profileIcon}>👤</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.heroBottomSection}>
+                  <Text style={styles.heroTitle} numberOfLines={2}>
+                    {title}
+                  </Text>
+                  <View style={styles.heroMeta}>
+                    <Text style={styles.heroYear}>
+                      {(() => {
+                        const date = (heroItem as any).release_date || (heroItem as any).first_air_date;
+                        if (!date) return 'N/A';
+                        try {
+                          return new Date(date).getFullYear();
+                        } catch (e) {
+                          return 'N/A';
+                        }
+                      })()}
+                    </Text>
+                    <View style={styles.heroDot} />
+                    <Text style={styles.heroRating}>
+                      ⭐ {(heroItem.vote_average || 0).toFixed(1)}
+                    </Text>
+                    <View style={styles.heroDot} />
+                    <Text style={styles.heroType}>
+                      {(heroItem as any).title ? 'Movie' : 'Series'}
+                    </Text>
+                  </View>
+                   <Text style={styles.heroDescription} numberOfLines={3}>
+                    {heroItem.overview || 'No description available'}
+                  </Text>
+                   <View style={styles.heroButtons}>
+                    <TouchableOpacity
+                      style={styles.playButton}
+                      onPress={() => handleTMDbContentPress(heroItem)}
+                    >
+                      <Text style={styles.playIcon}>▶</Text>
+                      <Text style={styles.playText}>Play</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.infoButton}
+                      onPress={() => handleTMDbContentPress(heroItem)}
+                    >
+                      <Text style={styles.infoIcon}>ℹ</Text>
+                      <Text style={styles.infoText}>More Info</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </SafeAreaView>
+          </View>
+        )}
       </View>
     );
   };
@@ -499,7 +572,8 @@ export default function HomeScreen() {
         keyExtractor={(item, index) => {
           if (item.type === 'hero') return 'hero';
           if (item.type === 'providers') return 'providers';
-          return `section-${item.section.id}-${index}`;
+          if (item.type === 'section' && item.section) return `section-${item.section.id}-${index}`;
+          return `unknown-${index}`;
         }}
         refreshControl={
           <RefreshControl
