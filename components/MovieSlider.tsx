@@ -112,7 +112,7 @@ export function MovieSlider({
           
           return finalIndex;
         });
-      }, 3000); // Auto-slide every 3 seconds
+      }, 4000); // Auto-slide every 4 seconds
 
       return () => clearInterval(interval);
     }

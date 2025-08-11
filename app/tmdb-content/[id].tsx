@@ -640,7 +640,11 @@ export default function TMDbContentDetails() {
               style={styles.castContainer}
             >
               {cast.map((person) => (
-                <TouchableOpacity key={person.id} style={styles.castMember}>
+                <TouchableOpacity 
+                  key={person.id} 
+                  style={styles.castMember}
+                  onPress={() => router.push(`/person/${person.id}`)}
+                >
                   <Image
                     source={{
                       uri: person.profile_path
