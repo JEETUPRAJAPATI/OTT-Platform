@@ -84,15 +84,15 @@ export function VideoPlayerModal({
   const handlePlayPress = async (file: VideoFile) => {
     try {
       console.log('Play button clicked - opening streaming URL for:', file.name);
-      
+
       // Extract streaming URL (remove download parameter for streaming)
       const streamingUrl = file.downloadUrl.replace('?download=1', '');
-      
+
       console.log('Opening streaming URL:', streamingUrl);
-      
+
       // Open directly in browser for auto-play
       await openInBrowser(streamingUrl);
-      
+
     } catch (error) {
       console.error('Play error:', error);
       Alert.alert(
@@ -100,8 +100,8 @@ export function VideoPlayerModal({
         'Failed to open video for playback. You can try downloading instead.',
         [
           { text: 'Cancel' },
-          { 
-            text: 'Download Instead', 
+          {
+            text: 'Download Instead',
             onPress: () => handleDirectDownload(file.downloadUrl)
           }
         ]
@@ -134,7 +134,7 @@ export function VideoPlayerModal({
       console.log('Opening streaming URL in browser:', url);
 
       const { openBrowserAsync } = await import('expo-web-browser');
-      
+
       await openBrowserAsync(url, {
         presentationStyle: 'fullScreen',
         showTitle: true,
@@ -142,9 +142,9 @@ export function VideoPlayerModal({
         enableBarCollapsing: false,
         dismissButtonStyle: 'done'
       });
-      
+
       handleClose();
-      
+
     } catch (error) {
       console.error('Error opening browser:', error);
       Alert.alert('Browser Error', 'Failed to open video in browser.');
@@ -221,9 +221,8 @@ export function VideoPlayerModal({
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
               onPress={() => {
-                // Extract streaming URL for browser
-                const streamUrl = file.downloadUrl.replace('?download=1', '');
-                openInBrowser(streamUrl);
+                // Keep download parameter for browser downloads
+                openInBrowser(file.downloadUrl);
               }}
             >
               <Ionicons name="globe" size={20} color="#fff" />
@@ -236,7 +235,7 @@ export function VideoPlayerModal({
 
   const renderVideoPlayer = () => (
     <View style={styles.videoContainer}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.videoTouchArea}
         onPress={handleVideoTap}
         activeOpacity={1}
@@ -285,7 +284,7 @@ export function VideoPlayerModal({
             <Ionicons name="alert-circle" size={48} color="#F44336" />
             <Text style={styles.errorText}>{error}</Text>
             <View style={styles.errorActions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.retryButton}
                 onPress={() => setShowQualitySelector(true)}
               >
@@ -293,7 +292,7 @@ export function VideoPlayerModal({
                 <Text style={styles.retryButtonText}>Try Different Quality</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.retryButton, { backgroundColor: '#2196F3' }]}
                 onPress={() => selectedFile && openInBrowser(selectedFile.downloadUrl)}
               >
@@ -328,8 +327,8 @@ export function VideoPlayerModal({
                 </Text>
               </View>
 
-              <TouchableOpacity 
-                onPress={() => setShowQualitySelector(true)} 
+              <TouchableOpacity
+                onPress={() => setShowQualitySelector(true)}
                 style={styles.controlButton}
               >
                 <Ionicons name="settings" size={24} color="#fff" />
@@ -339,10 +338,10 @@ export function VideoPlayerModal({
             {/* Center Play/Pause Button */}
             <View style={styles.centerControls}>
               <TouchableOpacity onPress={togglePlayPause} style={styles.playButton}>
-                <Ionicons 
-                  name={isPlaying ? "pause" : "play"} 
-                  size={48} 
-                  color="#fff" 
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={48}
+                  color="#fff"
                 />
               </TouchableOpacity>
             </View>
@@ -352,7 +351,7 @@ export function VideoPlayerModal({
               <Text style={styles.fileInfo}>
                 Playing: {selectedFile.name}
               </Text>
-              
+
               <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
                   style={styles.playButton}
@@ -380,7 +379,7 @@ export function VideoPlayerModal({
 
                 <TouchableOpacity
                   style={styles.browserButton}
-                  onPress={() => openInBrowser(selectedFile.downloadUrl.replace('?download=1', ''))}
+                  onPress={() => openInBrowser(selectedFile.downloadUrl)}
                   disabled={isLoading}
                 >
                   <Ionicons name="globe" size={20} color="#fff" />

@@ -64,17 +64,34 @@ export function MovieDownloader({
 
   const handleDirectDownload = async (downloadUrl: string) => {
     try {
-      console.log('Opening download URL in browser:', downloadUrl);
+      console.log('Starting automatic download:', downloadUrl);
 
-      // Simply open the URL in browser
-      await downloadService.downloadFile(downloadUrl, 'Movie Download');
-
-      // Close the modal after opening URL
-      onClose();
+      // Use the real file download service for automatic download
+      const { fileDownloadService } = await import('../services/fileDownloadService');
+      
+      const downloadId = await fileDownloadService.startDownload(
+        downloadUrl,
+        'Movie Download',
+        searchTitle || movieTitle,
+        {
+          onProgress: (progress) => {
+            console.log(`Download progress: ${progress.progress}%`);
+          },
+          onComplete: (filePath) => {
+            console.log(`Download completed: ${filePath}`);
+            showToast('Download Complete', 'Movie downloaded successfully!');
+            onClose();
+          },
+          onError: (error) => {
+            console.error(`Download failed: ${error}`);
+            showToast('Download Failed', `Download failed: ${error}`);
+          }
+        }
+      );
 
     } catch (error) {
       console.error('Direct download error:', error);
-      showToast('Download Failed', 'Failed to open download URL. Please check the URL and try again.');
+      showToast('Download Failed', 'Failed to start download. Please try again.');
     }
   };
 
@@ -322,33 +339,17 @@ export function MovieDownloader({
     }
 
     try {
-      console.log('Play button clicked - opening best quality file');
+      console.log('Play button clicked - opening video player modal');
 
-      // Use the first/best quality file for direct playback
+      // Use the first/best quality file for streaming
       const selectedFile = movieFiles[0];
 
-      // Create streaming URL (remove download parameter)
-      const streamingUrl = selectedFile.downloadUrl.replace('?download=1', '');
-
-      console.log('Opening streaming URL:', streamingUrl);
-
-      // Open directly in browser for auto-play
-      const { openBrowserAsync } = await import('expo-web-browser');
-
-      await openBrowserAsync(streamingUrl, {
-        presentationStyle: 'fullScreen',
-        showTitle: true,
-        showInRecents: true,
-        enableBarCollapsing: false,
-        dismissButtonStyle: 'done'
-      });
-
-      // Close downloader after successful play
-      onClose();
+      // Open video player modal for in-app streaming
+      setShowVideoPlayer(true);
 
     } catch (error) {
       console.error('Play error:', error);
-      showToast('Playback Failed', 'Could not start playback. Try using the browser button or download instead.');
+      showToast('Playback Failed', 'Could not start playback. Try using the browser button instead.');
     }
   };
 
@@ -568,12 +569,11 @@ export function MovieDownloader({
                         style={[styles.downloadButton, { backgroundColor: '#2196F3', marginLeft: 8 }]}
                         onPress={async () => {
                           try {
-                            // Extract streaming URL (remove download parameter)
-                            const streamUrl = file.downloadUrl.replace('?download=1', '');
-                            console.log('Opening browser with streaming URL:', streamUrl);
+                            // Keep download parameter for browser downloads
+                            console.log('Opening browser with download URL:', file.downloadUrl);
 
                             const { openBrowserAsync } = await import('expo-web-browser');
-                            await openBrowserAsync(streamUrl, {
+                            await openBrowserAsync(file.downloadUrl, {
                               presentationStyle: 'fullScreen',
                               showTitle: true,
                               showInRecents: true,
@@ -582,7 +582,7 @@ export function MovieDownloader({
                             });
                           } catch (error) {
                             console.error('Browser open error:', error);
-                            showToast('Browser Error', 'Failed to open video in browser');
+                            showToast('Browser Error', 'Failed to open download in browser');
                           }
                         }}
                       >
