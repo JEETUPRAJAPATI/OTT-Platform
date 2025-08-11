@@ -538,7 +538,12 @@ export function MovieDownloader({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.content}>
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          bounces={true}
+        >
           <View style={styles.searchSection}>
             <Text style={styles.sectionTitle}>Search Movie on Internet Archive</Text>
             <View style={styles.searchContainer}>
@@ -838,7 +843,7 @@ export function MovieDownloader({
             <Text style={styles.howItWorksItem}>• Downloads directly to your device storage</Text>
             <Text style={styles.howItWorksItem}>• Supports MP4, MKV, WebM formats</Text>
           </View>
-        </View>
+        </ScrollView>
 
         {renderQualityModal()}
       </SafeAreaView>
@@ -869,7 +874,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   searchSection: {
     marginBottom: 30,
@@ -1292,12 +1300,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   platformScrollView: {
-    maxHeight: 300,
-    flex: 1,
+    maxHeight: 250,
+    minHeight: 200,
   },
   platformScrollContent: {
-    paddingBottom: 16,
-    flexGrow: 1,
+    paddingBottom: 20,
   },
   platformCard: {
     backgroundColor: 'rgba(255,255,255,0.05)',
