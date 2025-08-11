@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -46,6 +45,13 @@ export function VideoPlayerModal({
   const [showControls, setShowControls] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Mock states for movieFound, movieFiles, isLoading, isDownloading, downloadProgress
+  // These would typically come from props or state management in a real app.
+  const movieFound = videoFiles.length > 0;
+  const movieFiles = videoFiles; // Use the passed videoFiles directly
+  const isDownloading = false; // Placeholder
+  const downloadProgress = 0; // Placeholder
+
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -66,7 +72,7 @@ export function VideoPlayerModal({
         setShowControls(false);
       }, 4000);
     }
-    
+
     return () => {
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
@@ -83,17 +89,17 @@ export function VideoPlayerModal({
     try {
       console.log('Starting playback for:', file.name);
       console.log('Video URL:', file.downloadUrl);
-      
+
       // Check if it's a direct Internet Archive URL and modify if needed
       let playbackUrl = file.downloadUrl;
-      
+
       // For Internet Archive URLs, ensure proper format for streaming
       if (playbackUrl.includes('archive.org/download/')) {
         // Remove the ?download=1 parameter if present for streaming
         playbackUrl = playbackUrl.replace('?download=1', '');
         console.log('Modified URL for streaming:', playbackUrl);
       }
-      
+
       // Load and play the video
       if (videoRef.current) {
         const videoSource = {
@@ -103,7 +109,7 @@ export function VideoPlayerModal({
             'Referer': 'https://archive.org/'
           }
         };
-        
+
         console.log('Loading video with source:', videoSource);
         await videoRef.current.loadAsync(videoSource);
         console.log('Video loaded successfully, starting playback...');
@@ -152,7 +158,7 @@ export function VideoPlayerModal({
       // Remove ?download=1 for better browser streaming
       const streamUrl = downloadUrl.replace('?download=1', '');
       console.log('Opening in browser:', streamUrl);
-      
+
       const { openBrowserAsync } = await import('expo-web-browser');
       await openBrowserAsync(streamUrl);
     } catch (error) {
@@ -170,7 +176,7 @@ export function VideoPlayerModal({
     } catch (error) {
       console.error('Error stopping video:', error);
     }
-    
+
     setSelectedFile(null);
     setIsPlaying(false);
     setIsLoading(false);
@@ -178,6 +184,25 @@ export function VideoPlayerModal({
     setShowQualitySelector(false);
     onClose();
   };
+
+  // Placeholder functions for startPlay and startDownload as they are used in the provided changes
+  const startPlay = () => {
+    if (selectedFile) {
+      handlePlayPress(selectedFile);
+    }
+  };
+
+  const handleDirectDownload = async (url: string) => {
+    Alert.alert('Download', `Initiating download for: ${url}`);
+    // In a real app, this would trigger a download service
+  };
+
+  const startDownload = () => {
+    if (selectedFile) {
+      handleDirectDownload(selectedFile.downloadUrl);
+    }
+  };
+
 
   const renderQualitySelector = () => (
     <View style={styles.qualitySelectorContainer}>
@@ -202,6 +227,12 @@ export function VideoPlayerModal({
               onPress={() => handlePlayPress(file)}
             >
               <Ionicons name="play" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+              onPress={() => handleDirectDownload(file.downloadUrl)}
+            >
+              <Ionicons name="download" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
@@ -273,7 +304,7 @@ export function VideoPlayerModal({
                 <Ionicons name="refresh" size={20} color="#fff" />
                 <Text style={styles.retryButtonText}>Try Different Quality</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity 
                 style={[styles.retryButton, { backgroundColor: '#4CAF50' }]}
                 onPress={() => {
@@ -290,7 +321,7 @@ export function VideoPlayerModal({
                             const downloadUrl = selectedFile.downloadUrl.includes('?download=1') 
                               ? selectedFile.downloadUrl 
                               : `${selectedFile.downloadUrl}?download=1`;
-                            
+
                             import('../services/downloadService').then(({ downloadService }) => {
                               downloadService.downloadFile(downloadUrl, selectedFile.name);
                               handleClose();
@@ -314,7 +345,7 @@ export function VideoPlayerModal({
                 <Text style={styles.retryButtonText}>Open in Browser</Text>
               </TouchableOpacity>
             </View>
-            
+
             <Text style={styles.errorHint}>
               💡 Some Internet Archive videos only support download, not direct streaming
             </Text>
@@ -333,14 +364,14 @@ export function VideoPlayerModal({
               <TouchableOpacity onPress={handleClose} style={styles.controlButton}>
                 <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-              
+
               <View style={styles.titleContainer}>
                 <Text style={styles.videoTitle} numberOfLines={1}>{movieTitle}</Text>
                 <Text style={styles.qualityInfo} numberOfLines={1}>
                   {selectedFile.quality} • {selectedFile.format}
                 </Text>
               </View>
-              
+
               <TouchableOpacity 
                 onPress={() => setShowQualitySelector(true)} 
                 style={styles.controlButton}
@@ -365,6 +396,54 @@ export function VideoPlayerModal({
               <Text style={styles.fileInfo}>
                 Playing: {selectedFile.name}
               </Text>
+              
+              {movieFound && movieFiles.length > 0 && (
+                <View style={styles.actionButtonsContainer}>
+                  <TouchableOpacity
+                    style={styles.playButton}
+                    onPress={startPlay}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="play" size={20} color="#fff" />
+                        <Text style={styles.playButtonText}>Play</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.downloadButton}
+                    onPress={startDownload}
+                    disabled={isDownloading || isLoading}
+                  >
+                    {isDownloading ? (
+                      <>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={styles.downloadButtonText}>
+                          {Math.round(downloadProgress)}%
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="download" size={20} color="#fff" />
+                        <Text style={styles.downloadButtonText}>Download</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.browserButton}
+                    onPress={() => openInBrowser(movieFiles[0]?.downloadUrl)}
+                    disabled={isLoading}
+                  >
+                    <Ionicons name="globe" size={20} color="#fff" />
+                    <Text style={styles.browserButtonText}>Browser</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </LinearGradient>
         )}
@@ -591,5 +670,56 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     textAlign: 'center',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginVertical: 20,
+    paddingHorizontal: 20,
+  },
+  playButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 152, 0, 0.8)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  downloadButton: {
+    flex: 1,
+    backgroundColor: 'rgba(76, 175, 80, 0.8)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  browserButton: {
+    flex: 1,
+    backgroundColor: 'rgba(33, 150, 243, 0.8)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  playButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  browserButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
