@@ -55,7 +55,6 @@
           "isAccessMediaLocationEnabled": true
         }
       ],
-      "expo-audio",
       "expo-video"
     ],
     "experiments": {
