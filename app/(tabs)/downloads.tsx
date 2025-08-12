@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -86,8 +85,7 @@ export default function DownloadsScreen() {
 
     // Set up interval to update progress for active downloads (mobile only)
     let interval: NodeJS.Timeout | null = null;
-
-    if (!isWeb && fileDownloadService) {
+    if (!isWeb && fileDownloadService && typeof fileDownloadService.getActiveDownloads === 'function') {
       interval = setInterval(() => {
         const activeDownloads = downloadService.getActiveDownloads();
         const activeRealDownloads = fileDownloadService.getActiveDownloads();

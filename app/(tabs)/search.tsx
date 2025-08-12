@@ -41,6 +41,22 @@ export default function SearchScreen() {
     { id: 10752, name: 'War' },
   ];
 
+  useEffect(() => {
+    loadTrendingContent();
+  }, []);
+
+  const loadTrendingContent = async () => {
+    try {
+      setLoading(true);
+      const trending = await tmdbService.getTrending('all', 'week');
+      setSearchResults(trending);
+    } catch (error) {
+      console.error('Error loading trending content:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSearch = async (query: string) => {
     if (query.trim().length < 2) {
       setSearchResults([]);
@@ -180,11 +196,11 @@ export default function SearchScreen() {
         </View>
 
         {/* Results Section */}
-        {(searchQuery.trim() || selectedGenre) && (
+        {(searchQuery.trim() || selectedGenre || searchResults.length > 0) && (
           <View style={styles.resultsSection}>
             <View style={styles.resultHeader}>
               <ThemedText style={styles.sectionTitle}>
-                {searchQuery.trim() ? 'Search Results' : 'Filtered Results'}
+                {searchQuery.trim() ? 'Search Results' : selectedGenre ? 'Filtered Results' : 'Trending This Week'}
               </ThemedText>
               {displayContent.length > 0 && (
                 <ThemedText style={styles.resultCount}>

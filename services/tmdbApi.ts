@@ -200,6 +200,14 @@ class TMDbService {
     return response.data.results;
   }
 
+  // Search content (unified search)
+  async searchContent(query: string, page: number = 1) {
+    const response = await tmdbApi.get('/search/multi', {
+      params: { query, page }
+    });
+    return response.data.results;
+  }
+
   // Get movie details
   async getMovieDetails(movieId: number) {
     const response = await tmdbApi.get(`/movie/${movieId}`, {

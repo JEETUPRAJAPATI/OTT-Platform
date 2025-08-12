@@ -1,13 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, FlatList, TouchableOpacity, View, Alert } from 'react-native';
+import { ScrollView, StyleSheet, View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { TMDbContentCard } from '@/components/TMDbContentCard';
-import { userService, FavoriteItem } from '@/services/userService';
-import { tmdbService } from '@/services/tmdbApi';
 import { Ionicons } from '@expo/vector-icons';
+import { apiService, FavoriteItem } from '@/services/apiService';
+import { TMDbContentCard } from '@/components/TMDbContentCard';
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -20,13 +17,22 @@ export default function FavoritesScreen() {
 
   const loadFavorites = async () => {
     try {
-      setLoading(true);
-      const userFavorites = userService.getFavorites();
-      setFavorites(userFavorites);
+      const data = await apiService.getFavorites();
+      setFavorites(data);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load favorites');
+      console.error('Error loading favorites:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const removeFromFavorites = async (contentId: string) => {
+    try {
+      await apiService.removeFromFavorites(contentId);
+      setFavorites(prev => prev.filter(item => item.contentId !== contentId));
+      Alert.alert('Success', 'Removed from favorites');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove from favorites');
     }
   };
 
@@ -34,89 +40,65 @@ export default function FavoritesScreen() {
     router.push(`/tmdb-content/${item.contentId}?type=${item.contentType}`);
   };
 
-  const handleRemove = (item: FavoriteItem) => {
-    Alert.alert(
-      'Remove Favorite',
-      `Remove "${item.title}" from favorites?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Remove', 
-          style: 'destructive',
-          onPress: () => {
-            userService.removeFromFavorites(item.contentId, item.contentType);
-            loadFavorites();
-          }
-        }
-      ]
-    );
-  };
-
-  const renderFavoriteItem = ({ item }: { item: FavoriteItem }) => (
-    <View style={styles.favoriteItem}>
-      <TouchableOpacity 
-        style={styles.contentContainer}
-        onPress={() => handleContentPress(item)}
-      >
-        <TMDbContentCard
-          content={{
-            id: item.contentId,
-            poster_path: item.posterPath,
-            title: item.title,
-            name: item.title,
-            vote_average: 0,
-            release_date: '',
-            first_air_date: '',
-          } as any}
-          type={item.contentType}
-          onPress={() => handleContentPress(item)}
-          style={styles.card}
-        />
-      </TouchableOpacity>
-      <TouchableOpacity 
-        style={styles.removeButton}
-        onPress={() => handleRemove(item)}
-      >
-        <Ionicons name="trash-outline" size={20} color="#E50914" />
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <ThemedText style={styles.title}>My Favorites</ThemedText>
+        <Text style={styles.title}>My Favorites ({favorites.length})</Text>
         <View style={{ width: 24 }} />
       </View>
 
       {favorites.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={64} color="#666" />
-          <ThemedText style={styles.emptyText}>No favorites yet</ThemedText>
-          <ThemedText style={styles.emptySubText}>
-            Start adding movies and shows to your favorites!
-          </ThemedText>
+          <Ionicons name="heart-outline" size={80} color="#333" />
+          <Text style={styles.emptyText}>No Favorites Yet</Text>
+          <Text style={styles.emptySubText}>Add movies and shows to your favorites</Text>
         </View>
       ) : (
         <FlatList
           data={favorites}
-          renderItem={renderFavoriteItem}
+          renderItem={({ item }) => (
+            <View style={styles.favoriteItem}>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removeFromFavorites(item.contentId)}
+              >
+                <Ionicons name="close-circle" size={24} color="#E50914" />
+              </TouchableOpacity>
+              <TMDbContentCard
+                content={{
+                  id: parseInt(item.contentId),
+                  title: item.title,
+                  poster_path: item.posterPath,
+                  vote_average: 0,
+                  overview: '',
+                  release_date: '',
+                  first_air_date: '',
+                  genre_ids: [],
+                  original_language: '',
+                  popularity: 0,
+                  backdrop_path: ''
+                }}
+                onPress={() => handleContentPress(item)}
+                style={styles.movieCard}
+              />
+            </View>
+          )}
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
         />
       )}
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
@@ -128,6 +110,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#fff',
   },
   emptyContainer: {
     flex: 1,
@@ -138,12 +121,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#fff',
     marginTop: 20,
     textAlign: 'center',
   },
   emptySubText: {
     fontSize: 16,
     opacity: 0.7,
+    color: '#999',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -155,19 +140,15 @@ const styles = StyleSheet.create({
     margin: 8,
     position: 'relative',
   },
-  contentContainer: {
-    flex: 1,
-  },
-  card: {
-    width: '100%',
-  },
   removeButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    borderRadius: 20,
-    padding: 8,
     zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 12,
+  },
+  movieCard: {
+    width: '100%',
   },
 });

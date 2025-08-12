@@ -584,6 +584,32 @@ class FileDownloadService {
     return this.getAllDownloads().filter(download => download.status === status);
   }
 
+  // Get active downloads (downloading, pending, paused)
+  getActiveDownloads(): DownloadProgress[] {
+    return this.getAllDownloads().filter(download => 
+      ['downloading', 'pending', 'paused'].includes(download.status)
+    );
+  }
+
+  // Get completed downloads
+  getCompletedDownloads(): DownloadProgress[] {
+    return this.getDownloadsByStatus('completed');
+  }
+
+  // Get failed downloads
+  getFailedDownloads(): DownloadProgress[] {
+    return this.getDownloadsByStatus('failed');
+  }
+
+  // Retry download method (placeholder for compatibility)
+  retryDownload(downloadId: string): void {
+    const download = this.downloads.get(downloadId);
+    if (download && download.status === 'failed') {
+      console.log('Retry download not fully implemented for:', downloadId);
+      // In a full implementation, this would restart the download
+    }
+  }
+
   // Open downloads folder
   private openDownloadsFolder(): void {
     const downloadsPath = this.getDownloadsPath();

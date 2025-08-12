@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   View,
@@ -18,7 +19,11 @@ import { useRouter } from 'expo-router';
 import { apiService, FavoriteItem, WatchlistItem, Review } from '@/services/apiService';
 import { TMDbContentCard } from './TMDbContentCard';
 
-const { height: screenHeight } = Dimensions.get('window');
+const API_BASE_URL = 'https://api.themoviedb.org/3';
+const API_READ_ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMDQwNWI5ZjEzODNlMTE4ZjljZmE4NmQ3Yjc0ZTJiOSIsIm5iZiI6MTc1NDU1NTAwNy4xNjQsInN1YiI6IjY4OTQ2MjdmMzQ4MDE5NWFhNDY2ZTZmNCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.gH2CFYya3S8QwYBUFhuEKcP4JWoMPnAeaRPDAE03Rik';
+const ACCOUNT_ID = '22206352';
+
+const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
 interface FooterProps {
   currentRoute?: string;
@@ -27,10 +32,11 @@ interface FooterProps {
 export function Footer({ currentRoute }: FooterProps) {
   const router = useRouter();
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedSettingsTab, setSelectedSettingsTab] = useState<'favorites' | 'watchlist' | 'about' | 'privacy' | 'rating' | 'reviews' | 'settings'>('favorites');
+  const [selectedSettingsTab, setSelectedSettingsTab] = useState<'favorites' | 'watchlist' | 'about' | 'privacy' | 'ratings' | 'reviews'>('favorites');
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [ratedMovies, setRatedMovies] = useState([]);
   const [slideAnim] = useState(new Animated.Value(screenHeight));
 
   // Review form state
@@ -41,12 +47,34 @@ export function Footer({ currentRoute }: FooterProps) {
     rating: 0,
   });
 
+  const loadRatedMovies = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/account/${ACCOUNT_ID}/rated/movies?language=en-US&sort_by=created_at.desc&page=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${API_READ_ACCESS_TOKEN}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRatedMovies(data.results || []);
+      }
+    } catch (error) {
+      console.error('Error loading rated movies:', error);
+    }
+  };
+
   const loadData = async () => {
     try {
       const [favoritesData, watchlistData, reviewsData] = await Promise.all([
         apiService.getFavorites(),
         apiService.getWatchlist(),
         apiService.getReviews(),
+        loadRatedMovies(),
       ]);
 
       setFavorites(favoritesData);
@@ -309,6 +337,39 @@ export function Footer({ currentRoute }: FooterProps) {
     </View>
   );
 
+  const renderRatings = () => (
+    <View style={styles.tabContent}>
+      <Text style={styles.tabTitle}>My Ratings ({ratedMovies.length})</Text>
+      {ratedMovies.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="star-outline" size={60} color="#666" />
+          <Text style={styles.emptyText}>No Ratings Yet</Text>
+          <Text style={styles.emptySubText}>Rate movies to see them here</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={ratedMovies}
+          keyExtractor={(item) => `rated-${item.id}`}
+          numColumns={2}
+          renderItem={({ item }) => (
+            <View style={styles.gridItem}>
+              <TMDbContentCard
+                content={item}
+                type="movie"
+                onPress={() => router.push(`/tmdb-content/${item.id}?type=movie`)}
+                style={styles.card}
+              />
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={16} color="#FFD700" />
+                <Text style={styles.ratingText}>{item.rating || item.vote_average}</Text>
+              </View>
+            </View>
+          )}
+        />
+      )}
+    </View>
+  );
+
   const renderPrivacy = () => (
     <View style={styles.tabContent}>
       <Text style={styles.tabTitle}>Privacy Policy</Text>
@@ -340,35 +401,44 @@ export function Footer({ currentRoute }: FooterProps) {
         return renderFavorites();
       case 'watchlist':
         return renderWatchlist();
+      case 'ratings':
+        return renderRatings();
       case 'reviews':
         return renderReviews();
       case 'about':
         return renderAbout();
       case 'privacy':
         return renderPrivacy();
-      case 'settings': // Added case for the new settings tab
-        return <View><Text style={styles.tabContent}>This is the new settings tab.</Text></View>;
       default:
         return renderFavorites();
     }
   };
 
+  const settingsTabs = [
+    { key: 'favorites', label: 'Favorites', icon: 'heart', count: favorites.length },
+    { key: 'watchlist', label: 'Watchlist', icon: 'bookmark', count: watchlist.length },
+    { key: 'ratings', label: 'Ratings', icon: 'star-half', count: ratedMovies.length },
+    { key: 'reviews', label: 'Reviews', icon: 'star', count: reviews.length },
+    { key: 'about', label: 'About', icon: 'information-circle' },
+    { key: 'privacy', label: 'Privacy', icon: 'shield-checkmark' },
+  ];
+
   return (
     <>
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.footerButton, currentRoute === '/home' && styles.activeButton]}
+          style={[styles.footerButton, currentRoute === '/' && styles.activeButton]}
           onPress={() => router.push('/')}
         >
-          <Ionicons name="home" size={24} color={currentRoute === '/home' ? '#E50914' : '#666'} />
-          <Text style={[styles.footerText, currentRoute === '/home' && styles.activeText]}>Home</Text>
+          <Ionicons name="home" size={22} color={currentRoute === '/' ? '#E50914' : '#666'} />
+          <Text style={[styles.footerText, currentRoute === '/' && styles.activeText]}>Home</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.footerButton, currentRoute === '/movies' && styles.activeButton]}
           onPress={() => router.push('/movies')}
         >
-          <Ionicons name="film" size={24} color={currentRoute === '/movies' ? '#E50914' : '#666'} />
+          <Ionicons name="film" size={22} color={currentRoute === '/movies' ? '#E50914' : '#666'} />
           <Text style={[styles.footerText, currentRoute === '/movies' && styles.activeText]}>Movies</Text>
         </TouchableOpacity>
 
@@ -376,7 +446,7 @@ export function Footer({ currentRoute }: FooterProps) {
           style={[styles.footerButton, currentRoute === '/discover' && styles.activeButton]}
           onPress={() => router.push('/discover')}
         >
-          <Ionicons name="compass" size={24} color={currentRoute === '/discover' ? '#E50914' : '#666'} />
+          <Ionicons name="compass" size={22} color={currentRoute === '/discover' ? '#E50914' : '#666'} />
           <Text style={[styles.footerText, currentRoute === '/discover' && styles.activeText]}>Discover</Text>
         </TouchableOpacity>
 
@@ -384,25 +454,13 @@ export function Footer({ currentRoute }: FooterProps) {
           style={[styles.footerButton, currentRoute === '/search' && styles.activeButton]}
           onPress={() => router.push('/search')}
         >
-          <Ionicons name="search" size={24} color={currentRoute === '/search' ? '#E50914' : '#666'} />
+          <Ionicons name="search" size={22} color={currentRoute === '/search' ? '#E50914' : '#666'} />
           <Text style={[styles.footerText, currentRoute === '/search' && styles.activeText]}>Search</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.footerButton} onPress={openSettings}>
-          <Ionicons name="settings" size={24} color="#666" />
+          <Ionicons name="settings" size={22} color="#666" />
           <Text style={styles.footerText}>Settings</Text>
-        </TouchableOpacity>
-        
-        {/* New Settings Tab */}
-        <TouchableOpacity
-          style={[styles.footerButton, currentRoute === '/settings' && styles.activeButton]}
-          onPress={() => {
-            setSelectedSettingsTab('settings'); // Update state to show the new settings tab
-            openSettings(); // Open the modal
-          }}
-        >
-          <Ionicons name="settings" size={24} color={currentRoute === '/settings' ? '#E50914' : '#666'} />
-          <Text style={[styles.footerText, currentRoute === '/settings' && styles.activeText]}>New Settings</Text>
         </TouchableOpacity>
       </View>
 
@@ -426,46 +484,48 @@ export function Footer({ currentRoute }: FooterProps) {
               {/* Modal Header */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Settings</Text>
-                <TouchableOpacity onPress={closeSettings}>
+                <TouchableOpacity onPress={closeSettings} style={styles.closeButton}>
                   <Ionicons name="close" size={28} color="#fff" />
                 </TouchableOpacity>
               </View>
 
-              {/* Settings Tabs */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer}>
-                {[
-                  { key: 'favorites', label: 'Favorites', icon: 'heart' },
-                  { key: 'watchlist', label: 'Watchlist', icon: 'bookmark' },
-                  { key: 'reviews', label: 'Reviews', icon: 'star' },
-                  { key: 'about', label: 'About', icon: 'information-circle' },
-                  { key: 'privacy', label: 'Privacy', icon: 'shield-checkmark' },
-                  { key: 'settings', label: 'New Settings', icon: 'settings' }, // Added new settings tab to the list
-                ].map((tab) => (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={[
-                      styles.tab,
-                      selectedSettingsTab === tab.key && styles.activeTab
-                    ]}
-                    onPress={() => setSelectedSettingsTab(tab.key as any)}
-                  >
-                    <Ionicons 
-                      name={tab.icon as any} 
-                      size={20} 
-                      color={selectedSettingsTab === tab.key ? '#E50914' : '#666'} 
-                    />
-                    <Text style={[
-                      styles.tabText,
-                      selectedSettingsTab === tab.key && styles.activeTabText
-                    ]}>
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              {/* Horizontal Tabs */}
+              <View style={styles.tabsContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalTabs}>
+                  {settingsTabs.map((tab) => (
+                    <TouchableOpacity
+                      key={tab.key}
+                      style={[
+                        styles.horizontalTab,
+                        selectedSettingsTab === tab.key && styles.activeHorizontalTab
+                      ]}
+                      onPress={() => setSelectedSettingsTab(tab.key as any)}
+                    >
+                      <Ionicons 
+                        name={tab.icon as any} 
+                        size={20} 
+                        color={selectedSettingsTab === tab.key ? '#E50914' : '#666'} 
+                      />
+                      <Text style={[
+                        styles.horizontalTabText,
+                        selectedSettingsTab === tab.key && styles.activeHorizontalTabText
+                      ]}>
+                        {tab.label}
+                      </Text>
+                      {tab.count !== undefined && (
+                        <View style={styles.countBadge}>
+                          <Text style={styles.countText}>{tab.count}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-              {/* Settings Content */}
-              {renderSettingsContent()}
+              {/* Content Area */}
+              <View style={styles.fullContentArea}>
+                {renderSettingsContent()}
+              </View>
             </SafeAreaView>
           </Animated.View>
         </View>
@@ -477,24 +537,32 @@ export function Footer({ currentRoute }: FooterProps) {
 const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
-    backgroundColor: '#111',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    backgroundColor: '#0A0A0A',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: '#222',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   footerButton: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
+    borderRadius: 12,
+    marginHorizontal: 2,
   },
   activeButton: {
-    backgroundColor: 'rgba(229, 9, 20, 0.1)',
-    borderRadius: 8,
+    backgroundColor: 'rgba(229, 9, 20, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(229, 9, 20, 0.3)',
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     marginTop: 4,
     fontWeight: '500',
@@ -505,14 +573,16 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'flex-end',
   },
   settingsModal: {
     backgroundColor: '#000',
     height: screenHeight * 0.9,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    borderTopWidth: 2,
+    borderTopColor: '#333',
   },
   modalContent: {
     flex: 1,
@@ -524,45 +594,76 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    backgroundColor: '#111',
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#fff',
   },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#222',
+  },
   tabsContainer: {
-    maxHeight: 60,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    backgroundColor: '#111',
   },
-  tab: {
+  horizontalTabs: {
+    paddingVertical: 10,
+  },
+  horizontalTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    marginHorizontal: 4,
-    borderRadius: 8,
+    marginHorizontal: 8,
+    borderRadius: 25,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
     minWidth: 100,
   },
-  activeTab: {
-    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+  activeHorizontalTab: {
+    backgroundColor: 'rgba(229, 9, 20, 0.15)',
+    borderColor: '#E50914',
   },
-  tabText: {
+  horizontalTabText: {
     fontSize: 14,
     color: '#666',
     marginLeft: 8,
     fontWeight: '500',
   },
-  activeTabText: {
+  activeHorizontalTabText: {
     color: '#E50914',
     fontWeight: '600',
+  },
+  countBadge: {
+    backgroundColor: '#E50914',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  countText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  fullContentArea: {
+    flex: 1,
+    backgroundColor: '#000',
   },
   tabContent: {
     flex: 1,
     padding: 20,
   },
   tabTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 20,
@@ -696,5 +797,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  ratingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: 15,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
