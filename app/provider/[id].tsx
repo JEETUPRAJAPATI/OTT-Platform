@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,17 +11,21 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
-} from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
-import { TMDbContentCard } from '@/components/TMDbContentCard';
+} from "react-native";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { tmdbService, TMDbMovie, TMDbTVShow } from "@/services/tmdbApi";
+import { TMDbContentCard } from "@/components/TMDbContentCard";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 const cardWidth = (width - 60) / 2;
 
 export default function ProviderContentScreen() {
-  const { id: providerId, name: providerName, type = 'movie' } = useLocalSearchParams();
+  const {
+    id: providerId,
+    name: providerName,
+    type = "movie",
+  } = useLocalSearchParams();
   const router = useRouter();
   const [content, setContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +33,9 @@ export default function ProviderContentScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [contentType, setContentType] = useState<'movie' | 'tv'>(type as 'movie' | 'tv');
+  const [contentType, setContentType] = useState<"movie" | "tv">(
+    type as "movie" | "tv",
+  );
 
   useEffect(() => {
     loadContent(true);
@@ -48,21 +54,21 @@ export default function ProviderContentScreen() {
       const response = await tmdbService.getContentByProvider(
         parseInt(providerId as string),
         contentType,
-        'US',
-        currentPage
+        "US",
+        currentPage,
       );
 
       if (reset) {
         setContent(response.results);
       } else {
-        setContent(prev => [...prev, ...response.results]);
+        setContent((prev) => [...prev, ...response.results]);
       }
 
       setTotalPages(response.total_pages);
       setPage(currentPage + 1);
     } catch (error) {
-      console.error('Error loading provider content:', error);
-      Alert.alert('Error', 'Failed to load content. Please try again.');
+      console.error("Error loading provider content:", error);
+      Alert.alert("Error", "Failed to load content. Please try again.");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -71,8 +77,13 @@ export default function ProviderContentScreen() {
   };
 
   const handleContentPress = (item: TMDbMovie | TMDbTVShow) => {
-    const type = (item as any).title ? 'movie' : 'tv';
+    const type = (item as any).title ? "movie" : "tv";
     router.push(`/tmdb-content/${item.id}?type=${type}`);
+  };
+
+  const handleBackPress = () => {
+    console.log("Back button pressed");
+    router.back();
   };
 
   const onRefresh = () => {
@@ -87,7 +98,7 @@ export default function ProviderContentScreen() {
   };
 
   const renderContent = ({ item }: { item: TMDbMovie | TMDbTVShow }) => {
-    const mediaType = (item as any).title ? 'movie' : 'tv';
+    const mediaType = (item as any).title ? "movie" : "tv";
     return (
       <TMDbContentCard
         content={item}
@@ -112,24 +123,40 @@ export default function ProviderContentScreen() {
     <View style={styles.headerContainer}>
       <View style={styles.toggleContainer}>
         <TouchableOpacity
-          style={[styles.toggleButton, contentType === 'movie' && styles.activeToggle]}
-          onPress={() => setContentType('movie')}
+          style={[
+            styles.toggleButton,
+            contentType === "movie" && styles.activeToggle,
+          ]}
+          onPress={() => setContentType("movie")}
         >
-          <Text style={[styles.toggleText, contentType === 'movie' && styles.activeToggleText]}>
+          <Text
+            style={[
+              styles.toggleText,
+              contentType === "movie" && styles.activeToggleText,
+            ]}
+          >
             Movies
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.toggleButton, contentType === 'tv' && styles.activeToggle]}
-          onPress={() => setContentType('tv')}
+          style={[
+            styles.toggleButton,
+            contentType === "tv" && styles.activeToggle,
+          ]}
+          onPress={() => setContentType("tv")}
         >
-          <Text style={[styles.toggleText, contentType === 'tv' && styles.activeToggleText]}>
+          <Text
+            style={[
+              styles.toggleText,
+              contentType === "tv" && styles.activeToggleText,
+            ]}
+          >
             TV Shows
           </Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.resultCount}>
-        {content.length} {contentType === 'movie' ? 'movies' : 'TV shows'} found
+        {content.length} {contentType === "movie" ? "movies" : "TV shows"} found
       </Text>
     </View>
   );
@@ -137,12 +164,17 @@ export default function ProviderContentScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Stack.Screen 
-          options={{ 
-            title: providerName as string || 'Provider Content',
-            headerStyle: { backgroundColor: '#000' },
-            headerTintColor: '#fff',
-          }} 
+        <Stack.Screen
+          options={{
+            title: (providerName as string) || "Provider Content",
+            headerStyle: { backgroundColor: "#000" },
+            headerTintColor: "#fff",
+            headerLeft: () => (
+              <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#fff" />
+              </TouchableOpacity>
+            ),
+          }}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#E50914" />
@@ -154,20 +186,27 @@ export default function ProviderContentScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          title: providerName as string || 'Provider Content',
-          headerStyle: { backgroundColor: '#000' },
-          headerTintColor: '#fff',
-        }} 
+      <Stack.Screen
+        options={{
+          title: (providerName as string) || "Provider Content",
+          headerStyle: { backgroundColor: "#000" },
+          headerTintColor: "#fff",
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
       />
-      
+
       <FlatList
         data={content}
         renderItem={renderContent}
         keyExtractor={(item) => `${contentType}-${item.id}`}
         numColumns={2}
         contentContainerStyle={styles.contentContainer}
+        columnWrapperStyle={styles.row}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
         onEndReached={loadMore}
@@ -189,15 +228,20 @@ export default function ProviderContentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
+  },
+  backButton: {
+    marginLeft: 10,
+    padding: 8,
   },
   headerContainer: {
     paddingHorizontal: 20,
     paddingVertical: 20,
+    marginBottom: 10,
   },
   toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    flexDirection: "row",
+    backgroundColor: "#1a1a1a",
     borderRadius: 25,
     padding: 4,
     marginBottom: 16,
@@ -206,40 +250,47 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   activeToggle: {
-    backgroundColor: '#E50914',
+    backgroundColor: "#E50914",
   },
   toggleText: {
-    color: '#888',
+    color: "#888",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   activeToggleText: {
-    color: '#fff',
+    color: "#fff",
   },
   resultCount: {
-    color: '#888',
+    color: "#888",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
   contentContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  row: {
+    justifyContent: "space-between",
+    paddingHorizontal: 0,
+  },
+  separator: {
+    height: 16,
+  },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
     marginTop: 12,
   },
   footerLoader: {
     paddingVertical: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
 });

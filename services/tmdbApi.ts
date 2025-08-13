@@ -109,10 +109,10 @@ class TMDbService {
   // Get Hindi movies (Bollywood)
   async getHindiMovies(page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
-      params: { 
+      params: {
         with_original_language: 'hi',
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -121,10 +121,10 @@ class TMDbService {
   // Get South Indian movies (Tamil, Telugu, Malayalam, Kannada)
   async getSouthIndianMovies(page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
-      params: { 
+      params: {
         with_original_language: 'ta|te|ml|kn',
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -133,10 +133,10 @@ class TMDbService {
   // Get Marvel movies
   async getMarvelMovies(page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
-      params: { 
+      params: {
         with_companies: '420',
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -145,11 +145,11 @@ class TMDbService {
   // Get thriller movies for 2025
   async getThrillerMovies2025(page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
-      params: { 
+      params: {
         with_genres: '53',
         primary_release_year: '2025',
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -158,10 +158,10 @@ class TMDbService {
   // Get family movies
   async getFamilyMovies(page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
-      params: { 
+      params: {
         with_genres: '10751',
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -170,10 +170,10 @@ class TMDbService {
   // Get romantic movies
   async getRomanticMovies(page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
-      params: { 
+      params: {
         with_genres: '10749',
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -182,11 +182,11 @@ class TMDbService {
   // Get award winners (high rated movies)
   async getAwardWinners(page: number = 1) {
     const response = await tmdbApi.get('/discover/movie', {
-      params: { 
+      params: {
         'vote_average.gte': 8.0,
         'vote_count.gte': 1000,
         sort_by: 'vote_average.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -464,10 +464,10 @@ class TMDbService {
   async getContentByGenres(genreIds: number[], mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
     const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
     const response = await tmdbApi.get(endpoint, {
-      params: { 
+      params: {
         with_genres: genreIds.join(','),
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -477,10 +477,10 @@ class TMDbService {
   async getRegionalContent(country: string, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
     const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
     const response = await tmdbApi.get(endpoint, {
-      params: { 
+      params: {
         with_origin_country: country,
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -491,10 +491,10 @@ class TMDbService {
     const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
     const yearParam = mediaType === 'movie' ? 'primary_release_year' : 'first_air_date_year';
     const response = await tmdbApi.get(endpoint, {
-      params: { 
+      params: {
         [yearParam]: year,
         sort_by: 'popularity.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -504,12 +504,12 @@ class TMDbService {
   async getContentByRating(minRating: number, maxRating: number, mediaType: 'movie' | 'tv' = 'movie', page: number = 1) {
     const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
     const response = await tmdbApi.get(endpoint, {
-      params: { 
+      params: {
         'vote_average.gte': minRating,
         'vote_average.lte': maxRating,
         'vote_count.gte': 100, // Ensure enough votes for reliability
         sort_by: 'vote_average.desc',
-        page 
+        page
       }
     });
     return response.data.results;
@@ -550,7 +550,7 @@ class TMDbService {
 
       const uniqueProviders = Array.from(uniqueProvidersMap.values());
 
-      // Sort by display_priority if available, otherwise by name
+      // Sort by display_priority if available, otherwise otherwise by name
       uniqueProviders.sort((a, b) => {
         if (a.display_priority !== undefined && b.display_priority !== undefined) {
           return a.display_priority - b.display_priority;

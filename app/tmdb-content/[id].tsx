@@ -25,6 +25,7 @@ import { apiService } from '@/services/apiService';
 import { TMDbContentCard } from '@/components/TMDbContentCard';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { MovieDownloader } from '@/components/MovieDownloader';
+import { MovieSlider } from '@/components/MovieSlider';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -58,6 +59,7 @@ export default function TMDbContentDetails() {
   const [showPlayer, setShowPlayer] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [recommendations, setRecommendations] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
+  const [similar, setSimilar] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
   const [internetArchiveUrl, setInternetArchiveUrl] = useState<string | null>(null);
   const [isCheckingArchive, setIsCheckingArchive] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
@@ -65,12 +67,11 @@ export default function TMDbContentDetails() {
   const [downloadSpeed, setDownloadSpeed] = useState<string>('');
   const [downloadError, setDownloadError] = useState<string>('');
   const [showMovieDownloader, setShowMovieDownloader] = useState(false);
-  const [similarContent, setSimilarContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
-  const [keywords, setKeywords] = useState<any[]>([]);
   const [watchProviders, setWatchProviders] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [keywords, setKeywords] = useState<any[]>([]);
 
   // Early return if required params are missing
   if (!id || !type) {
@@ -145,7 +146,7 @@ export default function TMDbContentDetails() {
       ]);
 
       setRecommendations(recommendationsData.slice(0, 10));
-      setSimilarContent(similarData.slice(0, 10));
+      setSimilar(similarData.slice(0, 10));
 
     } catch (error) {
       console.error('Error loading recommendations:', error);
@@ -169,9 +170,9 @@ export default function TMDbContentDetails() {
           : tmdbService.getTVReviews(Number(id))
       ]);
 
-      setKeywords(keywordsData.slice(0, 10));
+      setKeywords(keywordsData.keywords ? keywordsData.keywords.slice(0, 10) : keywordsData.slice(0, 10));
       setWatchProviders(watchProvidersData);
-      setReviews(reviewsData.slice(0, 3));
+      setReviews(reviewsData.results ? reviewsData.results.slice(0, 3) : reviewsData.slice(0, 3));
 
     } catch (error) {
       console.error('Error loading additional details:', error);
@@ -306,9 +307,9 @@ export default function TMDbContentDetails() {
       const releaseYear = releaseDate ? new Date(releaseDate).getFullYear() : '';
       const rating = content.vote_average ? content.vote_average.toFixed(1) : 'N/A';
       const tmdbUrl = `https://www.themoviedb.org/${type}/${content.id}`;
-      
+
       const shareMessage = `🎬 ${title}${releaseYear ? ` (${releaseYear})` : ''}\n⭐ Rating: ${rating}/10\n\nCheck it out on TMDb: ${tmdbUrl}`;
-      
+
       const result = await Share.share({
         message: shareMessage,
         title: `Share ${title}`,
@@ -815,81 +816,33 @@ export default function TMDbContentDetails() {
           </View>
         )}
 
-        {/* Recommendations Section */}
-        {recommendations.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recommended for You</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.recommendationsContainer}
-            >
-              {recommendations.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.recommendationItem}
-                  onPress={() => handleContentPress(item)}
-                >
-                  <Image
-                    source={{
-                      uri: item.poster_path
-                        ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
-                        : 'https://via.placeholder.com/300x450?text=No+Image'
-                    }}
-                    style={styles.recommendationPoster}
-                  />
-                  <Text style={styles.recommendationTitle} numberOfLines={2}>
-                    {(item as any).title || (item as any).name}
-                  </Text>
-                  <View style={styles.recommendationMeta}>
-                    <Ionicons name="star" size={12} color="#FFD700" />
-                    <Text style={styles.recommendationRating}>
-                      {item.vote_average ? item.vote_average.toFixed(1) : 'N/A'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+      {/* Recommendations Section */}
+      {recommendations.length > 0 && (
+        <View style={styles.section}>
+          <MovieSlider 
+            title="Recommended for You"
+            icon="🎬"
+            data={recommendations}
+            onPress={handleContentPress}
+            showRanking={false}
+            autoSlide={true} // Enable auto-slide
+          />
+        </View>
+      )}
 
-        {/* Similar Content Section */}
-        {similarContent.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>More Like This</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.recommendationsContainer}
-            >
-              {similarContent.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.recommendationItem}
-                  onPress={() => handleContentPress(item)}
-                >
-                  <Image
-                    source={{
-                      uri: item.poster_path
-                        ? `https://image.tmdb.org/t/p/w300${item.poster_path}`
-                        : 'https://via.placeholder.com/300x450?text=No+Image'
-                    }}
-                    style={styles.recommendationPoster}
-                  />
-                  <Text style={styles.recommendationTitle} numberOfLines={2}>
-                    {(item as any).title || (item as any).name}
-                  </Text>
-                  <View style={styles.recommendationMeta}>
-                    <Ionicons name="star" size={12} color="#FFD700" />
-                    <Text style={styles.recommendationRating}>
-                      {item.vote_average ? item.vote_average.toFixed(1) : 'N/A'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+      {/* Similar Content Section */}
+      {similar.length > 0 && (
+        <View style={styles.section}>
+          <MovieSlider 
+            title="More Like This"
+            icon="🔥"
+            data={similar}
+            onPress={handleContentPress}
+            showRanking={false}
+            autoSlide={true} // Enable auto-slide
+          />
+        </View>
+      )}
 
         <Modal
           visible={showPlayer}

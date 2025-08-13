@@ -360,8 +360,6 @@ function CustomTabBar() {
     { key: 'privacy', label: 'Privacy Policy', icon: 'shield-checkmark', color: '#1E90FF' },
     { key: 'terms', label: 'Terms of Use', icon: 'document-text', color: '#FF6347' },
     { key: 'support', label: 'Support', icon: 'help-circle', color: '#FFA500' },
-    { key: 'rate', label: 'Rate App', icon: 'star-outline', color: '#9932CC' },
-    { key: 'logout', label: 'Logout', icon: 'log-out', color: '#DC143C' },
   ];
 
   const handleSettingsOption = (option: string) => {
@@ -378,22 +376,16 @@ function CustomTabBar() {
         router.push('/reviews');
         break;
       case 'about':
-        // Handle about navigation
+        router.push('/about-us');
         break;
       case 'privacy':
-        // Handle privacy navigation
+        router.push('/privacy-policy');
         break;
       case 'terms':
-        // Handle terms navigation
+        router.push('/terms-of-use');
         break;
       case 'support':
-        // Handle support navigation
-        break;
-      case 'rate':
-        // Handle rate app
-        break;
-      case 'logout':
-        // Handle logout
+        router.push('/support');
         break;
     }
   };

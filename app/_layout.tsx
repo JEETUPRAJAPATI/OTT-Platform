@@ -36,7 +36,7 @@ export default function RootLayout() {
           name="platform/[id]" 
           options={{ 
             title: 'Platform Content',
-            headerShown: true,
+            headerShown: false,
             presentation: 'modal'
           }} 
         />
@@ -44,7 +44,7 @@ export default function RootLayout() {
           name="content/[id]" 
           options={{ 
             title: 'Content Details',
-            headerShown: true,
+            headerShown: false,
             presentation: 'modal'
           }} 
         />
@@ -52,7 +52,7 @@ export default function RootLayout() {
           name="tmdb-content/[id]" 
           options={{ 
             title: 'Movie/TV Details',
-            headerShown: true,
+            headerShown: false,
             presentation: 'modal'
           }} 
         />
@@ -60,7 +60,39 @@ export default function RootLayout() {
           name="provider/[id]" 
           options={{ 
             title: 'Provider Content',
-            headerShown: true,
+            headerShown: false,
+            presentation: 'modal'
+          }} 
+        />
+        <Stack.Screen 
+          name="about-us" 
+          options={{ 
+            title: 'About Us',
+            headerShown: false,
+            presentation: 'modal'
+          }} 
+        />
+        <Stack.Screen 
+          name="privacy-policy" 
+          options={{ 
+            title: 'Privacy Policy',
+            headerShown: false,
+            presentation: 'modal'
+          }} 
+        />
+        <Stack.Screen 
+          name="terms-of-use" 
+          options={{ 
+            title: 'Terms of Use',
+            headerShown: false,
+            presentation: 'modal'
+          }} 
+        />
+        <Stack.Screen 
+          name="support" 
+          options={{ 
+            title: 'Support',
+            headerShown: false,
             presentation: 'modal'
           }} 
         />

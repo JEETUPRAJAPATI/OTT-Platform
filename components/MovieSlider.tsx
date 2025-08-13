@@ -19,7 +19,7 @@ interface MovieSliderProps {
   title: string;
   icon: string;
   data: (TMDbMovie | TMDbTVShow)[];
-  onContentPress: (item: TMDbMovie | TMDbTVShow) => void;
+  onPress?: (item: TMDbMovie | TMDbTVShow) => void;
   onViewAll?: () => void;
   showRanking?: boolean;
   autoSlide?: boolean;
@@ -41,13 +41,13 @@ const MovieSliderItem = React.memo(({
   index, 
   mediaType, 
   showRanking, 
-  onContentPress 
+  onPress 
 }: {
   item: TMDbMovie | TMDbTVShow;
   index: number;
   mediaType: 'movie' | 'tv';
   showRanking: boolean;
-  onContentPress: (item: TMDbMovie | TMDbTVShow) => void;
+  onPress: (item: TMDbMovie | TMDbTVShow) => void;
 }) => (
   <View style={styles.itemWrapper}>
     {showRanking && (
@@ -61,7 +61,7 @@ const MovieSliderItem = React.memo(({
     <TMDbContentCard
       content={item}
       type={mediaType}
-      onPress={() => onContentPress(item)}
+      onPress={() => onPress(item)}
       style={[
         styles.card,
         showRanking && styles.cardWithRank
@@ -74,7 +74,7 @@ export function MovieSlider({
   title, 
   icon, 
   data, 
-  onContentPress, 
+  onPress = () => {}, 
   onViewAll, 
   showRanking = false,
   autoSlide = true
@@ -214,7 +214,7 @@ export function MovieSlider({
                 index={index}
                 mediaType={mediaType}
                 showRanking={showRanking}
-                onContentPress={onContentPress}
+                onPress={onPress}
               />
             );
           }}

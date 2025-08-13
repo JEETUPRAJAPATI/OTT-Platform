@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -10,28 +10,29 @@ import {
   StatusBar,
   ImageBackground,
   Text,
-  SafeAreaView
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { SplashScreen } from '@/components/SplashScreen';
-import { TMDbContentCard } from '@/components/TMDbContentCard';
-import { MovieSlider } from '@/components/MovieSlider';
-import { tmdbService, TMDbMovie, TMDbTVShow } from '@/services/tmdbApi';
-import { userService } from '@/services/userService';
-import { OTTPlatformSlider } from '@/components/OTTPlatformSlider';
-import { MoviePlatformBrowser } from '@/components/MoviePlatformBrowser';
-import { 
-  HeroSkeleton, 
-  MovieSliderSkeleton, 
-  PlatformSliderSkeleton 
-} from '@/components/SkeletonLoaders';
-import Ionicons from '@expo/vector-icons/Ionicons';
+  SafeAreaView,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { SplashScreen } from "@/components/SplashScreen";
+import { TMDbContentCard } from "@/components/TMDbContentCard";
+import { MovieSlider } from "@/components/MovieSlider";
+import { tmdbService, TMDbMovie, TMDbTVShow } from "@/services/tmdbApi";
+import { userService } from "@/services/userService";
+import { OTTPlatformSlider } from "@/components/OTTPlatformSlider";
+import { MoviePlatformBrowser } from "@/components/MoviePlatformBrowser";
+import { CategorySlider, Category } from "@/components/CategorySlider";
+import { CategoryMovieList } from "@/components/CategoryMovieList";
+import {
+  HeroSkeleton,
+  MovieSliderSkeleton,
+  PlatformSliderSkeleton,
+} from "@/components/SkeletonLoaders";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 interface ContentSection {
   id: string;
@@ -43,7 +44,9 @@ interface ContentSection {
 
 export default function HomeScreen() {
   const [showSplash, setShowSplash] = useState(true);
-  const [featuredContent, setFeaturedContent] = useState<(TMDbMovie | TMDbTVShow)[]>([]);
+  const [featuredContent, setFeaturedContent] = useState<
+    (TMDbMovie | TMDbTVShow)[]
+  >([]);
   const [currentHero, setCurrentHero] = useState(0);
   const [contentSections, setContentSections] = useState<ContentSection[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,14 +61,17 @@ export default function HomeScreen() {
   const [topRatedMovies, setTopRatedMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [platformBrowserVisible, setPlatformBrowserVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   const handleTMDbContentPress = (content: TMDbMovie | TMDbTVShow) => {
-    const type = (content as any).title ? 'movie' : 'tv';
+    const type = (content as any).title ? "movie" : "tv";
     router.push(`/tmdb-content/${content.id}?type=${type}`);
   };
 
   const handleProviderPress = (provider: any) => {
-    router.push(`/provider/${provider.provider_id}?name=${encodeURIComponent(provider.provider_name)}&type=movie`);
+    router.push(
+      `/provider/${provider.provider_id}?name=${encodeURIComponent(provider.provider_name)}&type=movie`,
+    );
   };
 
   const shuffleArray = (array: any[]) => {
@@ -89,7 +95,7 @@ export default function HomeScreen() {
 
       // Load watch providers
       setLoadingProviders(true);
-      const providers = await tmdbService.getWatchProviders('US');
+      const providers = await tmdbService.getWatchProviders("US");
       setWatchProviders(providers.slice(0, 15)); // Show top 15 providers
       setLoadingProviders(false);
 
@@ -111,7 +117,7 @@ export default function HomeScreen() {
         topRatedTV,
         popularTV,
         personalizedMovies,
-        personalizedTV
+        personalizedTV,
       ] = await Promise.all([
         tmdbService.getTrending(),
         tmdbService.getPopularMovies(),
@@ -129,8 +135,12 @@ export default function HomeScreen() {
         tmdbService.getOnAirTVShows(),
         tmdbService.getTopRatedTVShows(),
         tmdbService.getPopularTVShows(),
-        userFavoriteGenres.length > 0 ? tmdbService.getContentByGenres(userFavoriteGenres, 'movie') : [],
-        userFavoriteGenres.length > 0 ? tmdbService.getContentByGenres(userFavoriteGenres, 'tv') : []
+        userFavoriteGenres.length > 0
+          ? tmdbService.getContentByGenres(userFavoriteGenres, "movie")
+          : [],
+        userFavoriteGenres.length > 0
+          ? tmdbService.getContentByGenres(userFavoriteGenres, "tv")
+          : [],
       ]);
 
       setFeaturedContent(trending.slice(0, 5));
@@ -139,15 +149,21 @@ export default function HomeScreen() {
       // Create a pool of used content to avoid duplicates
       const usedIds = new Set();
 
-      const getUniqueContent = (data: any[], count: number, preserveOrder = false) => {
+      const getUniqueContent = (
+        data: any[],
+        count: number,
+        preserveOrder = false,
+      ) => {
         // Filter out undefined items and items without IDs
-        let filtered = data.filter(item => item && item.id && !usedIds.has(item.id));
+        let filtered = data.filter(
+          (item) => item && item.id && !usedIds.has(item.id),
+        );
         if (!preserveOrder) {
           // Always randomize content for dynamic experience
           filtered = shuffleArray(filtered);
         }
         const selected = filtered.slice(0, count);
-        selected.forEach(item => {
+        selected.forEach((item) => {
           if (item && item.id) {
             usedIds.add(item.id);
           }
@@ -161,21 +177,21 @@ export default function HomeScreen() {
       // Continue Watching (if user has viewing history)
       if (continueWatching.length > 0) {
         sections.push({
-          id: 'continue-watching',
-          title: 'Continue Watching',
-          icon: '▶️',
-          data: continueWatching.map(item => ({
+          id: "continue-watching",
+          title: "Continue Watching",
+          icon: "▶️",
+          data: continueWatching.map((item) => ({
             id: item.contentId,
             title: item.title,
             poster_path: item.posterPath,
             vote_average: 0,
-            overview: '',
-            release_date: '',
-            first_air_date: '',
+            overview: "",
+            release_date: "",
+            first_air_date: "",
             genre_ids: [],
-            original_language: '',
+            original_language: "",
             popularity: 0,
-            backdrop_path: ''
+            backdrop_path: "",
           })),
           showRanking: false,
         });
@@ -184,27 +200,27 @@ export default function HomeScreen() {
       // Core sections
       sections.push(
         {
-          id: 'trending',
-          title: 'Trending Now',
-          icon: '🔥',
+          id: "trending",
+          title: "Trending Now",
+          icon: "🔥",
           data: getUniqueContent(trending, 20),
         },
         {
-          id: 'hindi-top10',
-          title: 'Top 10 in India',
-          icon: '🇮🇳',
+          id: "hindi-top10",
+          title: "Top 10 in India",
+          icon: "🇮🇳",
           data: getUniqueContent(hindi, 10, true), // Preserve order for rankings
           showRanking: true,
-        }
+        },
       );
 
       // Personalized recommendations
       if (personalizedMovies.length > 0 || personalizedTV.length > 0) {
         const personalizedContent = [...personalizedMovies, ...personalizedTV];
         sections.push({
-          id: 'recommended',
-          title: 'Recommended for You',
-          icon: '🎯',
+          id: "recommended",
+          title: "Recommended for You",
+          icon: "🎯",
           data: getUniqueContent(personalizedContent, 20),
         });
       }
@@ -212,95 +228,95 @@ export default function HomeScreen() {
       // Continue with other sections
       sections.push(
         {
-          id: 'now-playing',
-          title: 'Now Playing in Cinemas',
-          icon: '🎭',
+          id: "now-playing",
+          title: "Now Playing in Cinemas",
+          icon: "🎭",
           data: getUniqueContent(nowPlaying, 20),
         },
         {
-          id: 'airing-today',
-          title: 'On TV Today',
-          icon: '📺',
+          id: "airing-today",
+          title: "On TV Today",
+          icon: "📺",
           data: getUniqueContent(airingToday, 20),
         },
         {
-          id: 'popular',
-          title: 'Popular on RK SWOT',
-          icon: '⭐',
+          id: "popular",
+          title: "Popular on RK SWOT",
+          icon: "⭐",
           data: getUniqueContent(popular, 20),
         },
         {
-          id: 'latest',
-          title: 'New Releases',
-          icon: '🎬',
+          id: "latest",
+          title: "New Releases",
+          icon: "🎬",
           data: getUniqueContent(upcoming, 20),
         },
         {
-          id: 'on-air',
-          title: 'Currently Airing Series',
-          icon: '📡',
+          id: "on-air",
+          title: "Currently Airing Series",
+          icon: "📡",
           data: getUniqueContent(onAir, 20),
         },
         {
-          id: 'action',
-          title: 'Action & Adventure',
-          icon: '💥',
+          id: "action",
+          title: "Action & Adventure",
+          icon: "💥",
           data: getUniqueContent(marvel, 20),
         },
         {
-          id: 'thriller',
-          title: 'Thrillers & Suspense',
-          icon: '😱',
+          id: "thriller",
+          title: "Thrillers & Suspense",
+          icon: "😱",
           data: getUniqueContent(thriller2025, 20),
         },
         {
-          id: 'south',
-          title: 'South Indian Cinema',
-          icon: '🎭',
+          id: "south",
+          title: "South Indian Cinema",
+          icon: "🎭",
           data: getUniqueContent(south, 20),
         },
         {
-          id: 'toprated',
-          title: 'Critics Choice',
-          icon: '🏆',
+          id: "toprated",
+          title: "Critics Choice",
+          icon: "🏆",
           data: getUniqueContent(topRated, 20),
         },
         {
-          id: 'toprated-tv',
-          title: 'Top Rated Series',
-          icon: '🏅',
+          id: "toprated-tv",
+          title: "Top Rated Series",
+          icon: "🏅",
           data: getUniqueContent(topRatedTV, 20),
         },
         {
-          id: 'family',
-          title: 'Family Entertainment',
-          icon: '👨‍👩‍👧‍👦',
+          id: "family",
+          title: "Family Entertainment",
+          icon: "👨‍👩‍👧‍👦",
           data: getUniqueContent(family, 20),
         },
         {
-          id: 'romantic',
-          title: 'Romance & Drama',
-          icon: '💕',
+          id: "romantic",
+          title: "Romance & Drama",
+          icon: "💕",
           data: getUniqueContent(romantic, 20),
         },
         {
-          id: 'awards',
-          title: 'Award Winners',
-          icon: '🥇',
+          id: "awards",
+          title: "Award Winners",
+          icon: "🥇",
           data: getUniqueContent(awards, 20),
         },
         {
-          id: 'popular-tv',
-          title: 'Popular Series',
-          icon: '📺',
+          id: "popular-tv",
+          title: "Popular Series",
+          icon: "📺",
           data: getUniqueContent(popularTV, 20),
-        }
+        },
       );
 
       setContentSections(sections);
       setLoadingContent(false); // All content loaded
     } catch (error) {
-      console.error('Error loading content:', error);
+      console.error("Error loading content:", error);
       setLoadingContent(false);
       setLoadingHero(false);
       setLoadingProviders(false);
@@ -326,7 +342,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (featuredContent.length > 1) {
       const interval = setInterval(() => {
-        setCurrentHero(prev => (prev + 1) % featuredContent.length);
+        setCurrentHero((prev) => (prev + 1) % featuredContent.length);
       }, 6000);
       return () => clearInterval(interval);
     }
@@ -343,8 +359,11 @@ export default function HomeScreen() {
       return <HeroSkeleton />;
     }
 
-    const title = (heroItem as any).title || (heroItem as any).name || 'Untitled';
-    const backdropUrl = heroItem.backdrop_path ? `https://image.tmdb.org/t/p/w1280${heroItem.backdrop_path}` : null;
+    const title =
+      (heroItem as any).title || (heroItem as any).name || "Untitled";
+    const backdropUrl = heroItem.backdrop_path
+      ? `https://image.tmdb.org/t/p/w1280${heroItem.backdrop_path}`
+      : null;
 
     return (
       <View style={styles.heroContainer}>
@@ -355,16 +374,18 @@ export default function HomeScreen() {
             imageStyle={styles.heroBackgroundImage}
           >
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)', '#000']}
+              colors={[
+                "transparent",
+                "rgba(0,0,0,0.7)",
+                "rgba(0,0,0,0.9)",
+                "#000",
+              ]}
               locations={[0, 0.6, 0.8, 1]}
               style={styles.heroGradient}
             >
               <SafeAreaView style={styles.heroContent}>
                 <View style={styles.heroTopSection}>
                   <Text style={styles.logoText}>RK SWOT</Text>
-                  <TouchableOpacity style={styles.profileButton}>
-                    <Text style={styles.profileIcon}>👤</Text>
-                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.heroBottomSection}>
@@ -379,12 +400,14 @@ export default function HomeScreen() {
                   <View style={styles.heroMeta}>
                     <Text style={styles.heroYear}>
                       {(() => {
-                        const date = (heroItem as any).release_date || (heroItem as any).first_air_date;
-                        if (!date) return 'N/A';
+                        const date =
+                          (heroItem as any).release_date ||
+                          (heroItem as any).first_air_date;
+                        if (!date) return "N/A";
                         try {
                           return new Date(date).getFullYear();
                         } catch (e) {
-                          return 'N/A';
+                          return "N/A";
                         }
                       })()}
                     </Text>
@@ -394,12 +417,12 @@ export default function HomeScreen() {
                     </Text>
                     <View style={styles.heroDot} />
                     <Text style={styles.heroType}>
-                      {(heroItem as any).title ? 'Movie' : 'Series'}
+                      {(heroItem as any).title ? "Movie" : "Series"}
                     </Text>
                   </View>
 
                   <Text style={styles.heroDescription} numberOfLines={3}>
-                    {heroItem.overview || 'No description available'}
+                    {heroItem.overview || "No description available"}
                   </Text>
 
                   <View style={styles.heroButtons}>
@@ -427,7 +450,7 @@ export default function HomeScreen() {
                         key={index}
                         style={[
                           styles.heroIndicator,
-                          index === currentHero && styles.heroIndicatorActive
+                          index === currentHero && styles.heroIndicatorActive,
                         ]}
                       />
                     ))}
@@ -439,60 +462,62 @@ export default function HomeScreen() {
         ) : (
           // Fallback if no backdrop is available
           <View style={styles.heroBackground}>
-             <SafeAreaView style={styles.heroContent}>
-                <View style={styles.heroTopSection}>
-                  <Text style={styles.logoText}>RK SWOT</Text>
-                  <TouchableOpacity style={styles.profileButton}>
-                    <Text style={styles.profileIcon}>👤</Text>
+            <SafeAreaView style={styles.heroContent}>
+              <View style={styles.heroTopSection}>
+                <Text style={styles.logoText}>RK SWOT</Text>
+                <TouchableOpacity style={styles.profileButton}>
+                  <Text style={styles.profileIcon}>👤</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.heroBottomSection}>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {title}
+                </Text>
+                <View style={styles.heroMeta}>
+                  <Text style={styles.heroYear}>
+                    {(() => {
+                      const date =
+                        (heroItem as any).release_date ||
+                        (heroItem as any).first_air_date;
+                      if (!date) return "N/A";
+                      try {
+                        return new Date(date).getFullYear();
+                      } catch (e) {
+                        return "N/A";
+                      }
+                    })()}
+                  </Text>
+                  <View style={styles.heroDot} />
+                  <Text style={styles.heroRating}>
+                    ⭐ {(heroItem.vote_average || 0).toFixed(1)}
+                  </Text>
+                  <View style={styles.heroDot} />
+                  <Text style={styles.heroType}>
+                    {(heroItem as any).title ? "Movie" : "Series"}
+                  </Text>
+                </View>
+                <Text style={styles.heroDescription} numberOfLines={3}>
+                  {heroItem.overview || "No description available"}
+                </Text>
+                <View style={styles.heroButtons}>
+                  <TouchableOpacity
+                    style={styles.playButton}
+                    onPress={() => handleTMDbContentPress(heroItem)}
+                  >
+                    <Text style={styles.playIcon}>▶</Text>
+                    <Text style={styles.playText}>Play</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.infoButton}
+                    onPress={() => handleTMDbContentPress(heroItem)}
+                  >
+                    <Text style={styles.infoIcon}>ℹ</Text>
+                    <Text style={styles.infoText}>More Info</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.heroBottomSection}>
-                  <Text style={styles.heroTitle} numberOfLines={2}>
-                    {title}
-                  </Text>
-                  <View style={styles.heroMeta}>
-                    <Text style={styles.heroYear}>
-                      {(() => {
-                        const date = (heroItem as any).release_date || (heroItem as any).first_air_date;
-                        if (!date) return 'N/A';
-                        try {
-                          return new Date(date).getFullYear();
-                        } catch (e) {
-                          return 'N/A';
-                        }
-                      })()}
-                    </Text>
-                    <View style={styles.heroDot} />
-                    <Text style={styles.heroRating}>
-                      ⭐ {(heroItem.vote_average || 0).toFixed(1)}
-                    </Text>
-                    <View style={styles.heroDot} />
-                    <Text style={styles.heroType}>
-                      {(heroItem as any).title ? 'Movie' : 'Series'}
-                    </Text>
-                  </View>
-                   <Text style={styles.heroDescription} numberOfLines={3}>
-                    {heroItem.overview || 'No description available'}
-                  </Text>
-                   <View style={styles.heroButtons}>
-                    <TouchableOpacity
-                      style={styles.playButton}
-                      onPress={() => handleTMDbContentPress(heroItem)}
-                    >
-                      <Text style={styles.playIcon}>▶</Text>
-                      <Text style={styles.playText}>Play</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.infoButton}
-                      onPress={() => handleTMDbContentPress(heroItem)}
-                    >
-                      <Text style={styles.infoIcon}>ℹ</Text>
-                      <Text style={styles.infoText}>More Info</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </SafeAreaView>
+              </View>
+            </SafeAreaView>
           </View>
         )}
       </View>
@@ -507,8 +532,13 @@ export default function HomeScreen() {
   const handleMoviePress = (movie: TMDbMovie) => {
     // This is a placeholder for the new movie platform integration
     // For now, we'll just log it or navigate to a generic page
-    console.log('Movie pressed:', movie.title);
+    console.log("Movie pressed:", movie.title);
     // Example: router.push(`/movie/${movie.id}`);
+  };
+
+  const handleCategorySelect = (category: Category) => {
+    // Navigate to dedicated category page
+    router.push(`/category/${category.id}`);
   };
 
   if (showSplash) {
@@ -517,30 +547,50 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent
+      />
 
       <FlatList
-        data={loadingContent ? [
-          { type: 'hero' },
-          { type: 'providers' },
-          { type: 'skeleton-section' },
-          { type: 'skeleton-section' },
-          { type: 'skeleton-section' },
-          { type: 'skeleton-section' },
-          { type: 'skeleton-section' },
-          { type: 'skeleton-section' },
-          { type: 'skeleton-section' },
-          { type: 'skeleton-section' }
-        ] : [
-          { type: 'hero' },
-          { type: 'providers' },
-          ...contentSections.map(section => ({ type: 'section', section }))
-        ]}
+        data={
+          loadingContent
+            ? [
+                { type: "hero" },
+                { type: "providers" },
+                { type: "skeleton-section" },
+                { type: "skeleton-section" },
+                { type: "skeleton-section" },
+                { type: "skeleton-section" },
+                { type: "skeleton-section" },
+                { type: "skeleton-section" },
+                { type: "skeleton-section" },
+                { type: "skeleton-section" },
+              ]
+            : (() => {
+                const flatListData: any[] = [
+                  { type: "hero" },
+                  { type: "providers" },
+                ];
+
+                contentSections.forEach((section) => {
+                  flatListData.push({ type: "section", section });
+
+                  // Add category slider after Popular on RK SWOT section
+                  if (section.id === "popular") {
+                    flatListData.push({ type: "category-slider" });
+                    flatListData.push({ type: "category-movies" });
+                  }
+                });
+                return flatListData;
+              })()
+        }
         renderItem={({ item }) => {
-          if (item.type === 'hero') {
+          if (item.type === "hero") {
             return renderHeroSection();
           }
-          if (item.type === 'providers') {
+          if (item.type === "providers") {
             return loadingProviders ? (
               <PlatformSliderSkeleton />
             ) : (
@@ -553,8 +603,24 @@ export default function HomeScreen() {
               />
             );
           }
-          if (item.type === 'skeleton-section') {
+          if (item.type === "skeleton-section") {
             return <MovieSliderSkeleton />;
+          }
+          if (item.type === "category-slider") {
+            return (
+              <CategorySlider
+                onCategorySelect={handleCategorySelect}
+                selectedCategory={selectedCategory}
+              />
+            );
+          }
+          if (item.type === "category-movies") {
+            return (
+              <CategoryMovieList
+                category={selectedCategory}
+                onMoviePress={handleTMDbContentPress}
+              />
+            );
           }
           // Regular content sections
           return (
@@ -562,7 +628,7 @@ export default function HomeScreen() {
               title={item.section.title}
               icon={item.section.icon}
               data={item.section.data}
-              onContentPress={handleTMDbContentPress}
+              onPress={handleTMDbContentPress}
               onViewAll={() => handleViewAll(item.section.id)}
               showRanking={item.section.showRanking}
               autoSlide={true}
@@ -570,9 +636,12 @@ export default function HomeScreen() {
           );
         }}
         keyExtractor={(item, index) => {
-          if (item.type === 'hero') return 'hero';
-          if (item.type === 'providers') return 'providers';
-          if (item.type === 'section' && item.section) return `section-${item.section.id}-${index}`;
+          if (item.type === "hero") return "hero";
+          if (item.type === "providers") return "providers";
+          if (item.type === "category-slider") return "category-slider";
+          if (item.type === "category-movies") return "category-movies";
+          if (item.type === "section" && item.section)
+            return `section-${item.section.id}-${index}`;
           return `unknown-${index}`;
         }}
         refreshControl={
@@ -586,9 +655,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.mainContainer}
         bounces={true}
-        ListFooterComponent={() => (
-          <View style={styles.footerPadding} />
-        )}
+        ListFooterComponent={() => <View style={styles.footerPadding} />}
       />
 
       <MoviePlatformBrowser
@@ -602,7 +669,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   mainContainer: {
     flex: 1,
@@ -616,152 +683,152 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroBackgroundImage: {
-    resizeMode: 'cover',
+    resizeMode: "cover",
   },
   heroGradient: {
     flex: 1,
   },
   heroContent: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   heroTopSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   logoText: {
     fontSize: 24,
-    fontWeight: '900',
-    color: '#E50914',
+    fontWeight: "900",
+    color: "#E50914",
     letterSpacing: 2,
   },
   profileButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileIcon: {
     fontSize: 18,
-    color: '#fff',
+    color: "#fff",
   },
   heroBottomSection: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
   newReleaseBadge: {
-    backgroundColor: '#E50914',
+    backgroundColor: "#E50914",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 4,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginBottom: 12,
   },
   badgeText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     letterSpacing: 1,
   },
   heroTitle: {
     fontSize: 32,
-    fontWeight: '900',
-    color: '#fff',
+    fontWeight: "900",
+    color: "#fff",
     marginBottom: 8,
     lineHeight: 38,
   },
   heroMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   heroYear: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   heroDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     marginHorizontal: 8,
   },
   heroRating: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   heroType: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   heroDescription: {
-    color: 'rgba(255,255,255,0.8)',
+    color: "rgba(255,255,255,0.8)",
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 20,
   },
   heroButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 30,
   },
   playButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 6,
     marginRight: 12,
   },
   playIcon: {
-    color: '#000',
+    color: "#000",
     fontSize: 16,
     marginRight: 8,
   },
   playText: {
-    color: '#000',
+    color: "#000",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   infoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.25)",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 6,
   },
   infoIcon: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
     marginRight: 8,
   },
   infoText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   heroIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
   },
   heroIndicator: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    backgroundColor: "rgba(255,255,255,0.4)",
     marginHorizontal: 3,
   },
   heroIndicatorActive: {
-    backgroundColor: '#E50914',
+    backgroundColor: "#E50914",
     width: 20,
   },
 
