@@ -104,29 +104,25 @@ class DownloadService {
       // Use the exact pattern from the example - properly encode and search
       const encodedTitle = encodeURIComponent(cleanTitle);
 
-      // Enhanced search strategies using the proven pattern
+      // Improved search strategies that work better
       const searchQueries = [
+        // Primary working pattern - add "movies" keyword first (most effective)
+        `${encodedTitle}+movies+AND+mediatype:(movies)`,
         
-        // Primary enhanced pattern - most effective for finding movies
-        `(title:("${cleanTitle}")+OR+description:("${cleanTitle}"))+AND+mediatype:(movies)+NOT+title:(song+OR+full-song+OR+trailer+OR+video+OR+clip)`,
+        // For Indian/Bollywood movies
+        `${encodedTitle}+movies+hindi+AND+mediatype:(movies)`,
         
-        // Encoded version of the enhanced pattern
-        `(title:(${encodedTitle})+OR+description:(${encodedTitle}))+AND+mediatype:(movies)+NOT+title:(song+OR+full-song+OR+trailer+OR+video+OR+clip)`,
+        // Direct title search
+        `title:(${encodedTitle})+AND+mediatype:(movies)`,
         
-        // Add "movies" keyword for better results
-        `${encodedTitle}+movies+AND+mediatype:(movies)+NOT+title:(song+OR+full-song+OR+trailer+OR+video+OR+clip)`,
+        // Enhanced pattern with description search
+        `(title:("${cleanTitle}")+OR+description:("${cleanTitle}"))+AND+mediatype:(movies)+NOT+title:(song+OR+trailer)`,
         
-        // For Indian/Bollywood movies with enhanced filtering
-        `${encodedTitle}+movies+hindi+AND+mediatype:(movies)+NOT+title:(song+OR+full-song+OR+trailer+OR+video+OR+clip)`,
+        // Generic movie search
+        `${encodedTitle}+movie+AND+mediatype:(movies)`,
         
-        // Direct title search with filtering
-        `title:(${encodedTitle})+AND+mediatype:(movies)+NOT+title:(song+OR+full-song+OR+trailer+OR+video+OR+clip)`,
-        
-        // Generic movie search with filtering
-        `${encodedTitle}+movie+AND+mediatype:(movies)+NOT+title:(song+OR+full-song+OR+trailer+OR+video+OR+clip)`,
-        
-        // Broader searches as fallback with basic filtering
-        `${encodedTitle}+AND+mediatype:(movies)+NOT+title:(song+OR+trailer)`,
+        // Broader searches as final fallback
+        `${encodedTitle}+AND+mediatype:(movies)`,
         `title:"${cleanTitle}"+AND+mediatype:(movies)`
       ];
 
@@ -167,7 +163,7 @@ class DownloadService {
           const data = JSON.parse(responseText);
 
           if (data.response && Array.isArray(data.response.docs) && data.response.docs.length > 0) {
-            // Enhanced filtering to exclude non-movie results
+            // Filter out obvious non-movie results
             const filteredResults = data.response.docs.filter((doc: any) => {
               const title = doc.title?.toLowerCase() || '';
               const identifier = doc.identifier?.toLowerCase() || '';
@@ -178,26 +174,9 @@ class DownloadService {
                 return false;
               }
 
-              // Skip songs, trailers, and other non-movie content
-              if (title.includes('song') || title.includes('full-song') || 
-                  title.includes('trailer') || title.includes('video clip') ||
-                  title.includes('music video') || title.includes('audio') ||
-                  title.includes('soundtrack') || title.includes('theme song')) {
-                return false;
-              }
-
               // Skip obvious non-movie formats
               if (title.includes('podcast') || title.includes('radio') ||
-                  title.includes('tv show') || title.includes('episode') ||
-                  title.includes('web series') || title.includes('documentary') ||
-                  title.includes('news') || title.includes('interview')) {
-                return false;
-              }
-
-              // Skip short clips and promotional content
-              if (title.includes('clip') || title.includes('promo') ||
-                  title.includes('teaser') || title.includes('behind the scenes') ||
-                  title.includes('making of') || title.includes('preview')) {
+                  title.includes('tv show') || title.includes('episode')) {
                 return false;
               }
 
@@ -235,32 +214,12 @@ class DownloadService {
         return { found: false, error: 'No movie archives found' };
       }
 
-      // Find the best match with improved matching logic
-      const exactMatches = bestResults.filter((doc: any) => {
-        if (!doc.title) return false;
-        const docTitle = doc.title.toLowerCase();
-        const searchTitle = cleanTitle.toLowerCase();
-        
-        // Exact title match
-        if (docTitle.includes(searchTitle)) return true;
-        
-        // Check for partial matches with movie keywords
-        if (docTitle.includes(searchTitle.split(' ')[0]) && 
-            (docTitle.includes('movie') || docTitle.includes('film'))) {
-          return true;
-        }
-        
-        return false;
-      });
+      // Find the best match - prioritize exact title matches and proper movie archives
+      const exactMatches = bestResults.filter((doc: any) =>
+        doc.title && doc.title.toLowerCase().includes(cleanTitle.toLowerCase())
+      );
 
-      // Prefer matches that contain "movie" or "film" in the title
-      const movieMatches = exactMatches.filter((doc: any) => {
-        const title = doc.title?.toLowerCase() || '';
-        return title.includes('movie') || title.includes('film') || title.includes(cleanTitle.toLowerCase());
-      });
-
-      const bestMatch = movieMatches.length > 0 ? movieMatches[0] : 
-                       exactMatches.length > 0 ? exactMatches[0] : bestResults[0];
+      const bestMatch = exactMatches.length > 0 ? exactMatches[0] : bestResults[0];
 
       if (!bestMatch.identifier) {
         throw new Error('Search result missing identifier');
